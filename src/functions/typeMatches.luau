@@ -11,9 +11,9 @@
 	@return boolean -- Returns `true` if `value` is compatible with the type of `reference`, otherwise returns `false`
 ]=]
 return function(value: any, reference: any): boolean
-	local refType = typeof(reference)
-	if refType == "table" then
-		return typeof(value) == "table"
-	end
-	return typeof(value) == refType
+    local refType = typeof(reference)
+    if refType == "table" then
+        return typeof(value) == "table"
+    end
+    return typeof(value) == refType
 end
