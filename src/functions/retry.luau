@@ -11,15 +11,24 @@
 	@param waitSeconds number? -- The delay between retries (defaults to 0)
 	@return (boolean, T?) -- Returns a boolean indicating success and the result of the callback
 ]=]
-return function<T>(callback: () -> T, retries: number, waitSeconds: number?): (boolean, T?)
+return function<T>(
+	callback: () -> T,
+	retries: number,
+	waitSeconds: number?
+): (boolean, T?) -- TODO: MAKE THIS RETURN A RESULT TYPE
 	local success = false
 	local result: T? = nil
 
-	for _ = 1, retries do
+	for retry = 1, retries do
 		success, result = pcall(callback)
 		if success then
 			return true, result
 		end
+
+		if retry == retries then
+			break -- don't wait for the last retry
+		end
+
 		if waitSeconds then
 			task.wait(waitSeconds)
 		end
