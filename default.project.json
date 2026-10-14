@@ -1,0 +1,17 @@
+{
+  "name": "Vuppyan's Script Emporium",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "DataTypes": {
+        "$className": "Folder",
+        "$path": "src/datatypes"
+      },
+      "Functions": {
+        "$className": "Folder",
+        "$path": "src/functions"
+      }
+    }
+  }
+}
