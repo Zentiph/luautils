@@ -22,6 +22,10 @@ local function deepCopyImpl(t: Table, visited: Table): Table
     end
 
     local mt = getmetatable(t :: any)
+    assert(
+        mt == nil or type(mt) == "table",
+        "[deepCopy]: cannot copy a table with a locked metatable"
+    )
     if type(mt) == "table" then
         setmetatable(copy, mt)
     end

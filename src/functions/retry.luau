@@ -9,7 +9,7 @@
 	@param callback () -> T -- The function to execute
 	@param retries number -- The number of retries
 	@param waitSeconds number? -- The delay between retries (defaults to 0)
-	@return (boolean, T?) -- Returns a boolean indicating success and the result of the callback
+	@return (boolean, T?) -- A boolean indicating success and the result of the callback
 ]=]
 return function<T>(
     callback: () -> T,
