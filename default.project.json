@@ -1,5 +1,5 @@
 {
-  "name": "Vuppyan's Script Emporium",
+  "name": "luautils",
   "tree": {
     "$path": "src",
     "$className": "DataModel",

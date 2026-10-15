@@ -4,6 +4,8 @@
 -- by @vuppyan
 
 -- TODO: replace errors with results
+-- TODO: remove as many casts as possible
+-- TODO: make as function as possible (like rust)
 
 type UnitInfo = { rank: number, secs: number }
 
