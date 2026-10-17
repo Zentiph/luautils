@@ -1,0 +1,369 @@
+--!strict
+
+-- Option datatype
+-- by @vuppyan
+
+--- @class Option
+--- A representation of an optional value.
+---
+--- An `Option` is either "some" and has a value, or "none", and does not.
+local Option = {}
+Option.__index = Option
+
+type OptionData<T> = {
+    read _value: T?,
+}
+
+-- TODO: maybe make OOP/type helpers that do this for you
+export type Option<T> = typeof(setmetatable({} :: OptionData<T>, Option))
+
+-- TODO: maybe move these types which are generally applicable to their own file(s)
+type Predicate<T> = (value: T) -> boolean
+type Supplier<T> = () -> T
+type Mapper<T, U> = (T) -> U
+type Zipper<T, U, R> = (T, U) -> R
+
+-- TODO: replace eventually with a string tools implementation,
+--       one that works with tables too
+-- Helper for creating a string representation of a value for printing
+local function repr(v: any): string
+    return if type(v) == "string" then string.format("%q", v) else tostring(v)
+end
+
+-- Helper for creating a new Option
+local function new<T>(value: T?): Option<T>
+    return table.freeze(setmetatable({ _value = value }, Option))
+end
+
+local NONE = new(nil)
+
+--- Creates a new `Option` that contains a value.
+---
+--- @param value T -- The value to wrap
+--- @return Option<T> -- The new `Option`
+function Option.some<T>(value: T): Option<T>
+    if value == nil then
+        error(
+            "[Option.some()]: value cannot be nil "
+                .. "(use Option.from() for nullable values)",
+            2
+        )
+    else
+        return new(value)
+    end
+end
+
+--- Creates a new `Option` that does not contain a value.
+---
+--- @return Option<T> -- The new `Option`
+function Option.none<T>(): Option<T>
+    return NONE
+end
+
+--- Creates a new `Option` from a nullable value.
+---
+--- Generates a "some" for any non-nil value, and a "none" for nil.
+---
+--- @param value T? -- The value to wrap
+--- @return Option<T> -- The new `Option`
+function Option.from<T>(value: T?): Option<T>
+    return if value == nil then Option.none() else new(value)
+end
+
+--- Returns whether the `Option` contains a value.
+---
+--- @return boolean -- Whether the `Option` contains a value
+function Option.isSome<T>(self: Option<T>): boolean
+    return self._value ~= nil
+end
+
+--- Returns whether the `Option` is "some" and the value inside matches a
+--- predicate.
+---
+--- @param predicate Predicate<T> -- The predicate to check the value against
+--- @return boolean -- Whether the `Option` is "some" and the value matches the predicate
+function Option.isSomeAnd<T>(self: Option<T>, predicate: Predicate<T>): boolean
+    return self:isSome() and predicate(self._value :: T)
+end
+
+--- Returns whether the `Option` does not contain a value.
+---
+--- @return boolean -- Whether the `Option` does not contain a value
+function Option.isNone<T>(self: Option<T>): boolean
+    return not self:isSome()
+end
+
+--- Returns whether the `Option` is "none" or the value inside matches a
+--- predicate.
+---
+--- @param predicate Predicate<T> -- The predicate to check the value against
+--- @return boolean -- Whether the `Option` is "none" or the value matches the predicate
+function Option.isNoneOr<T>(self: Option<T>, predicate: Predicate<T>): boolean
+    return not self:isSome() or predicate(self._value :: T)
+end
+
+--- Returns the contained value if the `Option` is "some", otherwise throws with
+--- a message.
+---
+--- @param message string -- The message to throw with if the `Option` is "none"
+--- @return T -- The contained value
+--- @error message -- Thrown if the `Option` is "none"
+function Option.expect<T>(self: Option<T>, message: string): T
+    if self:isSome() then
+        return self._value :: T
+    else
+        error(message, 2)
+    end
+end
+
+--- Returns the contained value if the `Option` is "some", otherwise throws.
+---
+--- @return T -- The contained value
+--- @error 'Attempted to unwrap an Option that was "none"' -- Thrown if the `Option` is "none"
+function Option.unwrap<T>(self: Option<T>): T
+    if self:isSome() then
+        return self._value :: T
+    else
+        -- TODO: maybe make an error printing helper that gets the function name
+        --       and other diagnostic info and formats this automatically, so
+        --       only the message needs to be passed
+        error(
+            '[Option:unwrap()]: Attempted to unwrap an Option that was "none"',
+            2
+        )
+    end
+end
+
+--- Returns the contained value if the `Option` is "some", or a default.
+---
+--- @param default T -- The default value to return if the `Option` is "none"
+--- @return T -- The contained value, or the default
+function Option.unwrapOr<T>(self: Option<T>, default: T): T
+    return if self:isSome() then self._value :: T else default
+end
+
+--- Returns the contained value if the `Option` is "some", or computes a default
+--- from a callback.
+---
+--- @param callback () -> T -- The callback to compute the default value
+--- @return T -- The contained value, or the computed default
+function Option.unwrapOrElse<T>(self: Option<T>, callback: () -> T): T
+    return if self:isSome() then self._value :: T else callback()
+end
+
+--- Maps an `Option<T>` to `Option<U>` by applying a function to the contained
+--- value (if "some") or returns "none" (if "none").
+---
+--- If `mapper` returns `nil`, the result is "none".
+---
+--- @param mapper Mapper<T, U?> -- The function to apply to the contained value
+--- @return Option<U> -- The mapped `Option`
+function Option.map<T, U>(self: Option<T>, mapper: Mapper<T, U?>): Option<U>
+    return if self:isSome()
+        then Option.from(mapper(self._value :: T))
+        else Option.none()
+end
+
+--- Calls a function with the contained value if "some", then returns the
+--- original option.
+---
+--- @param callback (T) -> () -- The function to call with the contained value
+--- @return Option<T> -- The original `Option`
+function Option.inspect<T>(self: Option<T>, callback: (T) -> ()): Option<T>
+    if self:isSome() then
+        callback(self._value :: T)
+    end
+    return self
+end
+
+--- Returns the provided default result (if "none"), or applies a function to
+--- the contained value (if "some").
+---
+--- @param default U -- The default value to return if the `Option` is "none"
+--- @param mapper Mapper<T, U> -- The function to apply to the contained value
+--- @return U -- The provided default value, or the mapped value
+function Option.mapOr<T, U>(self: Option<T>, default: U, mapper: Mapper<T, U>): U
+    return if self:isSome() then mapper(self._value :: T) else default
+end
+
+--- Computes a default function result (if "none"), or applies a different
+--- function to the contained value (if "some").
+---
+--- @param default Supplier<U> -- The function to compute the default value
+--- @param mapper Mapper<T, U> -- The function to apply to the contained value
+--- @return U -- The computed default value, or the mapped value
+function Option.mapOrElse<T, U>(
+    self: Option<T>,
+    default: Supplier<U>,
+    mapper: Mapper<T, U>
+): U
+    return if self:isSome() then mapper(self._value :: T) else default()
+end
+
+-- TODO: function Option.okOr<T, E>(self: Option<T>, err: E): Result<T, E> end
+
+-- TODO: function Option.okOrElse<T, E>(self: Option<T>, err: Supplier<E>): Result<T, E> end
+
+--- Returns "none" if the `Option` is "none", otherwise returns `other`.
+---
+--- @param other Option<U> -- The `Option` to return if the current `Option` is "some"
+--- @return Option<U> -- The provided `Option`, or "none"
+function Option.andOption<T, U>(self: Option<T>, other: Option<U>): Option<U>
+    return if self:isSome() then other else Option.none()
+end
+
+--- Returns "none" if the `Option` is "none", otherwise calls `mapper` with the
+--- wrapped value and returns the result.
+---
+--- This operation is also known as "flatmap".
+---
+--- @param mapper Mapper<T, Option<U>> -- The function to call with the contained value
+--- @return Option<U> -- The result of calling `mapper`, or "none"
+function Option.andThen<T, U>(
+    self: Option<T>,
+    mapper: Mapper<T, Option<U>>
+): Option<U>
+    return if self:isSome() then mapper(self._value :: T) else Option.none()
+end
+
+--- Returns "none" if the option is "none", otherwise calls `predicate` with the
+--- wrapped value and returns "some" with the wrapped value if the predicate
+--- returns true, and "none" otherwise.
+---
+--- @param predicate Predicate<T> -- The predicate to check the value against
+--- @return Option<T> -- The result of calling `predicate`, or "none"
+function Option.filter<T>(self: Option<T>, predicate: Predicate<T>): Option<T>
+    return if self:isSome() and predicate(self._value :: T)
+        then self
+        else Option.none()
+end
+
+--- Returns the option if it contains a value, otherwise returns `other`.
+---
+--- @param other Option<T> -- The `Option` to return if the current `Option` is "none"
+--- @return Option<T> -- The provided `Option`, or the current `Option`
+function Option.orOption<T>(self: Option<T>, other: Option<T>): Option<T>
+    return if self:isSome() then self else other
+end
+
+--- Returns the option if it contains a value, otherwise calls `supplier` and
+--- returns the result.
+---
+--- @param supplier Supplier<Option<T>> -- The function to call if the current `Option` is "none"
+--- @return Option<T> -- The current `Option`, or the result of calling `supplier`
+function Option.orElse<T>(
+    self: Option<T>,
+    supplier: Supplier<Option<T>>
+): Option<T>
+    return if self:isSome() then self else supplier()
+end
+
+--- Returns "some" if exactly one of `self` and `other` is "some", otherwise
+--- returns "none".
+---
+--- @param other Option<T> -- The `Option` to compare with the current `Option`
+--- @return Option<T> -- The single "some" `Option`, or "none"
+function Option.xor<T>(self: Option<T>, other: Option<T>): Option<T>
+    return if self:isSome() ~= other:isSome()
+        then if self:isSome() then self else other
+        else Option.none()
+end
+
+-- TODO: determine whether to add insert/take/replace type methods.
+--       currently option is readonly so this would require a separate mutable
+--       version or a general change which would change the contract of this class
+
+--- Combines the value in `self` with the value in another `Option`, using
+--- `zipper`.
+---
+--- If both `self` and `other` are "some", this method returns the result of
+--- calling `zipper` with the wrapped values. Otherwise, it returns "none".
+---
+--- @param other Option<U> -- The `Option` to combine with the current `Option`
+--- @param zipper Zipper<T, U, R?> -- The function to call with the wrapped values
+--- @return Option<R> -- The result of calling `zipper`, or "none"
+function Option.zip<T, U, R>(
+    self: Option<T>,
+    other: Option<U>,
+    zipper: Zipper<T, U, R?>
+): Option<R>
+    return if self:isSome() and other:isSome()
+        then Option.from(zipper(self._value :: T, other._value :: U))
+        else Option.none()
+end
+
+--- Reduces two options into one, using the provided reducer function if both
+--- are "some".
+---
+--- If `self` is "some" and `other` is "some", this method returns the result of
+--- calling `reducer` with the wrapped values. Otherwise, if only one option is
+--- "some", that one is returned. If both `self` and `other` are "none", "none"
+--- is returned.
+---
+--- If `reducer` returns `nil`, the result is "none".
+---
+--- @param other Option<T> -- The `Option` to reduce with the current `Option`
+--- @param reducer (T, T) -> T -- The function to call with the wrapped values
+--- @return Option<T> -- The result of calling `reducer`, or "none"
+function Option.reduce<T>(
+    self: Option<T>,
+    other: Option<T>,
+    reducer: (T, T) -> T
+): Option<T>
+    return if self:isSome() and other:isSome()
+        then Option.from(reducer(self._value :: T, other._value :: T))
+        else if self:isSome() then self else other
+end
+
+--- Converts from `Option<Option<T>>` to `Option<T>`.
+---
+--- @return Option<T> -- The flattened `Option`
+function Option.flatten<T>(self: Option<Option<T>>): Option<T>
+    if self:isNone() then
+        return Option.none()
+    end
+    local inner = self._value
+    if not Option.is(inner) then
+        error(
+            "[Option:flatten()]: Called flatten on an Option "
+                .. "that does not contain an Option",
+            2
+        )
+    end
+    return inner :: Option<T>
+end
+
+-- TODO: see if it's worth adding generic-specific methods (like Rust's impl
+--       for Option<Result<T, E>>), and best ways to check against illegal use
+
+--- Returns `true` if both `self` and `other` are "some" and their wrapped
+--- values are equal, returns `true` if both are "none", and otherwise returns
+--- `false`.
+---
+--- Wrapped values are compared with `==`.
+---
+--- @param other Option<T> -- The `Option` to compare with the current `Option`
+--- @return boolean -- Whether the `Option`s are equal
+function Option.equals<T>(self: Option<T>, other: Option<T>): boolean
+    return Option.is(other) and self._value == other._value
+end
+Option.__eq = Option.equals
+
+--- Returns whether the given value is an `Option`.
+---
+--- @param value any -- The value to check
+--- @return boolean -- Whether the value is an `Option`
+function Option.is(value: any): boolean
+    return getmetatable(value) == Option
+end
+
+--- Returns a string representation of the `Option`.
+---
+--- @return string -- A string representation of the `Option`
+function Option.toString<T>(self: Option<T>): string
+    return if self:isSome() then `Some({repr(self._value)})` else "None"
+end
+
+Option.__tostring = Option.toString
+
+return Option

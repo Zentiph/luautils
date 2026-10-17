@@ -5,7 +5,14 @@
 
 -- TODO: replace errors with results
 -- TODO: remove as many casts as possible
--- TODO: make as function as possible (like rust)
+-- TODO: make as functional as possible (like rust)
+-- TODO: make official testing suite to work with roblox codebase
+--       (maybe with testing on roblox cloud, add to CI eventually too)
+
+-- TODO: change lib structure to simply reflect use cases for code instead of
+--       types (e.g. math/, tables/, etc. instead of datatypes/, functions/, etc.)
+--       it can be explained in the README that camelCase files are functions
+--       and PascalCase files are datatypes/classes/etc.
 
 type UnitInfo = { rank: number, secs: number }
 
