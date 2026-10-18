@@ -36,7 +36,7 @@ function Option.some<T>(value: T): Option<T>
     if value == nil then
         fail(
             "[Option.some()]: value cannot be nil "
-                .. "(use Option.from() for nullable values)"
+                .. "(use Option.from() for nillable values)"
         )
     end
     return new(value)
@@ -52,13 +52,13 @@ function Option.none<T>(): Option<T>
     return NONE
 end
 
---- Creates a new `Option` from a nullable value.
+--- Creates a new `Option` from a nillable value.
 ---
 --- Generates a "some" for any non-nil value, and a "none" for nil.
 ---
 --- @param value T? -- The value to wrap
 --- @return Option<T> -- The new `Option`
-function Option.from<T>(value: T?): Option<T>
+function Option.fromNillable<T>(value: T?): Option<T>
     return if value == nil then Option.none() else new(value)
 end
 
@@ -141,6 +141,17 @@ function Option.unwrapOrElse<T>(self: Option<T>, callback: () -> T): T
     return if self:isSome() then self._value :: T else callback()
 end
 
+--- Returns the contained value if the `Option` is "some", otherwise returns
+--- `nil`.
+---
+--- Useful for Roblox APIs that expect `nil`, and provides type-checking where
+--- `unwrapOr(nil)` wouldn't.
+---
+--- @return T? -- The contained value, or `nil`
+function Option.toNillable<T>(self: Option<T>): T?
+    return self._value
+end
+
 --- Maps an `Option<T>` to `Option<U>` by applying a function to the contained
 --- value (if "some") or returns "none" (if "none").
 ---
@@ -153,7 +164,7 @@ function Option.map<T, U>(
     mapper: types.Mapper<T, U?>
 ): Option<U>
     return if self:isSome()
-        then Option.from(mapper(self._value :: T))
+        then Option.fromNillable(mapper(self._value :: T))
         else Option.none()
 end
 
@@ -305,7 +316,9 @@ function Option.zip<T, U, R>(
     zipper: types.Zipper<T, U, R?>
 ): Option<R>
     return if self:isSome() and other:isSome()
-        then Option.from(zipper(self._value :: T, other._value :: U))
+        then Option.fromNillable(
+            zipper(self._value :: T, other._value :: U)
+        )
         else Option.none()
 end
 
@@ -328,7 +341,9 @@ function Option.reduce<T>(
     reducer: (T, T) -> T
 ): Option<T>
     return if self:isSome() and other:isSome()
-        then Option.from(reducer(self._value :: T, other._value :: T))
+        then Option.fromNillable(
+            reducer(self._value :: T, other._value :: T)
+        )
         else if self:isSome() then self else other
 end
 

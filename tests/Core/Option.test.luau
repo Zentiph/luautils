@@ -14,15 +14,15 @@ test.suite("Option construction", function(suite)
         end)
     end)
 
-    suite:case("Option.from(nil) is none", function(asserts)
-        Helpers.eqByStr(asserts, Option.none(), Option.from(nil))
+    suite:case("Option.fromNillable(nil) is none", function(asserts)
+        Helpers.eqByStr(asserts, Option.none(), Option.fromNillable(nil))
     end)
 
     suite:case(
-        "Option.some(false) and Option.from(false) are some",
+        "Option.some(false) and Option.fromNillable(false) are some",
         function(asserts)
             asserts.eq(true, Option.some(false):isSome())
-            asserts.eq(true, Option.from(false):isSome())
+            asserts.eq(true, Option.fromNillable(false):isSome())
             asserts.eq(false, Option.some(false):unwrap())
         end
     )
