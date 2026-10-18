@@ -8,9 +8,15 @@ local types = require("@std/test/types")
 local Helpers = {}
 
 --- Compares two values using `==` and `tostring` for better debugging.
-function Helpers.eqBy<T>(asserts: types.Asserts, expected: T, actual: T)
+function Helpers.eqByStr<T>(asserts: types.Asserts, expected: T, actual: T)
     asserts.eq(tostring(expected), tostring(actual)) -- for better debug
     asserts.eq(expected, actual)
+end
+
+--- Compares two values using `~=` and `tostring` for better debugging.
+function Helpers.neqByStr<T>(asserts: types.Asserts, expected: T, actual: T)
+    asserts.neq(tostring(expected), tostring(actual)) -- for better debug
+    asserts.neq(expected, actual)
 end
 
 --- Asserts that `fn` throws an error containing `substring`.

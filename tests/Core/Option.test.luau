@@ -4,7 +4,7 @@
 -- by @vuppyan
 
 local test = require("@std/test")
-local Helpers = require("../Helpers") -- TODO: replace eq checks with eqBy, called checks with spy, etc.
+local Helpers = require("../Helpers")
 local Option = require("../../src/luautils/Core/Option")
 
 test.suite("Option construction", function(suite)
@@ -15,7 +15,7 @@ test.suite("Option construction", function(suite)
     end)
 
     suite:case("Option.from(nil) is none", function(asserts)
-        asserts.eq(true, Option.none() == Option.from(nil))
+        Helpers.eqByStr(asserts, Option.none(), Option.from(nil))
     end)
 
     suite:case(
@@ -39,14 +39,14 @@ end)
 
 test.suite("Equality", function(suite)
     suite:case("Option.some() of same value", function(asserts)
-        asserts.eq(true, Option.some(5) == Option.some(5))
+        Helpers.eqByStr(asserts, Option.some(5), Option.some(5))
     end)
 
     suite:case("Option.some(any) ~= Option.none()", function(asserts)
-        asserts.eq(false, Option.none() == Option.some(5))
-        asserts.eq(false, Option.none() == Option.some("a"))
-        asserts.eq(false, Option.none() == Option.some(false))
-        asserts.eq(false, Option.none() == Option.some({}))
+        Helpers.neqByStr(asserts, Option.none(), Option.some(5))
+        Helpers.neqByStr(asserts, Option.none(), Option.some("a"))
+        Helpers.neqByStr(asserts, Option.none(), Option.some(false))
+        Helpers.neqByStr(asserts, Option.none(), Option.some({}))
     end)
 end)
 
@@ -70,38 +70,50 @@ end)
 
 test.suite("Return values", function(suite)
     suite:case("map transforms the value", function(asserts)
-        asserts.eq(
-            true,
-            Option.some(2)
-                == Option.some(1):map(function(x: number)
-                    return x * 2
-                end)
+        Helpers.eqByStr(
+            asserts,
+            Option.some(2),
+            Option.some(1):map(function(x: number)
+                return x * 2
+            end)
         )
     end)
 
     suite:case("andThen can return none", function(asserts)
-        asserts.eq(
-            true,
-            Option.none()
-                == Option.some(1):andThen(function()
-                    return Option.none()
-                end)
+        Helpers.eqByStr(
+            asserts,
+            Option.none(),
+            Option.some(1):andThen(function()
+                return Option.none()
+            end)
         )
     end)
 
     suite:case("orElse uses the supplier's result", function(asserts)
-        asserts.eq(true, Option.some(9) == Option.none():orElse(function()
-            return Option.some(9)
-        end))
-        asserts.eq(true, Option.none() == Option.none():orElse(function()
-            return Option.none()
-        end))
+        Helpers.eqByStr(
+            asserts,
+            Option.some(9),
+            Option.none():orElse(function()
+                return Option.some(9)
+            end)
+        )
+        Helpers.eqByStr(
+            asserts,
+            Option.some(1),
+            Option.some(1):orElse(function()
+                return Option.none()
+            end)
+        )
     end)
 
     suite:case("filter with a false predicate is none", function(asserts)
-        asserts.eq(true, Option.none() == Option.some(1):filter(function()
-            return false
-        end))
+        Helpers.eqByStr(
+            asserts,
+            Option.none(),
+            Option.some(1):filter(function()
+                return false
+            end)
+        )
     end)
 
     suite:case(
@@ -156,18 +168,20 @@ end)
 
 test.suite("Nesting", function(suite)
     suite:case("flatten", function(asserts)
-        asserts.eq(
-            true,
-            Option.some(1) == Option.some(Option.some(1)):flatten()
+        Helpers.eqByStr(
+            asserts,
+            Option.some(1),
+            Option.some(Option.some(1)):flatten()
         )
-        asserts.eq(
-            true,
-            Option.none() == Option.some(Option.none()):flatten()
+        Helpers.eqByStr(
+            asserts,
+            Option.none(),
+            Option.some(Option.none()):flatten()
         )
-        asserts.eq(
-            true,
-            Option.none()
-                == (Option.none() :: Option.Option<Option.Option<any>>):flatten()
+        Helpers.eqByStr(
+            asserts,
+            Option.none(),
+            (Option.none() :: Option.Option<Option.Option<any>>):flatten()
         )
     end)
 
@@ -178,9 +192,10 @@ test.suite("Nesting", function(suite)
     end)
 
     suite:case("nested equality and printing", function(asserts)
-        asserts.eq(
-            true,
-            Option.some(Option.some(1)) == Option.some(Option.some(1))
+        Helpers.eqByStr(
+            asserts,
+            Option.some(Option.some(1)),
+            Option.some(Option.some(1))
         )
         asserts.eq("Some(Some(1))", tostring(Option.some(Option.some(1))))
     end)
@@ -210,194 +225,150 @@ test.suite("Laziness", function(suite)
     suite:case(
         "Option:orElse() doesn't call callbacks on some",
         function(asserts)
-            local called = false
-            Option.some(1):orElse(function()
-                called = true
+            local supplierSpy = Helpers.spy(function()
                 return Option.some(0)
             end)
-            asserts.eq(false, called)
 
-            called = false
-            Option.none():orElse(function()
-                called = true
-                return Option.some(0)
-            end)
-            asserts.eq(true, called)
+            Option.some(1):orElse(supplierSpy.fn)
+            asserts.eq(0, supplierSpy.calls)
+
+            Option.none():orElse(supplierSpy.fn)
+            asserts.eq(1, supplierSpy.calls)
         end
     )
 
     suite:case(
         "Option:unwrapOrElse() doesn't call callbacks on some",
         function(asserts)
-            local called = false
-            Option.some(1):unwrapOrElse(function()
-                called = true
+            local callbackSpy = Helpers.spy(function()
                 return 0
             end)
-            asserts.eq(false, called)
 
-            called = false
-            Option.none():unwrapOrElse(function()
-                called = true
-                return 0
-            end)
-            asserts.eq(true, called)
+            Option.some(1):unwrapOrElse(callbackSpy.fn)
+            asserts.eq(0, callbackSpy.calls)
+
+            Option.none():unwrapOrElse(callbackSpy.fn)
+            asserts.eq(1, callbackSpy.calls)
         end
     )
 
     suite:case(
         "Option:mapOr() only calls mapper on some",
         function(asserts)
-            local called = false
-            Option.some(1):mapOr("default", function()
-                called = true
+            local mapperSpy = Helpers.spy(function()
                 return "mapped"
             end)
-            asserts.eq(true, called)
 
-            called = false
-            Option.none():mapOr("default", function()
-                called = true
-                return "mapped"
-            end)
-            asserts.eq(false, called)
+            Option.some(1):mapOr("default", mapperSpy.fn)
+            asserts.eq(1, mapperSpy.calls)
+
+            Option.none():mapOr("default", mapperSpy.fn)
+            asserts.eq(0, mapperSpy.calls)
         end
     )
 
     suite:case(
         "Option.mapOrElse() calls exactly one callback",
         function(asserts)
-            local defaultCalled, mapperCalled = false, false
-            local function default()
-                defaultCalled = true
-                return "default"
-            end
-            local function mapper()
-                mapperCalled = true
-                return "mapped"
-            end
+            local defaultSpy, mapperSpy =
+                Helpers.spy(function()
+                    return "default"
+                end), Helpers.spy(function()
+                    return "mapped"
+                end)
 
             asserts.eq(
                 "mapped",
-                Option.some(1):mapOrElse(default, mapper)
+                Option.some(1):mapOrElse(defaultSpy.fn, mapperSpy.fn)
             )
-            asserts.eq(false, defaultCalled)
-            asserts.eq(true, mapperCalled)
+            asserts.eq(0, defaultSpy.calls)
+            asserts.eq(1, mapperSpy.calls)
 
-            defaultCalled, mapperCalled = false, false
             asserts.eq(
                 "default",
-                Option.none():mapOrElse(default, mapper)
+                Option.none():mapOrElse(defaultSpy.fn, mapperSpy.fn)
             )
-            asserts.eq(true, defaultCalled)
-            asserts.eq(false, mapperCalled)
+            asserts.eq(1, defaultSpy.calls)
+            asserts.eq(0, mapperSpy.calls)
         end
     )
 
     suite:case(
         "Option:andThen() doesn't call callbacks on none",
         function(asserts)
-            local called = false
-            Option.none():andThen(function()
-                called = true
+            local mapperSpy = Helpers.spy(function()
                 return Option.some(0)
             end)
-            asserts.eq(false, called)
 
-            called = false
-            Option.some(1):andThen(function()
-                called = true
-                return Option.some(0)
-            end)
-            asserts.eq(true, called)
+            Option.none():andThen(mapperSpy.fn)
+            asserts.eq(0, mapperSpy.calls)
+
+            Option.some(1):andThen(mapperSpy.fn)
+            asserts.eq(1, mapperSpy.calls)
         end
     )
 
     suite:case(
         "Option:map() doesn't call callbacks on none",
         function(asserts)
-            local called = false
-            Option.none():map(function()
-                called = true
+            local mapperSpy = Helpers.spy(function()
                 return 0
             end)
-            asserts.eq(false, called)
 
-            called = false
-            Option.some(1):map(function()
-                called = true
-                return 0
-            end)
-            asserts.eq(true, called)
+            Option.none():map(mapperSpy.fn)
+            asserts.eq(0, mapperSpy.calls)
+
+            Option.some(1):map(mapperSpy.fn)
+            asserts.eq(1, mapperSpy.calls)
         end
     )
 
     suite:case(
         "Option:filter() doesn't call callbacks on none",
         function(asserts)
-            local called = false
-            Option.none():filter(function()
-                called = true
+            local predicateSpy = Helpers.spy(function()
                 return true
             end)
-            asserts.eq(false, called)
 
-            called = false
-            Option.some(1):filter(function()
-                called = true
-                return true
-            end)
-            asserts.eq(true, called)
+            Option.none():filter(predicateSpy.fn)
+            asserts.eq(0, predicateSpy.calls)
+
+            Option.some(1):filter(predicateSpy.fn)
+            asserts.eq(1, predicateSpy.calls)
         end
     )
 
     suite:case(
         "Option:zip() doesn't call callbacks on none",
         function(asserts)
-            local called = false
-            Option.none():zip(Option.none(), function()
-                called = true
+            local zipperSpy = Helpers.spy(function()
                 return 0
             end)
-            asserts.eq(false, called)
 
-            called = false
-            Option.none():zip(Option.some(1), function()
-                called = true
-                return 0
-            end)
-            asserts.eq(false, called)
+            Option.none():zip(Option.none(), zipperSpy.fn)
+            asserts.eq(0, zipperSpy.calls)
 
-            called = false
-            Option.some(1):zip(Option.none(), function()
-                called = true
-                return 0
-            end)
-            asserts.eq(false, called)
+            Option.none():zip(Option.some(1), zipperSpy.fn)
+            asserts.eq(0, zipperSpy.calls)
 
-            called = false
-            Option.some(1):zip(Option.some(1), function()
-                called = true
-                return 0
-            end)
-            asserts.eq(true, called)
+            Option.some(1):zip(Option.none(), zipperSpy.fn)
+            asserts.eq(0, zipperSpy.calls)
+
+            Option.some(1):zip(Option.some(1), zipperSpy.fn)
+            asserts.eq(1, zipperSpy.calls)
         end
     )
 
     suite:case(
         "Option:inspect() doesn't call callbacks on none",
         function(asserts)
-            local called = false
-            Option.none():inspect(function()
-                called = true
-            end)
-            asserts.eq(false, called)
+            local callbackSpy = Helpers.spy(function() end)
 
-            called = false
-            Option.some(1):inspect(function()
-                called = true
-            end)
-            asserts.eq(true, called)
+            Option.none():inspect(callbackSpy.fn)
+            asserts.eq(0, callbackSpy.calls)
+
+            Option.some(1):inspect(callbackSpy.fn)
+            asserts.eq(1, callbackSpy.calls)
         end
     )
 end)
@@ -406,29 +377,38 @@ test.suite("Nil handling", function(suite)
     suite:case(
         "Option:map() with a callback that returns nil produces none",
         function(asserts)
-            asserts.eq(true, Option.some(1):map(function()
-                return nil
-            end) == Option.none())
+            Helpers.eqByStr(
+                asserts,
+                Option.none(),
+                Option.some(1):map(function()
+                    return nil
+                end)
+            )
         end
     )
 
     suite:case(
         "Option:zip() with a callback that returns nil produces none",
         function(asserts)
-            asserts.eq(true, Option.some(1):zip(Option.some(1), function()
-                return nil
-            end) == Option.none())
+            Helpers.eqByStr(
+                asserts,
+                Option.none(),
+                Option.some(1):zip(Option.some(1), function()
+                    return nil
+                end)
+            )
         end
     )
 
     suite:case(
         "Option:reduce() with a callback that returns nil produces none",
         function(asserts)
-            asserts.eq(
-                true,
+            Helpers.eqByStr(
+                asserts,
+                Option.none(),
                 Option.some(1):reduce(Option.some(1), function()
                     return nil
-                end) == Option.none()
+                end)
             )
         end
     )
@@ -452,9 +432,10 @@ test.suite("Combinators", function(suite)
             }
 
             for i, pair in ipairs(testPairs) do
-                asserts.eq(
-                    true,
-                    expected[i] == Option.xor(pair[1], pair[2])
+                Helpers.eqByStr(
+                    asserts,
+                    expected[i],
+                    Option.xor(pair[1], pair[2])
                 )
             end
         end
@@ -478,12 +459,12 @@ test.suite("Combinators", function(suite)
             }
 
             for i, pair in ipairs(testPairs) do
-                asserts.eq(
-                    true,
-                    expected[i]
-                        == Option.reduce(pair[1], pair[2], function(a, b)
-                            return a + b
-                        end)
+                Helpers.eqByStr(
+                    asserts,
+                    expected[i],
+                    Option.reduce(pair[1], pair[2], function(a, b)
+                        return a + b
+                    end)
                 )
             end
         end
@@ -506,9 +487,10 @@ test.suite("Combinators", function(suite)
             }
 
             for i, pair in ipairs(testPairs) do
-                asserts.eq(
-                    true,
-                    expected[i] == Option.orOption(pair[1], pair[2])
+                Helpers.eqByStr(
+                    asserts,
+                    expected[i],
+                    Option.orOption(pair[1], pair[2])
                 )
             end
         end
@@ -531,9 +513,10 @@ test.suite("Combinators", function(suite)
             }
 
             for i, pair in ipairs(testPairs) do
-                asserts.eq(
-                    true,
-                    expected[i] == Option.andOption(pair[1], pair[2])
+                Helpers.eqByStr(
+                    asserts,
+                    expected[i],
+                    Option.andOption(pair[1], pair[2])
                 )
             end
         end

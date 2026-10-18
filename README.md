@@ -1,8 +1,6 @@
 # luautils
 
 A Luau utilities library written for a wide variety of general use cases.
-Functions, data types, etc. are each grouped into their own `ModuleScript`, so
-any tools can be used modularly without polluting the global scope.
 
 This library is heavily inspired by the Rust standard library, and aims to make
 Luau a more functional and safe language.
