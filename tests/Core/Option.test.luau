@@ -3,11 +3,8 @@
 -- Option datatype tests
 -- by @vuppyan
 
--- TODO: testing helpers to reduce boilerplate (more assert methods)
--- TODO: testing helper to compare table equality for classes (using __eq
---       and printing for debugging using __tostring)
-
 local test = require("@std/test")
+local Helpers = require("../Helpers") -- TODO: replace eq checks with eqBy, called checks with spy, etc.
 local Option = require("../../src/luautils/Core/Option")
 
 test.suite("Option construction", function(suite)

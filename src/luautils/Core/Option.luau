@@ -19,7 +19,6 @@ type OptionData<T> = {
     read _value: T?,
 }
 
--- TODO: maybe make OOP/type helpers that do this for you
 export type Option<T> = typeof(setmetatable({} :: OptionData<T>, Option))
 
 -- Helper for creating a new Option
@@ -274,10 +273,6 @@ function Option.xor<T>(self: Option<T>, other: Option<T>): Option<T>
         else Option.none()
 end
 
--- TODO: determine whether to add insert/take/replace type methods.
---       currently option is readonly so this would require a separate mutable
---       version or a general change which would change the contract of this class
-
 --- Combines the value in `self` with the value in another `Option`, using
 --- `zipper`.
 ---
@@ -343,9 +338,6 @@ end
 function Option.is(value: any): boolean
     return getmetatable(value) == Option
 end
-
--- TODO: see if it's worth adding generic-specific methods (like Rust's impl
---       for Option<Result<T, E>>), and best ways to check against illegal use
 
 --- Returns `true` if both `self` and `other` are "some" and their wrapped
 --- values are equal, returns `true` if both are "none", and otherwise returns

@@ -349,8 +349,6 @@ function Result.tryPack<A...>(
     end
 end
 
--- TODO: add these variants to Option also:
-
 --- Transposes a `Result` of an `Option` into an `Option` of a `Result`.
 ---
 --- An "ok" with a "none" is mapped to "none". An "ok" with a "some" is mapped

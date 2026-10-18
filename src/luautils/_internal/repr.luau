@@ -7,9 +7,6 @@
 ---
 --- This function currently only performs operations on strings, adding quotes
 --- around the value. Otherwise, the value is passed to `tostring`.
----
---- @param v any -- The value to represent
---- @return string -- A string representation of the value
 return function(v: any): string
     -- TODO: replace eventually with a string tools implementation,
     --       one that works with tables too
