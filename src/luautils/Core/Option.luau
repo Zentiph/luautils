@@ -377,6 +377,31 @@ function Option.iter<T>(self: Option<T>): types.Iterator<T>
     end
 end
 
+--- Converts an `Iterator<Option<T>>` to an `Option<Iterable<T>>`.
+---
+--- Returns "some" if all values in the iterator are "some", otherwise returns
+--- "none".
+---
+--- @param iter types.Iterator<Option<T>> -- The iterator
+--- @return Option<types.Iterable<T>> -- The transposed `Option`
+function Option.all<T>(
+    iter: types.Iterator<Option<T>>
+): Option<types.Iterable<T>>
+    local result: types.Iterable<T> = {}
+    for value in iter do
+        if not Option.is(value) then
+            fail(
+                "Called all on an Iterator that contains a non-Option value"
+            )
+        end
+        if not value:isSome() then
+            return Option.none() :: Option<types.Iterable<T>>
+        end
+        table.insert(result, value._value)
+    end
+    return Option.some(result)
+end
+
 --- Returns whether the given value is an `Option`.
 ---
 --- @param value any -- The value to check

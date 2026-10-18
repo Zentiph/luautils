@@ -12,4 +12,7 @@ export type Mapper<T, U> = (value: T) -> U
 export type Zipper<T, U, R> = (a: T, b: U) -> R
 export type Iterator<T> = () -> T?
 
+-- types/traits
+export type Iterable<T> = { T }
+
 return nil

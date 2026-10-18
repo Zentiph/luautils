@@ -582,6 +582,69 @@ test.suite("Combinators", function(suite)
             end
         end
     )
+
+    suite:case("Option.all() returns the same values", function(asserts)
+        local idx = 0
+        local values = {
+            Option.some(1),
+            Option.some(2),
+            Option.some(3),
+        }
+        local iter = function()
+            idx += 1
+            return if idx < #values then values[idx] else nil
+        end
+
+        local opt = Option.all(iter)
+
+        asserts.eq(true, opt:isSome())
+        for i, v in pairs(opt:unwrap()) do
+            asserts.eq(values[i]:unwrap(), v)
+        end
+    end)
+
+    suite:case(
+        "Option.all() returns none for a none value",
+        function(asserts)
+            local idx = 0
+            local values = {
+                Option.some(1),
+                Option.none(),
+                Option.some(3),
+            }
+            local iter = function()
+                idx += 1
+                return if idx < #values then values[idx] else nil
+            end
+
+            local opt = Option.all(iter)
+
+            asserts.eq(true, opt:isNone())
+        end
+    )
+
+    suite:case(
+        "Option.all() errors on non-Option iterator",
+        function(asserts)
+            local idx = 0
+            local values = {
+                Option.some(1),
+                2,
+                Option.some(3),
+            }
+            local iter = function()
+                idx += 1
+                return if idx < #values then values[idx] else nil
+            end
+
+            local ok, err = pcall(Option.all, iter :: any)
+            asserts.eq(false, ok)
+            asserts.strContains(
+                tostring(err),
+                "Called all on an Iterator that contains a non-Option value"
+            )
+        end
+    )
 end)
 
 test.suite("Identity", function(suite)
