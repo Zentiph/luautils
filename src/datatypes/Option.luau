@@ -1,12 +1,12 @@
 --!strict
 
--- Option datatype
+-- Option type
 -- by @vuppyan
 
---- @class Option
---- A representation of an optional value.
----
---- An `Option` is either "some" and has a value, or "none", and does not.
+-- TODO: eventually make all docs accurate to moonwave doc tags
+
+--- An optional value: an `Option` is either "some" and has a value, or "none",
+--- and does not.
 local Option = {}
 Option.__index = Option
 
@@ -27,7 +27,9 @@ type Zipper<T, U, R> = (T, U) -> R
 --       one that works with tables too
 -- Helper for creating a string representation of a value for printing
 local function repr(v: any): string
-    return if type(v) == "string" then string.format("%q", v) else tostring(v)
+    return if type(v) == "string"
+        then string.format("%q", v)
+        else tostring(v)
 end
 
 -- Helper for creating a new Option
@@ -54,6 +56,9 @@ function Option.some<T>(value: T): Option<T>
 end
 
 --- Creates a new `Option` that does not contain a value.
+---
+--- This returns a singleton instance, meaning adding more "none" `Option`s does
+--- not allocate more memory.
 ---
 --- @return Option<T> -- The new `Option`
 function Option.none<T>(): Option<T>
@@ -82,7 +87,10 @@ end
 ---
 --- @param predicate Predicate<T> -- The predicate to check the value against
 --- @return boolean -- Whether the `Option` is "some" and the value matches the predicate
-function Option.isSomeAnd<T>(self: Option<T>, predicate: Predicate<T>): boolean
+function Option.isSomeAnd<T>(
+    self: Option<T>,
+    predicate: Predicate<T>
+): boolean
     return self:isSome() and predicate(self._value :: T)
 end
 
@@ -98,7 +106,10 @@ end
 ---
 --- @param predicate Predicate<T> -- The predicate to check the value against
 --- @return boolean -- Whether the `Option` is "none" or the value matches the predicate
-function Option.isNoneOr<T>(self: Option<T>, predicate: Predicate<T>): boolean
+function Option.isNoneOr<T>(
+    self: Option<T>,
+    predicate: Predicate<T>
+): boolean
     return not self:isSome() or predicate(self._value :: T)
 end
 
@@ -182,7 +193,11 @@ end
 --- @param default U -- The default value to return if the `Option` is "none"
 --- @param mapper Mapper<T, U> -- The function to apply to the contained value
 --- @return U -- The provided default value, or the mapped value
-function Option.mapOr<T, U>(self: Option<T>, default: U, mapper: Mapper<T, U>): U
+function Option.mapOr<T, U>(
+    self: Option<T>,
+    default: U,
+    mapper: Mapper<T, U>
+): U
     return if self:isSome() then mapper(self._value :: T) else default
 end
 
@@ -204,6 +219,8 @@ end
 
 -- TODO: function Option.okOrElse<T, E>(self: Option<T>, err: Supplier<E>): Result<T, E> end
 
+-- ^ these will be implemented in Result to prevent circular dependencies
+
 --- Returns "none" if the `Option` is "none", otherwise returns `other`.
 ---
 --- @param other Option<U> -- The `Option` to return if the current `Option` is "some"
@@ -223,7 +240,9 @@ function Option.andThen<T, U>(
     self: Option<T>,
     mapper: Mapper<T, Option<U>>
 ): Option<U>
-    return if self:isSome() then mapper(self._value :: T) else Option.none()
+    return if self:isSome()
+        then mapper(self._value :: T)
+        else Option.none()
 end
 
 --- Returns "none" if the option is "none", otherwise calls `predicate` with the
@@ -232,7 +251,10 @@ end
 ---
 --- @param predicate Predicate<T> -- The predicate to check the value against
 --- @return Option<T> -- The result of calling `predicate`, or "none"
-function Option.filter<T>(self: Option<T>, predicate: Predicate<T>): Option<T>
+function Option.filter<T>(
+    self: Option<T>,
+    predicate: Predicate<T>
+): Option<T>
     return if self:isSome() and predicate(self._value :: T)
         then self
         else Option.none()
@@ -333,6 +355,14 @@ function Option.flatten<T>(self: Option<Option<T>>): Option<T>
     return inner :: Option<T>
 end
 
+--- Returns whether the given value is an `Option`.
+---
+--- @param value any -- The value to check
+--- @return boolean -- Whether the value is an `Option`
+function Option.is(value: any): boolean
+    return getmetatable(value) == Option
+end
+
 -- TODO: see if it's worth adding generic-specific methods (like Rust's impl
 --       for Option<Result<T, E>>), and best ways to check against illegal use
 
@@ -344,26 +374,15 @@ end
 ---
 --- @param other Option<T> -- The `Option` to compare with the current `Option`
 --- @return boolean -- Whether the `Option`s are equal
-function Option.equals<T>(self: Option<T>, other: Option<T>): boolean
+function Option.__eq<T>(self: Option<T>, other: Option<T>): boolean
     return Option.is(other) and self._value == other._value
-end
-Option.__eq = Option.equals
-
---- Returns whether the given value is an `Option`.
----
---- @param value any -- The value to check
---- @return boolean -- Whether the value is an `Option`
-function Option.is(value: any): boolean
-    return getmetatable(value) == Option
 end
 
 --- Returns a string representation of the `Option`.
 ---
 --- @return string -- A string representation of the `Option`
-function Option.toString<T>(self: Option<T>): string
+function Option.__tostring<T>(self: Option<T>): string
     return if self:isSome() then `Some({repr(self._value)})` else "None"
 end
-
-Option.__tostring = Option.toString
 
 return Option

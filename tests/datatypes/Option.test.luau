@@ -54,10 +54,13 @@ test.suite("Equality", function(suite)
 end)
 
 test.suite("Stringification", function(suite)
-    suite:case("Option.some() has different string repr", function(asserts)
-        asserts.eq("Some(5)", tostring(Option.some(5)))
-        asserts.eq('Some("5")', tostring(Option.some("5")))
-    end)
+    suite:case(
+        "Option.some() has different string repr",
+        function(asserts)
+            asserts.eq("Some(5)", tostring(Option.some(5)))
+            asserts.eq('Some("5")', tostring(Option.some("5")))
+        end
+    )
 
     suite:case("Option.none()", function(asserts)
         asserts.eq("None", tostring(Option.none()))
@@ -80,9 +83,13 @@ test.suite("Return values", function(suite)
     end)
 
     suite:case("andThen can return none", function(asserts)
-        asserts.eq(true, Option.none() == Option.some(1):andThen(function()
-            return Option.none()
-        end))
+        asserts.eq(
+            true,
+            Option.none()
+                == Option.some(1):andThen(function()
+                    return Option.none()
+                end)
+        )
     end)
 
     suite:case("orElse uses the supplier's result", function(asserts)
@@ -156,7 +163,10 @@ test.suite("Nesting", function(suite)
             true,
             Option.some(1) == Option.some(Option.some(1)):flatten()
         )
-        asserts.eq(true, Option.none() == Option.some(Option.none()):flatten())
+        asserts.eq(
+            true,
+            Option.none() == Option.some(Option.none()):flatten()
+        )
         asserts.eq(
             true,
             Option.none()
@@ -188,8 +198,8 @@ test.suite("Type checks", function(suite)
     end)
 
     suite:case("equals rejects non-Options", function(asserts)
-        asserts.eq(false, Option.none():equals({} :: any))
-        asserts.eq(false, Option.some(1):equals(5 :: any))
+        asserts.eq(false, Option.none() == ({} :: any))
+        asserts.eq(false, Option.some(1) == (5 :: any))
     end)
 
     suite:case("table values compare by identity", function(asserts)
@@ -238,21 +248,24 @@ test.suite("Laziness", function(suite)
         end
     )
 
-    suite:case("Option:mapOr() only calls mapper on some", function(asserts)
-        local called = false
-        Option.some(1):mapOr("default", function()
-            called = true
-            return "mapped"
-        end)
-        asserts.eq(true, called)
+    suite:case(
+        "Option:mapOr() only calls mapper on some",
+        function(asserts)
+            local called = false
+            Option.some(1):mapOr("default", function()
+                called = true
+                return "mapped"
+            end)
+            asserts.eq(true, called)
 
-        called = false
-        Option.none():mapOr("default", function()
-            called = true
-            return "mapped"
-        end)
-        asserts.eq(false, called)
-    end)
+            called = false
+            Option.none():mapOr("default", function()
+                called = true
+                return "mapped"
+            end)
+            asserts.eq(false, called)
+        end
+    )
 
     suite:case(
         "Option.mapOrElse() calls exactly one callback",
@@ -267,12 +280,18 @@ test.suite("Laziness", function(suite)
                 return "mapped"
             end
 
-            asserts.eq("mapped", Option.some(1):mapOrElse(default, mapper))
+            asserts.eq(
+                "mapped",
+                Option.some(1):mapOrElse(default, mapper)
+            )
             asserts.eq(false, defaultCalled)
             asserts.eq(true, mapperCalled)
 
             defaultCalled, mapperCalled = false, false
-            asserts.eq("default", Option.none():mapOrElse(default, mapper))
+            asserts.eq(
+                "default",
+                Option.none():mapOrElse(default, mapper)
+            )
             asserts.eq(true, defaultCalled)
             asserts.eq(false, mapperCalled)
         end
@@ -297,21 +316,24 @@ test.suite("Laziness", function(suite)
         end
     )
 
-    suite:case("Option:map() doesn't call callbacks on none", function(asserts)
-        local called = false
-        Option.none():map(function()
-            called = true
-            return 0
-        end)
-        asserts.eq(false, called)
+    suite:case(
+        "Option:map() doesn't call callbacks on none",
+        function(asserts)
+            local called = false
+            Option.none():map(function()
+                called = true
+                return 0
+            end)
+            asserts.eq(false, called)
 
-        called = false
-        Option.some(1):map(function()
-            called = true
-            return 0
-        end)
-        asserts.eq(true, called)
-    end)
+            called = false
+            Option.some(1):map(function()
+                called = true
+                return 0
+            end)
+            asserts.eq(true, called)
+        end
+    )
 
     suite:case(
         "Option:filter() doesn't call callbacks on none",
@@ -332,35 +354,38 @@ test.suite("Laziness", function(suite)
         end
     )
 
-    suite:case("Option:zip() doesn't call callbacks on none", function(asserts)
-        local called = false
-        Option.none():zip(Option.none(), function()
-            called = true
-            return 0
-        end)
-        asserts.eq(false, called)
+    suite:case(
+        "Option:zip() doesn't call callbacks on none",
+        function(asserts)
+            local called = false
+            Option.none():zip(Option.none(), function()
+                called = true
+                return 0
+            end)
+            asserts.eq(false, called)
 
-        called = false
-        Option.none():zip(Option.some(1), function()
-            called = true
-            return 0
-        end)
-        asserts.eq(false, called)
+            called = false
+            Option.none():zip(Option.some(1), function()
+                called = true
+                return 0
+            end)
+            asserts.eq(false, called)
 
-        called = false
-        Option.some(1):zip(Option.none(), function()
-            called = true
-            return 0
-        end)
-        asserts.eq(false, called)
+            called = false
+            Option.some(1):zip(Option.none(), function()
+                called = true
+                return 0
+            end)
+            asserts.eq(false, called)
 
-        called = false
-        Option.some(1):zip(Option.some(1), function()
-            called = true
-            return 0
-        end)
-        asserts.eq(true, called)
-    end)
+            called = false
+            Option.some(1):zip(Option.some(1), function()
+                called = true
+                return 0
+            end)
+            asserts.eq(true, called)
+        end
+    )
 
     suite:case(
         "Option:inspect() doesn't call callbacks on none",
@@ -402,9 +427,12 @@ test.suite("Nil handling", function(suite)
     suite:case(
         "Option:reduce() with a callback that returns nil produces none",
         function(asserts)
-            asserts.eq(true, Option.some(1):reduce(Option.some(1), function()
-                return nil
-            end) == Option.none())
+            asserts.eq(
+                true,
+                Option.some(1):reduce(Option.some(1), function()
+                    return nil
+                end) == Option.none()
+            )
         end
     )
 end)
@@ -419,11 +447,18 @@ test.suite("Combinators", function(suite)
                 { Option.none(), Option.some(2) },
                 { Option.none(), Option.none() },
             }
-            local expected =
-                { Option.none(), Option.some(1), Option.some(2), Option.none() }
+            local expected = {
+                Option.none(),
+                Option.some(1),
+                Option.some(2),
+                Option.none(),
+            }
 
             for i, pair in ipairs(testPairs) do
-                asserts.eq(true, expected[i] == Option.xor(pair[1], pair[2]))
+                asserts.eq(
+                    true,
+                    expected[i] == Option.xor(pair[1], pair[2])
+                )
             end
         end
     )
@@ -537,7 +572,10 @@ test.suite("Identity", function(suite)
         "orOption returns other itself when self is none",
         function(asserts)
             local other = Option.some(2)
-            asserts.eq(true, rawequal(Option.none():orOption(other), other))
+            asserts.eq(
+                true,
+                rawequal(Option.none():orOption(other), other)
+            )
         end
     )
 
@@ -554,14 +592,18 @@ test.suite("Errors", function(suite)
         end)
     end)
 
-    suite:case("Option:expect() throws on none with message", function(asserts)
-        local ok, err = pcall(function()
-            Option.none():expect("error message")
-        end)
-        asserts.eq(false, ok)
-        asserts.eq(
-            true,
-            string.find(tostring(err), "error message", 1, true) ~= nil
-        )
-    end)
+    suite:case(
+        "Option:expect() throws on none with message",
+        function(asserts)
+            local ok, err = pcall(function()
+                Option.none():expect("error message")
+            end)
+            asserts.eq(false, ok)
+            asserts.eq(
+                true,
+                string.find(tostring(err), "error message", 1, true)
+                    ~= nil
+            )
+        end
+    )
 end)
