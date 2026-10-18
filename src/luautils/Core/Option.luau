@@ -363,6 +363,20 @@ function Option.flatten<T>(self: Option<Option<T>>): Option<T>
     return inner :: Option<T>
 end
 
+--- Returns an iterator over the possibly contained value.
+---
+--- @return types.Iterator<T> -- The iterator
+function Option.iter<T>(self: Option<T>): types.Iterator<T>
+    local yielded = false
+    return function()
+        if not yielded and self:isSome() then
+            yielded = true
+            return self._value
+        end
+        return nil
+    end
+end
+
 --- Returns whether the given value is an `Option`.
 ---
 --- @param value any -- The value to check

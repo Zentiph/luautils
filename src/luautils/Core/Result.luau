@@ -97,7 +97,9 @@ end
 ---
 --- @return Option<T> -- The converted `Option`
 function Result.getOk<T, E>(self: Result<T, E>): Option.Option<T>
-    return if self:isOk() then Option.from(self._value) else Option.none()
+    return if self:isOk()
+        then Option.fromNillable(self._value)
+        else Option.none()
 end
 
 --- Converts from `Result<T, E>` to `Option<E>`.

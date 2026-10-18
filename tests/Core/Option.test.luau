@@ -232,6 +232,8 @@ test.suite("Laziness", function(suite)
             Option.some(1):orElse(supplierSpy.fn)
             asserts.eq(0, supplierSpy.calls)
 
+            supplierSpy.calls = 0
+
             Option.none():orElse(supplierSpy.fn)
             asserts.eq(1, supplierSpy.calls)
         end
@@ -247,6 +249,8 @@ test.suite("Laziness", function(suite)
             Option.some(1):unwrapOrElse(callbackSpy.fn)
             asserts.eq(0, callbackSpy.calls)
 
+            callbackSpy.calls = 0
+
             Option.none():unwrapOrElse(callbackSpy.fn)
             asserts.eq(1, callbackSpy.calls)
         end
@@ -261,6 +265,8 @@ test.suite("Laziness", function(suite)
 
             Option.some(1):mapOr("default", mapperSpy.fn)
             asserts.eq(1, mapperSpy.calls)
+
+            mapperSpy.calls = 0
 
             Option.none():mapOr("default", mapperSpy.fn)
             asserts.eq(0, mapperSpy.calls)
@@ -284,6 +290,9 @@ test.suite("Laziness", function(suite)
             asserts.eq(0, defaultSpy.calls)
             asserts.eq(1, mapperSpy.calls)
 
+            defaultSpy.calls = 0
+            mapperSpy.calls = 0
+
             asserts.eq(
                 "default",
                 Option.none():mapOrElse(defaultSpy.fn, mapperSpy.fn)
@@ -303,6 +312,8 @@ test.suite("Laziness", function(suite)
             Option.none():andThen(mapperSpy.fn)
             asserts.eq(0, mapperSpy.calls)
 
+            mapperSpy.calls = 0
+
             Option.some(1):andThen(mapperSpy.fn)
             asserts.eq(1, mapperSpy.calls)
         end
@@ -317,6 +328,8 @@ test.suite("Laziness", function(suite)
 
             Option.none():map(mapperSpy.fn)
             asserts.eq(0, mapperSpy.calls)
+
+            mapperSpy.calls = 0
 
             Option.some(1):map(mapperSpy.fn)
             asserts.eq(1, mapperSpy.calls)
@@ -333,6 +346,8 @@ test.suite("Laziness", function(suite)
             Option.none():filter(predicateSpy.fn)
             asserts.eq(0, predicateSpy.calls)
 
+            predicateSpy.calls = 0
+
             Option.some(1):filter(predicateSpy.fn)
             asserts.eq(1, predicateSpy.calls)
         end
@@ -348,11 +363,17 @@ test.suite("Laziness", function(suite)
             Option.none():zip(Option.none(), zipperSpy.fn)
             asserts.eq(0, zipperSpy.calls)
 
+            zipperSpy.calls = 0
+
             Option.none():zip(Option.some(1), zipperSpy.fn)
             asserts.eq(0, zipperSpy.calls)
 
+            zipperSpy.calls = 0
+
             Option.some(1):zip(Option.none(), zipperSpy.fn)
             asserts.eq(0, zipperSpy.calls)
+
+            zipperSpy.calls = 0
 
             Option.some(1):zip(Option.some(1), zipperSpy.fn)
             asserts.eq(1, zipperSpy.calls)
@@ -366,6 +387,8 @@ test.suite("Laziness", function(suite)
 
             Option.none():inspect(callbackSpy.fn)
             asserts.eq(0, callbackSpy.calls)
+
+            callbackSpy.calls = 0
 
             Option.some(1):inspect(callbackSpy.fn)
             asserts.eq(1, callbackSpy.calls)
@@ -382,9 +405,31 @@ test.suite("Laziness", function(suite)
             asserts.eq(1, someSpy.calls)
             asserts.eq(0, noneSpy.calls)
 
+            someSpy.calls = 0
+            noneSpy.calls = 0
+
             Option.none():match(someSpy.fn, noneSpy.fn)
             asserts.eq(0, someSpy.calls)
             asserts.eq(1, noneSpy.calls)
+        end
+    )
+
+    suite:case(
+        "Option:iter() runs once for some, zero times for none",
+        function(asserts)
+            local callbackSpy = Helpers.spy(function() end)
+
+            for _ in Option.some(1):iter() do
+                callbackSpy.fn()
+            end
+            asserts.eq(1, callbackSpy.calls)
+
+            callbackSpy.calls = 0
+
+            for _ in Option.none():iter() do
+                callbackSpy.fn()
+            end
+            asserts.eq(0, callbackSpy.calls)
         end
     )
 end)
