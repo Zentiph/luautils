@@ -4,6 +4,7 @@
 -- by @vuppyan
 
 local Option = require("./Option")
+local repr = require("../_internal").repr
 
 --- A crash-safe error propagation type that represents either success (Ok) or
 --- failure (Err).
@@ -23,13 +24,6 @@ export type Result<T, E> = typeof(setmetatable(
 type Predicate<T> = (value: T) -> boolean
 type Mapper<T, U> = (T) -> U
 type PackedTable = { n: number, [number]: any }
-
--- Helper for creating a string representation of a value for printing
-local function repr(v: any): string
-    return if type(v) == "string"
-        then string.format("%q", v)
-        else tostring(v)
-end
 
 -- Helper for creating a new Result
 local function new<T, E>(value: T, err: E?): Result<T, E>

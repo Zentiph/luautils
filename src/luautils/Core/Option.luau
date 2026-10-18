@@ -5,6 +5,9 @@
 
 -- TODO: eventually make all docs accurate to moonwave doc tags
 
+local repr = require("../_internal").repr
+local types = require("./types")
+
 --- An optional value: an `Option` is either "some" and has a value, or "none",
 --- and does not.
 local Option = {}
@@ -16,21 +19,6 @@ type OptionData<T> = {
 
 -- TODO: maybe make OOP/type helpers that do this for you
 export type Option<T> = typeof(setmetatable({} :: OptionData<T>, Option))
-
--- TODO: maybe move these types which are generally applicable to their own file(s)
-type Predicate<T> = (value: T) -> boolean
-type Supplier<T> = () -> T
-type Mapper<T, U> = (T) -> U
-type Zipper<T, U, R> = (T, U) -> R
-
--- TODO: replace eventually with a string tools implementation,
---       one that works with tables too
--- Helper for creating a string representation of a value for printing
-local function repr(v: any): string
-    return if type(v) == "string"
-        then string.format("%q", v)
-        else tostring(v)
-end
 
 -- Helper for creating a new Option
 local function new<T>(value: T?): Option<T>
@@ -85,11 +73,11 @@ end
 --- Returns whether the `Option` is "some" and the value inside matches a
 --- predicate.
 ---
---- @param predicate Predicate<T> -- The predicate to check the value against
+--- @param predicate types.Predicate<T> -- The predicate to check the value against
 --- @return boolean -- Whether the `Option` is "some" and the value matches the predicate
 function Option.isSomeAnd<T>(
     self: Option<T>,
-    predicate: Predicate<T>
+    predicate: types.Predicate<T>
 ): boolean
     return self:isSome() and predicate(self._value :: T)
 end
@@ -104,11 +92,11 @@ end
 --- Returns whether the `Option` is "none" or the value inside matches a
 --- predicate.
 ---
---- @param predicate Predicate<T> -- The predicate to check the value against
+--- @param predicate types.Predicate<T> -- The predicate to check the value against
 --- @return boolean -- Whether the `Option` is "none" or the value matches the predicate
 function Option.isNoneOr<T>(
     self: Option<T>,
-    predicate: Predicate<T>
+    predicate: types.Predicate<T>
 ): boolean
     return not self:isSome() or predicate(self._value :: T)
 end
@@ -167,9 +155,12 @@ end
 ---
 --- If `mapper` returns `nil`, the result is "none".
 ---
---- @param mapper Mapper<T, U?> -- The function to apply to the contained value
+--- @param mapper types.Mapper<T, U?> -- The function to apply to the contained value
 --- @return Option<U> -- The mapped `Option`
-function Option.map<T, U>(self: Option<T>, mapper: Mapper<T, U?>): Option<U>
+function Option.map<T, U>(
+    self: Option<T>,
+    mapper: types.Mapper<T, U?>
+): Option<U>
     return if self:isSome()
         then Option.from(mapper(self._value :: T))
         else Option.none()
@@ -191,12 +182,12 @@ end
 --- the contained value (if "some").
 ---
 --- @param default U -- The default value to return if the `Option` is "none"
---- @param mapper Mapper<T, U> -- The function to apply to the contained value
+--- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
 --- @return U -- The provided default value, or the mapped value
 function Option.mapOr<T, U>(
     self: Option<T>,
     default: U,
-    mapper: Mapper<T, U>
+    mapper: types.Mapper<T, U>
 ): U
     return if self:isSome() then mapper(self._value :: T) else default
 end
@@ -204,13 +195,13 @@ end
 --- Computes a default function result (if "none"), or applies a different
 --- function to the contained value (if "some").
 ---
---- @param default Supplier<U> -- The function to compute the default value
---- @param mapper Mapper<T, U> -- The function to apply to the contained value
+--- @param default types.Supplier<U> -- The function to compute the default value
+--- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
 --- @return U -- The computed default value, or the mapped value
 function Option.mapOrElse<T, U>(
     self: Option<T>,
-    default: Supplier<U>,
-    mapper: Mapper<T, U>
+    default: types.Supplier<U>,
+    mapper: types.Mapper<T, U>
 ): U
     return if self:isSome() then mapper(self._value :: T) else default()
 end
@@ -234,11 +225,11 @@ end
 ---
 --- This operation is also known as "flatmap".
 ---
---- @param mapper Mapper<T, Option<U>> -- The function to call with the contained value
+--- @param mapper types.Mapper<T, Option<U>> -- The function to call with the contained value
 --- @return Option<U> -- The result of calling `mapper`, or "none"
 function Option.andThen<T, U>(
     self: Option<T>,
-    mapper: Mapper<T, Option<U>>
+    mapper: types.Mapper<T, Option<U>>
 ): Option<U>
     return if self:isSome()
         then mapper(self._value :: T)
@@ -249,11 +240,11 @@ end
 --- wrapped value and returns "some" with the wrapped value if the predicate
 --- returns true, and "none" otherwise.
 ---
---- @param predicate Predicate<T> -- The predicate to check the value against
+--- @param predicate types.Predicate<T> -- The predicate to check the value against
 --- @return Option<T> -- The result of calling `predicate`, or "none"
 function Option.filter<T>(
     self: Option<T>,
-    predicate: Predicate<T>
+    predicate: types.Predicate<T>
 ): Option<T>
     return if self:isSome() and predicate(self._value :: T)
         then self
@@ -271,11 +262,11 @@ end
 --- Returns the option if it contains a value, otherwise calls `supplier` and
 --- returns the result.
 ---
---- @param supplier Supplier<Option<T>> -- The function to call if the current `Option` is "none"
+--- @param supplier types.Supplier<Option<T>> -- The function to call if the current `Option` is "none"
 --- @return Option<T> -- The current `Option`, or the result of calling `supplier`
 function Option.orElse<T>(
     self: Option<T>,
-    supplier: Supplier<Option<T>>
+    supplier: types.Supplier<Option<T>>
 ): Option<T>
     return if self:isSome() then self else supplier()
 end
@@ -302,12 +293,12 @@ end
 --- calling `zipper` with the wrapped values. Otherwise, it returns "none".
 ---
 --- @param other Option<U> -- The `Option` to combine with the current `Option`
---- @param zipper Zipper<T, U, R?> -- The function to call with the wrapped values
+--- @param zipper types.Zipper<T, U, R?> -- The function to call with the wrapped values
 --- @return Option<R> -- The result of calling `zipper`, or "none"
 function Option.zip<T, U, R>(
     self: Option<T>,
     other: Option<U>,
-    zipper: Zipper<T, U, R?>
+    zipper: types.Zipper<T, U, R?>
 ): Option<R>
     return if self:isSome() and other:isSome()
         then Option.from(zipper(self._value :: T, other._value :: U))
