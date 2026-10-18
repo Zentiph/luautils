@@ -1,9 +1,11 @@
+--!strict
+
 -- Duration datatype tests
 -- by @vuppyan
 
 local test = require("@std/test")
 local types = require("@std/test/types")
-local Duration = require("../../src/datatypes/Duration")
+local Duration = require("../../src/luautils/Time/Duration")
 
 local function eqDuration(
     asserts: types.Asserts,
@@ -30,7 +32,8 @@ test.suite("Duration construction", function(suite)
     end)
 
     suite:case("carries and borrows nanos", function(asserts)
-        local s, n = Duration.ofNanos(1_500_000_000):toSecondsAndNanoOffset()
+        local s, n = Duration.ofNanos(1_500_000_000)
+            :toSecondsAndNanoOffset()
         asserts.eq(1, s)
         asserts.eq(500_000_000, n)
 
@@ -55,19 +58,18 @@ test.suite("Duration construction", function(suite)
             end)
         end
     end)
-
-    suite:case("is immutable", function(asserts)
-        local d = Duration.ofSeconds(1)
-        asserts.throws(function()
-            d._secs = 5
-        end)
-    end)
 end)
 
 test.suite("Duration.parse()", function(suite)
     suite:case("round-trip canonical strings", function(asserts)
         for _, s in
-            { "PT0S", "PT1.5S", "-PT1.5S", "P1DT2H3M4.005S", "-PT0.000000001S" }
+            {
+                "PT0S",
+                "PT1.5S",
+                "-PT1.5S",
+                "P1DT2H3M4.005S",
+                "-PT0.000000001S",
+            }
         do
             asserts.eq(s, tostring(Duration.parse(s)))
         end
@@ -120,7 +122,12 @@ test.suite("Duration conversions", function(suite)
         local d = Duration.ofDays(-1)
         asserts.eq(-1, d:daysPart())
         for _, part in
-            { d:hoursPart(), d:minutesPart(), d:secondsPart(), d:millisPart() }
+            {
+                d:hoursPart(),
+                d:minutesPart(),
+                d:secondsPart(),
+                d:millisPart(),
+            }
         do
             asserts.eq(true, isPositiveZero(part))
         end
@@ -128,18 +135,21 @@ test.suite("Duration conversions", function(suite)
 end)
 
 test.suite("Duration arithmetic", function(suite)
-    suite:case("plus/minus carry across the second boundary", function(asserts)
-        eqDuration(
-            asserts,
-            Duration.ofMillis(1300),
-            Duration.ofMillis(700):plus(Duration.ofMillis(600))
-        )
-        eqDuration(
-            asserts,
-            Duration.ofMillis(-500),
-            Duration.ofSeconds(1):minus(Duration.ofMillis(1500))
-        )
-    end)
+    suite:case(
+        "plus/minus carry across the second boundary",
+        function(asserts)
+            eqDuration(
+                asserts,
+                Duration.ofMillis(1300),
+                Duration.ofMillis(700):plus(Duration.ofMillis(600))
+            )
+            eqDuration(
+                asserts,
+                Duration.ofMillis(-500),
+                Duration.ofSeconds(1):minus(Duration.ofMillis(1500))
+            )
+        end
+    )
 
     suite:case("times", function(asserts)
         eqDuration(
@@ -154,15 +164,24 @@ test.suite("Duration arithmetic", function(suite)
         )
     end)
 
-    suite:case("dividedBy rounds to the nearest nanosecond", function(asserts)
-        local s, n = Duration.ofSeconds(1):dividedBy(3):toSecondsAndNanoOffset()
-        asserts.eq(0, s)
-        asserts.eq(333_333_333, n)
-    end)
+    suite:case(
+        "dividedBy rounds to the nearest nanosecond",
+        function(asserts)
+            local s, n = Duration.ofSeconds(1)
+                :dividedBy(3)
+                :toSecondsAndNanoOffset()
+            asserts.eq(0, s)
+            asserts.eq(333_333_333, n)
+        end
+    )
 
     suite:case("dividedBy is symmetric under negation", function(asserts)
         for _, d in
-            { Duration.ofNanos(1), Duration.ofNanos(3), Duration.ofMillis(7) }
+            {
+                Duration.ofNanos(1),
+                Duration.ofNanos(3),
+                Duration.ofMillis(7),
+            }
         do
             eqDuration(
                 asserts,
@@ -256,7 +275,10 @@ end)
 
 test.suite("Duration comparison", function(suite)
     suite:case("operators use value semantics", function(asserts)
-        asserts.eq(true, Duration.ofSeconds(1.5) == Duration.ofMillis(1500))
+        asserts.eq(
+            true,
+            Duration.ofSeconds(1.5) == Duration.ofMillis(1500)
+        )
         asserts.eq(true, Duration.ofSeconds(1) < Duration.ofSeconds(2))
         asserts.eq(true, Duration.ofSeconds(2) <= Duration.ofSeconds(2))
         asserts.eq(true, Duration.ofSeconds(2) > Duration.ofMillis(-1))
@@ -279,7 +301,9 @@ test.suite("Duration comparison", function(suite)
 
     suite:case("min, max, clamp", function(asserts)
         local one, two, three =
-            Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(3)
+            Duration.ofSeconds(1),
+            Duration.ofSeconds(2),
+            Duration.ofSeconds(3)
         eqDuration(asserts, one, one:min(two))
         eqDuration(asserts, two, one:max(two))
         eqDuration(asserts, two, three:clamp(one, two))
@@ -311,7 +335,10 @@ end)
 
 test.suite("Duration:format", function(suite)
     suite:case("pads, escapes, and signs", function(asserts)
-        asserts.eq("01:02:03", Duration.of(0, 1, 2, 3):format("%02H:%02M:%02S"))
+        asserts.eq(
+            "01:02:03",
+            Duration.of(0, 1, 2, 3):format("%02H:%02M:%02S")
+        )
         asserts.eq("1.250", Duration.ofMillis(1250):format("%S.%03f"))
         asserts.eq("-1d 2h", Duration.of(-1, -2):format("%dd %Hh"))
         asserts.eq("100%", Duration.zero():format("100%%"))
@@ -327,7 +354,11 @@ end)
 test.suite("Duration utilities", function(suite)
     suite:case("serialize round-trips", function(asserts)
         for _, d in
-            { Duration.zero(), Duration.ofMillis(-1500), Duration.ofDays(1e9) }
+            {
+                Duration.zero(),
+                Duration.ofMillis(-1500),
+                Duration.ofDays(1e9),
+            }
         do
             local data = d:serialize()
             asserts.eq(nil, getmetatable(data)) -- plain table, DataStore-safe

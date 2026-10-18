@@ -8,7 +8,7 @@
 --       and printing for debugging using __tostring)
 
 local test = require("@std/test")
-local Option = require("../../src/datatypes/Option")
+local Option = require("../../src/luautils/Core/Option")
 
 test.suite("Option construction", function(suite)
     suite:case("some(nil) throws", function(asserts)

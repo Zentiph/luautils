@@ -6,15 +6,7 @@
 
     "ReplicatedStorage": {
       "Luautils": {
-        "$className": "Folder",
-        "DataTypes": {
-          "$className": "Folder",
-          "$path": "src/datatypes"
-        },
-        "Functions": {
-          "$className": "Folder",
-          "$path": "src/functions"
-      }
+        "$path": "src/luautils"
       }
     }
   }

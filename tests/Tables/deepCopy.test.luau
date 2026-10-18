@@ -1,9 +1,11 @@
+--!strict
+
 -- deepCopy tests
 -- by @vuppyan
 
 local test = require("@std/test")
 local types = require("@std/test/types")
-local deepCopy = require("../../src/functions/deepCopy")
+local deepCopy = require("../../src/luautils/Tables/deepCopy")
 
 local function assertDeepCopy(
     asserts: types.Asserts,
