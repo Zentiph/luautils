@@ -371,6 +371,22 @@ test.suite("Laziness", function(suite)
             asserts.eq(1, callbackSpy.calls)
         end
     )
+
+    suite:case(
+        "Option:match() doesn't call callbacks on wrong paths",
+        function(asserts)
+            local someSpy, noneSpy =
+                Helpers.spy(function() end), Helpers.spy(function() end)
+
+            Option.some(1):match(someSpy.fn, noneSpy.fn)
+            asserts.eq(1, someSpy.calls)
+            asserts.eq(0, noneSpy.calls)
+
+            Option.none():match(someSpy.fn, noneSpy.fn)
+            asserts.eq(0, someSpy.calls)
+            asserts.eq(1, noneSpy.calls)
+        end
+    )
 end)
 
 test.suite("Nil handling", function(suite)

@@ -3,6 +3,7 @@
 -- core types
 -- by @vuppyan
 
+export type Action = () -> ()
 export type Predicate<T> = (value: T) -> boolean
 export type Supplier<T> = () -> T
 export type Consumer<T> = (value: T) -> ()

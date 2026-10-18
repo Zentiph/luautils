@@ -262,6 +262,23 @@ function Option.orElse<T>(
     return if self:isSome() then self else supplier()
 end
 
+--- Calls `some` with the contained value if the option is "some", otherwise
+--- calls `none`.
+---
+--- @param some types.Consumer<T> -- The function to call with the contained value
+--- @param none types.Action -- The function to call if the option is "none"
+function Option.match<T>(
+    self: Option<T>,
+    some: types.Consumer<T>,
+    none: types.Action
+): ()
+    if self:isSome() then
+        some(self._value :: T)
+    else
+        none()
+    end
+end
+
 --- Returns "some" if exactly one of `self` and `other` is "some", otherwise
 --- returns "none".
 ---
