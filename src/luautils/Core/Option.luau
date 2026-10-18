@@ -8,6 +8,8 @@
 local repr = require("../_internal").repr
 local types = require("./types")
 
+local fail = require("../_internal").Errors.errorWithScope("Option")
+
 --- An optional value: an `Option` is either "some" and has a value, or "none",
 --- and does not.
 local Option = {}
@@ -33,14 +35,12 @@ local NONE = new(nil)
 --- @return Option<T> -- The new `Option`
 function Option.some<T>(value: T): Option<T>
     if value == nil then
-        error(
+        fail(
             "[Option.some()]: value cannot be nil "
-                .. "(use Option.from() for nullable values)",
-            2
+                .. "(use Option.from() for nullable values)"
         )
-    else
-        return new(value)
     end
+    return new(value)
 end
 
 --- Creates a new `Option` that does not contain a value.
@@ -108,11 +108,10 @@ end
 --- @return T -- The contained value
 --- @error message -- Thrown if the `Option` is "none"
 function Option.expect<T>(self: Option<T>, message: string): T
-    if self:isSome() then
-        return self._value :: T
-    else
-        error(message, 2)
+    if self:isNone() then
+        fail(message)
     end
+    return self._value :: T
 end
 
 --- Returns the contained value if the `Option` is "some", otherwise throws.
@@ -120,17 +119,10 @@ end
 --- @return T -- The contained value
 --- @error 'Attempted to unwrap an Option that was "none"' -- Thrown if the `Option` is "none"
 function Option.unwrap<T>(self: Option<T>): T
-    if self:isSome() then
-        return self._value :: T
-    else
-        -- TODO: maybe make an error printing helper that gets the function name
-        --       and other diagnostic info and formats this automatically, so
-        --       only the message needs to be passed
-        error(
-            '[Option:unwrap()]: Attempted to unwrap an Option that was "none"',
-            2
-        )
+    if self:isNone() then
+        fail('Attempted to unwrap an Option that was "none"')
     end
+    return self._value :: T
 end
 
 --- Returns the contained value if the `Option` is "some", or a default.
@@ -337,10 +329,8 @@ function Option.flatten<T>(self: Option<Option<T>>): Option<T>
     end
     local inner = self._value
     if not Option.is(inner) then
-        error(
-            "[Option:flatten()]: Called flatten on an Option "
-                .. "that does not contain an Option",
-            2
+        fail(
+            "Called flatten on an Option that does not contain an Option"
         )
     end
     return inner :: Option<T>

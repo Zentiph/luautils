@@ -6,6 +6,8 @@
 local Option = require("./Option")
 local repr = require("../_internal").repr
 
+local fail = require("../_internal").Errors.errorWithScope("Result")
+
 --- A crash-safe error propagation type that represents either success (Ok) or
 --- failure (Err).
 local Result = {}
@@ -46,7 +48,7 @@ end
 --- @return Result<T, E> -- The new `Result`
 function Result.err<T, E>(err: E): Result<T, E>
     if err == nil then
-        error("[Result.err()]: Error cannot be nil", 2)
+        fail("Error cannot be nil")
     end
     return new(nil, err)
 end
@@ -201,11 +203,10 @@ end
 --- @param message string -- The error message
 --- @return T -- The contained value
 function Result.expect<T, E>(self: Result<T, E>, message: string): T
-    if self:isOk() then
-        return self._value
-    else
-        error(`{message}: {repr(self._error)}`, 2)
+    if self:isErr() then
+        fail(`{message}: {repr(self._error)}`)
     end
+    return self._value
 end
 
 --- Returns the contained "ok" value, or errors if the `Result` is "err" with an
@@ -213,11 +214,10 @@ end
 ---
 --- @return T -- The contained value
 function Result.unwrap<T, E>(self: Result<T, E>): T
-    if self:isOk() then
-        return self._value
-    else
-        error(self._error, 2)
+    if self:isErr() then
+        fail(tostring(self._error))
     end
+    return self._value
 end
 
 --- Returns the contained "err" value, or errors if the `Result` is "ok", with
@@ -227,10 +227,9 @@ end
 --- @return E -- The contained error
 function Result.expectErr<T, E>(self: Result<T, E>, message: string): E
     if self:isOk() then
-        error(`{message}: {repr(self._value)}`, 2)
-    else
-        return self._error :: E
+        fail(`{message}: {repr(self._value)}`)
     end
+    return self._error :: E
 end
 
 --- Returns the contained "err" value, or errors if the `Result` is "ok", with
@@ -239,10 +238,9 @@ end
 --- @return E -- The contained error
 function Result.unwrapErr<T, E>(self: Result<T, E>): E
     if self:isOk() then
-        error(tostring(self._value), 2)
-    else
-        return self._error :: E
+        fail(tostring(self._value))
     end
+    return self._error :: E
 end
 
 --- Returns `other` if the `Result` is "ok", otherwise returns the "err" value
@@ -378,11 +376,7 @@ function Result.flatten<T, E>(self: Result<Result<T, E>, E>): Result<T, E>
     end
     local inner = self._value
     if not Result.is(inner) then
-        error(
-            "[Result:flatten()]: Called flatten on a Result "
-                .. "that does not contain a Result",
-            2
-        )
+        fail("Called flatten on a Result that does not contain a Result")
     end
     return inner
 end
