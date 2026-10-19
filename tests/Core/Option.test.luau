@@ -7,707 +7,737 @@ local test = require("@std/test")
 local Helpers = require("../Helpers")
 local Option = require("../../src/luautils/Core/Option")
 
-test.suite("Option construction", function(suite)
+test.suite("some()", function(suite)
+    suite:case("some(~nil) is some", function(asserts)
+        asserts.eq(true, Option.some(1):isSome())
+        asserts.eq(true, Option.some("a"):isSome())
+        asserts.eq(true, Option.some(false):isSome())
+        asserts.eq(true, Option.some({}):isSome())
+    end)
+
     suite:case("some(nil) throws", function(asserts)
-        asserts.throws(function()
+        Helpers.throwsWith(asserts, function()
             Option.some(nil)
-        end)
+        end, "value cannot be nil")
     end)
+end)
 
-    suite:case("Option.fromNillable(nil) is none", function(asserts)
-        Helpers.eqByStr(asserts, Option.none(), Option.fromNillable(nil))
-    end)
-
-    suite:case(
-        "Option.some(false) and Option.fromNillable(false) are some",
-        function(asserts)
-            asserts.eq(true, Option.some(false):isSome())
-            asserts.eq(true, Option.fromNillable(false):isSome())
-            asserts.eq(false, Option.some(false):unwrap())
-        end
-    )
-
-    suite:case("Option:isNone()", function(asserts)
+test.suite("none()", function(suite)
+    suite:case("none() is none", function(asserts)
         asserts.eq(true, Option.none():isNone())
-        asserts.eq(false, Option.some(1):isNone())
     end)
 
-    suite:case("Option.none() is a singleton", function(asserts)
+    suite:case("none() is a singleton", function(asserts)
         asserts.eq(true, rawequal(Option.none(), Option.none()))
     end)
 end)
 
-test.suite("Equality", function(suite)
-    suite:case("Option.some() of same value", function(asserts)
-        Helpers.eqByStr(asserts, Option.some(5), Option.some(5))
+test.suite("fromNillable()", function(suite)
+    suite:case("fromNillable(~nil) is some", function(asserts)
+        asserts.eq(true, Option.fromNillable(1):isSome())
+        asserts.eq(true, Option.fromNillable("a"):isSome())
+        asserts.eq(true, Option.fromNillable(false):isSome())
+        asserts.eq(true, Option.fromNillable({}):isSome())
     end)
 
-    suite:case("Option.some(any) ~= Option.none()", function(asserts)
-        Helpers.neqByStr(asserts, Option.none(), Option.some(5))
-        Helpers.neqByStr(asserts, Option.none(), Option.some("a"))
-        Helpers.neqByStr(asserts, Option.none(), Option.some(false))
-        Helpers.neqByStr(asserts, Option.none(), Option.some({}))
-    end)
-end)
-
-test.suite("Stringification", function(suite)
-    suite:case(
-        "Option.some() has different string repr",
-        function(asserts)
-            asserts.eq("Some(5)", tostring(Option.some(5)))
-            asserts.eq('Some("5")', tostring(Option.some("5")))
-        end
-    )
-
-    suite:case("Option.none()", function(asserts)
-        asserts.eq("None", tostring(Option.none()))
-    end)
-
-    suite:case("Option.some(false)", function(asserts)
-        asserts.eq("Some(false)", tostring(Option.some(false)))
+    suite:case("fromNillable(nil) is none", function(asserts)
+        asserts.eq(true, Option.fromNillable(nil):isNone())
     end)
 end)
 
-test.suite("Return values", function(suite)
-    suite:case("map transforms the value", function(asserts)
-        Helpers.eqByStr(
-            asserts,
-            Option.some(2),
-            Option.some(1):map(function(x: number)
-                return x * 2
-            end)
-        )
+test.suite("toNillable()", function(suite)
+    suite:case("toNillable() returns value if some", function(asserts)
+        asserts.eq(1, Option.some(1):toNillable())
+        asserts.eq("a", Option.some("a"):toNillable())
+        asserts.eq(false, Option.some(false):toNillable())
+        asserts.eq({}, Option.some({}):toNillable())
     end)
 
-    suite:case("andThen can return none", function(asserts)
-        Helpers.eqByStr(
-            asserts,
-            Option.none(),
-            Option.some(1):andThen(function()
-                return Option.none()
-            end)
-        )
+    suite:case("toNillable() returns nil if none", function(asserts)
+        asserts.eq(nil, Option.none():toNillable())
+    end)
+end)
+
+test.suite("isSome()", function(suite)
+    suite:case("isSome() returns true if some", function(asserts)
+        asserts.eq(true, Option.some(1):isSome())
     end)
 
-    suite:case("orElse uses the supplier's result", function(asserts)
-        Helpers.eqByStr(
-            asserts,
-            Option.some(9),
-            Option.none():orElse(function()
-                return Option.some(9)
-            end)
-        )
-        Helpers.eqByStr(
-            asserts,
-            Option.some(1),
-            Option.some(1):orElse(function()
-                return Option.none()
-            end)
-        )
+    suite:case("isSome() returns false if none", function(asserts)
+        asserts.eq(false, Option.none():isSome())
+    end)
+end)
+
+test.suite("isSomeAnd()", function(suite)
+    local predicateSpy = Helpers.spy(function(x)
+        return x > 0
     end)
 
-    suite:case("filter with a false predicate is none", function(asserts)
-        Helpers.eqByStr(
-            asserts,
-            Option.none(),
-            Option.some(1):filter(function()
-                return false
-            end)
-        )
+    suite:afterEach(function()
+        predicateSpy.calls = 0
+    end)
+
+    suite:case("isSomeAnd() runs predicate if some", function(asserts)
+        asserts.eq(true, Option.some(1):isSomeAnd(predicateSpy.fn))
+        asserts.eq(1, predicateSpy.calls)
+
+        asserts.eq(false, Option.some(-1):isSomeAnd(predicateSpy.fn))
+        asserts.eq(2, predicateSpy.calls)
     end)
 
     suite:case(
-        "unwrap, unwrapOr, unwrapOrElse, expect values",
+        "isSomeAnd() does not run predicate if none",
         function(asserts)
-            asserts.eq(1, Option.some(1):unwrap())
-            asserts.eq(1, Option.some(1):expect("unused"))
-            asserts.eq(1, Option.some(1):unwrapOr(0))
-            asserts.eq(0, Option.none():unwrapOr(0))
             asserts.eq(
-                7,
-                Option.none():unwrapOrElse(function()
-                    return 7
-                end)
+                false,
+                (Option.none() :: Option.Option<number>):isSomeAnd(
+                    predicateSpy.fn
+                )
             )
+            asserts.eq(0, predicateSpy.calls)
         end
     )
+end)
 
-    suite:case("mapOr returns the default on none", function(asserts)
-        asserts.eq(
-            "default",
-            Option.none():mapOr("default", function()
-                return "mapped"
-            end)
-        )
+test.suite("isNone()", function(suite)
+    suite:case("isNone() returns true if none", function(asserts)
+        asserts.eq(true, Option.none():isNone())
+    end)
+
+    suite:case("isNone() returns false if some", function(asserts)
+        asserts.eq(false, Option.some(1):isNone())
     end)
 end)
 
-test.suite("Predicates", function(suite)
-    local isEven = function(x: number)
-        return x % 2 == 0
-    end
-
-    suite:case("isSomeAnd", function(asserts)
-        asserts.eq(true, Option.some(2):isSomeAnd(isEven))
-        asserts.eq(false, Option.some(1):isSomeAnd(isEven))
-        asserts.eq(
-            false,
-            (Option.none() :: Option.Option<number>):isSomeAnd(isEven)
-        )
+test.suite("isNoneOr()", function(suite)
+    local predicateSpy = Helpers.spy(function(x)
+        return x > 0
     end)
 
-    suite:case("isNoneOr", function(asserts)
-        asserts.eq(true, Option.some(2):isNoneOr(isEven))
-        asserts.eq(false, Option.some(1):isNoneOr(isEven))
-        asserts.eq(
-            true,
-            (Option.none() :: Option.Option<number>):isNoneOr(isEven)
-        )
-    end)
-end)
-
-test.suite("Nesting", function(suite)
-    suite:case("flatten", function(asserts)
-        Helpers.eqByStr(
-            asserts,
-            Option.some(1),
-            Option.some(Option.some(1)):flatten()
-        )
-        Helpers.eqByStr(
-            asserts,
-            Option.none(),
-            Option.some(Option.none()):flatten()
-        )
-        Helpers.eqByStr(
-            asserts,
-            Option.none(),
-            (Option.none() :: Option.Option<Option.Option<any>>):flatten()
-        )
+    suite:afterEach(function()
+        predicateSpy.calls = 0
     end)
 
-    suite:case("flatten on a non-nested Option throws", function(asserts)
-        asserts.throws(function()
-            (Option.some(5) :: any):flatten()
-        end)
+    suite:case("isNoneOr() runs predicate if some", function(asserts)
+        asserts.eq(true, Option.some(1):isNoneOr(predicateSpy.fn))
+        asserts.eq(1, predicateSpy.calls)
+
+        asserts.eq(false, Option.some(-1):isNoneOr(predicateSpy.fn))
+        asserts.eq(2, predicateSpy.calls)
     end)
-
-    suite:case("nested equality and printing", function(asserts)
-        Helpers.eqByStr(
-            asserts,
-            Option.some(Option.some(1)),
-            Option.some(Option.some(1))
-        )
-        asserts.eq("Some(Some(1))", tostring(Option.some(Option.some(1))))
-    end)
-end)
-
-test.suite("Type checks", function(suite)
-    suite:case("is() checks the metatable", function(asserts)
-        asserts.eq(true, Option.is(Option.some(1)))
-        asserts.eq(true, Option.is(Option.none()))
-        asserts.eq(false, Option.is({ _value = 1 }))
-        asserts.eq(false, Option.is(nil))
-    end)
-
-    suite:case("equals rejects non-Options", function(asserts)
-        asserts.eq(false, Option.none() == ({} :: any))
-        asserts.eq(false, Option.some(1) == (5 :: any))
-    end)
-
-    suite:case("table values compare by identity", function(asserts)
-        local t = {}
-        asserts.eq(true, Option.some(t) == Option.some(t))
-        asserts.eq(false, Option.some({}) == Option.some({}))
-    end)
-end)
-
-test.suite("Laziness", function(suite)
-    suite:case(
-        "Option:orElse() doesn't call callbacks on some",
-        function(asserts)
-            local supplierSpy = Helpers.spy(function()
-                return Option.some(0)
-            end)
-
-            Option.some(1):orElse(supplierSpy.fn)
-            asserts.eq(0, supplierSpy.calls)
-
-            supplierSpy.calls = 0
-
-            Option.none():orElse(supplierSpy.fn)
-            asserts.eq(1, supplierSpy.calls)
-        end
-    )
 
     suite:case(
-        "Option:unwrapOrElse() doesn't call callbacks on some",
+        "isNoneOr() does not run predicate if none",
         function(asserts)
-            local callbackSpy = Helpers.spy(function()
-                return 0
-            end)
-
-            Option.some(1):unwrapOrElse(callbackSpy.fn)
-            asserts.eq(0, callbackSpy.calls)
-
-            callbackSpy.calls = 0
-
-            Option.none():unwrapOrElse(callbackSpy.fn)
-            asserts.eq(1, callbackSpy.calls)
-        end
-    )
-
-    suite:case(
-        "Option:mapOr() only calls mapper on some",
-        function(asserts)
-            local mapperSpy = Helpers.spy(function()
-                return "mapped"
-            end)
-
-            Option.some(1):mapOr("default", mapperSpy.fn)
-            asserts.eq(1, mapperSpy.calls)
-
-            mapperSpy.calls = 0
-
-            Option.none():mapOr("default", mapperSpy.fn)
-            asserts.eq(0, mapperSpy.calls)
-        end
-    )
-
-    suite:case(
-        "Option.mapOrElse() calls exactly one callback",
-        function(asserts)
-            local defaultSpy, mapperSpy =
-                Helpers.spy(function()
-                    return "default"
-                end), Helpers.spy(function()
-                    return "mapped"
-                end)
-
             asserts.eq(
-                "mapped",
+                true,
+                (Option.none() :: Option.Option<number>):isNoneOr(
+                    predicateSpy.fn
+                )
+            )
+            asserts.eq(0, predicateSpy.calls)
+        end
+    )
+end)
+
+test.suite("expect()", function(suite)
+    suite:case("expect() returns value if some", function(asserts)
+        asserts.eq(1, Option.some(1):expect("Should always be some"))
+    end)
+
+    suite:case("expect() throws if none", function(asserts)
+        Helpers.throwsWith(asserts, function()
+            Option.none():expect("Unexpected issue")
+        end, "Unexpected issue")
+    end)
+end)
+
+test.suite("unwrap()", function(suite)
+    suite:case("unwrap() returns value if some", function(asserts)
+        asserts.eq(1, Option.some(1):unwrap())
+    end)
+
+    suite:case("unwrap() throws if none", function(asserts)
+        Helpers.throwsWith(asserts, function()
+            Option.none():unwrap()
+        end, 'Attempted to unwrap an Option that was "none"')
+    end)
+end)
+
+test.suite("unwrapOr()", function(suite)
+    suite:case("unwrapOr() returns value if some", function(asserts)
+        asserts.eq(1, Option.some(1):unwrapOr(2))
+    end)
+
+    suite:case("unwrapOr() returns default if none", function(asserts)
+        asserts.eq(2, Option.none():unwrapOr(2))
+    end)
+end)
+
+test.suite("unwrapOrElse()", function(suite)
+    local defaultSpy = Helpers.spy(function()
+        return 2
+    end)
+
+    suite:afterEach(function()
+        defaultSpy.calls = 0
+    end)
+
+    suite:case(
+        "unwrapOrElse() returns value and does not run default generator if some",
+        function(asserts)
+            asserts.eq(1, Option.some(1):unwrapOrElse(defaultSpy.fn))
+            asserts.eq(0, defaultSpy.calls)
+        end
+    )
+
+    suite:case(
+        "unwrapOrElse() calculates default if none",
+        function(asserts)
+            asserts.eq(2, Option.none():unwrapOrElse(defaultSpy.fn))
+            asserts.eq(1, defaultSpy.calls)
+        end
+    )
+end)
+
+test.suite("map()", function(suite)
+    local mapperSpy = Helpers.spy(function(x: number): string
+        return tostring(x)
+    end)
+
+    suite:afterEach(function()
+        mapperSpy.calls = 0
+    end)
+
+    suite:case("map() applies mapper to value if some", function(asserts)
+        asserts.eq("1", Option.some(1):map(mapperSpy.fn):unwrap())
+        asserts.eq(1, mapperSpy.calls)
+    end)
+
+    suite:case("map() returns none if none", function(asserts)
+        asserts.eq(
+            Option.none(),
+            (Option.none() :: Option.Option<number>):map(mapperSpy.fn)
+        )
+        asserts.eq(0, mapperSpy.calls)
+    end)
+end)
+
+test.suite("mapOr()", function(suite)
+    local mapperSpy = Helpers.spy(function(x: number): string
+        return tostring(x)
+    end)
+
+    suite:afterEach(function()
+        mapperSpy.calls = 0
+    end)
+
+    suite:case(
+        "mapOr() applies mapper to value if some",
+        function(asserts)
+            asserts.eq("1", Option.some(1):mapOr("2", mapperSpy.fn))
+            asserts.eq(1, mapperSpy.calls)
+        end
+    )
+
+    suite:case("mapOr() returns default if none", function(asserts)
+        asserts.eq(
+            "2",
+            (Option.none() :: Option.Option<number>):mapOr(
+                "2",
+                mapperSpy.fn
+            )
+        )
+        asserts.eq(0, mapperSpy.calls)
+    end)
+end)
+
+test.suite("mapOrElse()", function(suite)
+    local defaultSpy = Helpers.spy(function()
+        return "2"
+    end)
+    local mapperSpy = Helpers.spy(function(x: number): string
+        return tostring(x)
+    end)
+
+    suite:afterEach(function()
+        defaultSpy.calls = 0
+        mapperSpy.calls = 0
+    end)
+
+    suite:case(
+        "mapOrElse() applies mapper to value if some",
+        function(asserts)
+            asserts.eq(
+                "1",
                 Option.some(1):mapOrElse(defaultSpy.fn, mapperSpy.fn)
             )
             asserts.eq(0, defaultSpy.calls)
             asserts.eq(1, mapperSpy.calls)
+        end
+    )
 
-            defaultSpy.calls = 0
-            mapperSpy.calls = 0
-
-            asserts.eq(
-                "default",
-                Option.none():mapOrElse(defaultSpy.fn, mapperSpy.fn)
+    suite:case("mapOrElse() returns default if none", function(asserts)
+        asserts.eq(
+            "2",
+            (Option.none() :: Option.Option<number>):mapOrElse(
+                defaultSpy.fn,
+                mapperSpy.fn
             )
-            asserts.eq(1, defaultSpy.calls)
-            asserts.eq(0, mapperSpy.calls)
+        )
+        asserts.eq(1, defaultSpy.calls)
+        asserts.eq(0, mapperSpy.calls)
+    end)
+end)
+
+test.suite("inspect()", function(suite)
+    local callbackSpy = Helpers.spy(function(_)
+        -- do something...
+    end)
+
+    suite:afterEach(function()
+        callbackSpy.calls = 0
+    end)
+
+    suite:case("inspect() runs callback if some", function(asserts)
+        Option.some(1):inspect(callbackSpy.fn)
+        asserts.eq(1, callbackSpy.calls)
+    end)
+
+    suite:case(
+        "inspect() does not run callback if none",
+        function(asserts)
+            Option.none():inspect(callbackSpy.fn)
+            asserts.eq(0, callbackSpy.calls)
+        end
+    )
+end)
+
+test.suite("andOption()", function(suite)
+    suite:case("andOption() returns other if some", function(asserts)
+        asserts.eq(
+            Option.some(2),
+            Option.some(1):andOption(Option.some(2))
+        )
+        asserts.eq(Option.none(), Option.some(1):andOption(Option.none()))
+    end)
+
+    suite:case("andOption() returns none if none", function(asserts)
+        asserts.eq(Option.none(), Option.none():andOption(Option.some(2)))
+        asserts.eq(Option.none(), Option.none():andOption(Option.none()))
+    end)
+end)
+
+test.suite("andThen()", function(suite)
+    local mapperSpy = Helpers.spy(
+        function(x: number): Option.Option<string>
+            return Option.some(tostring(x))
         end
     )
 
-    suite:case(
-        "Option:andThen() doesn't call callbacks on none",
-        function(asserts)
-            local mapperSpy = Helpers.spy(function()
-                return Option.some(0)
-            end)
+    suite:afterEach(function()
+        mapperSpy.calls = 0
+    end)
 
-            Option.none():andThen(mapperSpy.fn)
-            asserts.eq(0, mapperSpy.calls)
+    suite:case("andThen() applies mapper if some", function(asserts)
+        asserts.eq(Option.some("1"), Option.some(1):andThen(mapperSpy.fn))
+    end)
 
-            mapperSpy.calls = 0
+    suite:case("andThen() returns none if none", function(asserts)
+        asserts.eq(
+            Option.none(),
+            (Option.none() :: Option.Option<number>):andThen(mapperSpy.fn)
+        )
+    end)
+end)
 
-            Option.some(1):andThen(mapperSpy.fn)
-            asserts.eq(1, mapperSpy.calls)
+test.suite("filter()", function(suite)
+    local predicateSpy = Helpers.spy(function(x)
+        return x > 0
+    end)
+
+    suite:afterEach(function()
+        predicateSpy.calls = 0
+    end)
+
+    suite:case("filter() applies predicate if some", function(asserts)
+        asserts.eq(Option.some(1), Option.some(1):filter(predicateSpy.fn))
+        asserts.eq(1, predicateSpy.calls)
+
+        asserts.eq(Option.none(), Option.some(-1):filter(predicateSpy.fn))
+        asserts.eq(2, predicateSpy.calls)
+    end)
+
+    suite:case("filter() returns none if none", function(asserts)
+        asserts.eq(
+            Option.none(),
+            (Option.none() :: Option.Option<number>):filter(
+                predicateSpy.fn
+            )
+        )
+        asserts.eq(0, predicateSpy.calls)
+    end)
+end)
+
+test.suite("orOption()", function(suite)
+    suite:case("orOption() returns self if some", function(asserts)
+        asserts.eq(
+            Option.some(1),
+            Option.some(1):orOption(Option.some(2))
+        )
+        asserts.eq(Option.some(1), Option.some(1):orOption(Option.none()))
+    end)
+
+    suite:case("orOption() returns other if none", function(asserts)
+        asserts.eq(Option.some(2), Option.none():orOption(Option.some(2)))
+        asserts.eq(Option.none(), Option.none():orOption(Option.none()))
+    end)
+end)
+
+test.suite("orElse()", function(suite)
+    local supplierSpy = Helpers.spy(function()
+        return Option.some(2)
+    end)
+
+    suite:afterEach(function()
+        supplierSpy.calls = 0
+    end)
+
+    suite:case("orElse() returns self if some", function(asserts)
+        asserts.eq(Option.some(1), Option.some(1):orElse(supplierSpy.fn))
+        asserts.eq(0, supplierSpy.calls)
+    end)
+
+    suite:case("orElse() returns supplier if none", function(asserts)
+        asserts.eq(Option.some(2), Option.none():orElse(supplierSpy.fn))
+        asserts.eq(1, supplierSpy.calls)
+    end)
+end)
+
+test.suite("match()", function(suite)
+    local consumerSpy = Helpers.spy(function(_) end)
+    local actionSpy = Helpers.spy(function() end)
+
+    suite:afterEach(function()
+        consumerSpy.calls = 0
+        actionSpy.calls = 0
+    end)
+
+    suite:case("match() calls consumer if some", function(asserts)
+        Option.some(1):match(consumerSpy.fn, actionSpy.fn)
+        asserts.eq(1, consumerSpy.calls)
+        asserts.eq(0, actionSpy.calls)
+    end)
+
+    suite:case("match() calls action if none", function(asserts)
+        Option.none():match(consumerSpy.fn, actionSpy.fn)
+        asserts.eq(0, consumerSpy.calls)
+        asserts.eq(1, actionSpy.calls)
+    end)
+end)
+
+test.suite("xor()", function(suite)
+    suite:case("xor() returns none if both some", function(asserts)
+        asserts.eq(Option.none(), Option.some(1):xor(Option.some(2)))
+    end)
+
+    suite:case("xor() returns some if one is some", function(asserts)
+        asserts.eq(Option.some(1), Option.some(1):xor(Option.none()))
+        asserts.eq(Option.some(2), Option.none():xor(Option.some(2)))
+    end)
+
+    suite:case("xor() returns none if both none", function(asserts)
+        asserts.eq(Option.none(), Option.none():xor(Option.none()))
+    end)
+end)
+
+test.suite("zip()", function(suite)
+    local zipperSpy = Helpers.spy(
+        function(errorcode: number, errormessage: string)
+            return `{errormessage} (code {errorcode})`
         end
     )
 
-    suite:case(
-        "Option:map() doesn't call callbacks on none",
-        function(asserts)
-            local mapperSpy = Helpers.spy(function()
-                return 0
-            end)
-
-            Option.none():map(mapperSpy.fn)
-            asserts.eq(0, mapperSpy.calls)
-
-            mapperSpy.calls = 0
-
-            Option.some(1):map(mapperSpy.fn)
-            asserts.eq(1, mapperSpy.calls)
-        end
-    )
+    suite:afterEach(function()
+        zipperSpy.calls = 0
+    end)
 
     suite:case(
-        "Option:filter() doesn't call callbacks on none",
+        "zip() returns zipped option if both some",
         function(asserts)
-            local predicateSpy = Helpers.spy(function()
-                return true
-            end)
-
-            Option.none():filter(predicateSpy.fn)
-            asserts.eq(0, predicateSpy.calls)
-
-            predicateSpy.calls = 0
-
-            Option.some(1):filter(predicateSpy.fn)
-            asserts.eq(1, predicateSpy.calls)
-        end
-    )
-
-    suite:case(
-        "Option:zip() doesn't call callbacks on none",
-        function(asserts)
-            local zipperSpy = Helpers.spy(function()
-                return 0
-            end)
-
-            Option.none():zip(Option.none(), zipperSpy.fn)
-            asserts.eq(0, zipperSpy.calls)
-
-            zipperSpy.calls = 0
-
-            Option.none():zip(Option.some(1), zipperSpy.fn)
-            asserts.eq(0, zipperSpy.calls)
-
-            zipperSpy.calls = 0
-
-            Option.some(1):zip(Option.none(), zipperSpy.fn)
-            asserts.eq(0, zipperSpy.calls)
-
-            zipperSpy.calls = 0
-
-            Option.some(1):zip(Option.some(1), zipperSpy.fn)
+            asserts.eq(
+                Option.some("oops (code 1)"),
+                Option.some(1):zip(Option.some("oops"), zipperSpy.fn)
+            )
             asserts.eq(1, zipperSpy.calls)
         end
     )
 
-    suite:case(
-        "Option:inspect() doesn't call callbacks on none",
-        function(asserts)
-            local callbackSpy = Helpers.spy(function() end)
+    suite:case("zip() returns none if either none", function(asserts)
+        asserts.eq(
+            Option.none(),
+            Option.some(1)
+                :zip(Option.none() :: Option.Option<string>, zipperSpy.fn)
+        )
+        asserts.eq(0, zipperSpy.calls)
 
-            Option.none():inspect(callbackSpy.fn)
-            asserts.eq(0, callbackSpy.calls)
+        asserts.eq(
+            Option.none(),
+            (Option.none() :: Option.Option<number>):zip(
+                Option.some("oops"),
+                zipperSpy.fn
+            )
+        )
+        asserts.eq(0, zipperSpy.calls)
 
-            callbackSpy.calls = 0
-
-            Option.some(1):inspect(callbackSpy.fn)
-            asserts.eq(1, callbackSpy.calls)
-        end
-    )
-
-    suite:case(
-        "Option:match() doesn't call callbacks on wrong paths",
-        function(asserts)
-            local someSpy, noneSpy =
-                Helpers.spy(function() end), Helpers.spy(function() end)
-
-            Option.some(1):match(someSpy.fn, noneSpy.fn)
-            asserts.eq(1, someSpy.calls)
-            asserts.eq(0, noneSpy.calls)
-
-            someSpy.calls = 0
-            noneSpy.calls = 0
-
-            Option.none():match(someSpy.fn, noneSpy.fn)
-            asserts.eq(0, someSpy.calls)
-            asserts.eq(1, noneSpy.calls)
-        end
-    )
-
-    suite:case(
-        "Option:iter() runs once for some, zero times for none",
-        function(asserts)
-            local callbackSpy = Helpers.spy(function() end)
-
-            for _ in Option.some(1):iter() do
-                callbackSpy.fn()
-            end
-            asserts.eq(1, callbackSpy.calls)
-
-            callbackSpy.calls = 0
-
-            for _ in Option.none():iter() do
-                callbackSpy.fn()
-            end
-            asserts.eq(0, callbackSpy.calls)
-        end
-    )
+        asserts.eq(
+            Option.none(),
+            (Option.none() :: Option.Option<number>):zip(
+                Option.none() :: Option.Option<string>,
+                zipperSpy.fn
+            )
+        )
+        asserts.eq(0, zipperSpy.calls)
+    end)
 end)
 
-test.suite("Nil handling", function(suite)
-    suite:case(
-        "Option:map() with a callback that returns nil produces none",
-        function(asserts)
-            Helpers.eqByStr(
-                asserts,
-                Option.none(),
-                Option.some(1):map(function()
-                    return nil
-                end)
-            )
-        end
-    )
+test.suite("reduce()", function(suite)
+    local reducerSpy = Helpers.spy(function(a: number, b: number): number
+        return a + b
+    end)
 
-    suite:case(
-        "Option:zip() with a callback that returns nil produces none",
-        function(asserts)
-            Helpers.eqByStr(
-                asserts,
-                Option.none(),
-                Option.some(1):zip(Option.some(1), function()
-                    return nil
-                end)
-            )
-        end
-    )
-
-    suite:case(
-        "Option:reduce() with a callback that returns nil produces none",
-        function(asserts)
-            Helpers.eqByStr(
-                asserts,
-                Option.none(),
-                Option.some(1):reduce(Option.some(1), function()
-                    return nil
-                end)
-            )
-        end
-    )
-end)
-
-test.suite("Combinators", function(suite)
-    suite:case(
-        "Option:xor() only returns some if one option is some, otherwise none",
-        function(asserts)
-            local testPairs = {
-                { Option.some(1), Option.some(2) },
-                { Option.some(1), Option.none() },
-                { Option.none(), Option.some(2) },
-                { Option.none(), Option.none() },
-            }
-            local expected = {
-                Option.none(),
-                Option.some(1),
-                Option.some(2),
-                Option.none(),
-            }
-
-            for i, pair in ipairs(testPairs) do
-                Helpers.eqByStr(
-                    asserts,
-                    expected[i],
-                    Option.xor(pair[1], pair[2])
-                )
-            end
-        end
-    )
-
-    suite:case(
-        "Option:reduce() returns the reduced value if both are some, "
-            .. "the only some if one is some, or none",
-        function(asserts)
-            local testPairs = {
-                { Option.some(1), Option.some(2) },
-                { Option.some(1), Option.none() },
-                { Option.none(), Option.some(2) },
-                { Option.none(), Option.none() },
-            }
-            local expected = {
-                Option.some(3),
-                Option.some(1),
-                Option.some(2),
-                Option.none(),
-            }
-
-            for i, pair in ipairs(testPairs) do
-                Helpers.eqByStr(
-                    asserts,
-                    expected[i],
-                    Option.reduce(pair[1], pair[2], function(a, b)
-                        return a + b
-                    end)
-                )
-            end
-        end
-    )
-
-    suite:case(
-        "Option:orOption() returns the first some option or none",
-        function(asserts)
-            local testPairs = {
-                { Option.some(1), Option.some(2) },
-                { Option.some(1), Option.none() },
-                { Option.none(), Option.some(2) },
-                { Option.none(), Option.none() },
-            }
-            local expected = {
-                Option.some(1),
-                Option.some(1),
-                Option.some(2),
-                Option.none(),
-            }
-
-            for i, pair in ipairs(testPairs) do
-                Helpers.eqByStr(
-                    asserts,
-                    expected[i],
-                    Option.orOption(pair[1], pair[2])
-                )
-            end
-        end
-    )
-
-    suite:case(
-        "Option:andOption() returns other if both are some otherwise none",
-        function(asserts)
-            local testPairs = {
-                { Option.some(1), Option.some(2) },
-                { Option.some(1), Option.none() },
-                { Option.none(), Option.some(2) },
-                { Option.none(), Option.none() },
-            }
-            local expected = {
-                Option.some(2),
-                Option.none(),
-                Option.none(),
-                Option.none(),
-            }
-
-            for i, pair in ipairs(testPairs) do
-                Helpers.eqByStr(
-                    asserts,
-                    expected[i],
-                    Option.andOption(pair[1], pair[2])
-                )
-            end
-        end
-    )
-
-    suite:case("Option.all() returns the same values", function(asserts)
-        local idx = 0
-        local values = {
-            Option.some(1),
-            Option.some(2),
-            Option.some(3),
-        }
-        local iter = function()
-            idx += 1
-            return if idx < #values then values[idx] else nil
-        end
-
-        local opt = Option.all(iter)
-
-        asserts.eq(true, opt:isSome())
-        for i, v in pairs(opt:unwrap()) do
-            asserts.eq(values[i]:unwrap(), v)
-        end
+    suite:afterEach(function()
+        reducerSpy.calls = 0
     end)
 
     suite:case(
-        "Option.all() returns none for a none value",
+        "reduce() returns reduced option if both some",
         function(asserts)
-            local idx = 0
-            local values = {
-                Option.some(1),
-                Option.none(),
+            asserts.eq(
                 Option.some(3),
-            }
-            local iter = function()
-                idx += 1
-                return if idx < #values then values[idx] else nil
-            end
-
-            local opt = Option.all(iter)
-
-            asserts.eq(true, opt:isNone())
+                Option.some(1):reduce(Option.some(2), reducerSpy.fn)
+            )
+            asserts.eq(1, reducerSpy.calls)
         end
     )
 
-    suite:case(
-        "Option.all() errors on non-Option iterator",
-        function(asserts)
-            local idx = 0
-            local values = {
-                Option.some(1),
-                2,
-                Option.some(3),
-            }
-            local iter = function()
-                idx += 1
-                return if idx < #values then values[idx] else nil
-            end
+    suite:case("reduce() returns some if one is some", function(asserts)
+        asserts.eq(
+            Option.some(1),
+            Option.some(1)
+                :reduce(
+                    Option.none() :: Option.Option<number>,
+                    reducerSpy.fn
+                )
+        )
+        asserts.eq(0, reducerSpy.calls)
 
-            local ok, err = pcall(Option.all, iter :: any)
-            asserts.eq(false, ok)
-            asserts.strContains(
-                tostring(err),
+        asserts.eq(
+            Option.some(2),
+            (Option.none() :: Option.Option<number>):reduce(
+                Option.some(2),
+                reducerSpy.fn
+            )
+        )
+        asserts.eq(0, reducerSpy.calls)
+    end)
+
+    suite:case("reduce() returns none if both none", function(asserts)
+        asserts.eq(
+            Option.none(),
+            (Option.none() :: Option.Option<number>):reduce(
+                Option.none() :: Option.Option<number>,
+                reducerSpy.fn
+            )
+        )
+        asserts.eq(0, reducerSpy.calls)
+    end)
+end)
+
+test.suite("flatten()", function(suite)
+    suite:case(
+        "flatten() returns flattened option if some",
+        function(asserts)
+            asserts.eq(
+                Option.some(1),
+                Option.some(Option.some(1)):flatten()
+            )
+            asserts.eq(
+                Option.none(),
+                Option.some(Option.none()):flatten()
+            )
+        end
+    )
+
+    suite:case("flatten() returns none if none", function(asserts)
+        asserts.eq(
+            Option.none(),
+            (Option.none() :: Option.Option<Option.Option<number>>):flatten()
+        )
+    end)
+
+    suite:case(
+        "flatten() throws if inner value is not an Option",
+        function(asserts)
+            Helpers.throwsWith(
+                asserts,
+                function()
+                    (Option.some(1) :: any):flatten()
+                end,
+                "Called flatten on an Option that does not contain an Option"
+            )
+        end
+    )
+end)
+
+test.suite("iter()", function(suite)
+    suite:case("iter() yields value if some", function(asserts)
+        local values = {}
+        for value in Option.some(1):iter() do
+            table.insert(values, value)
+        end
+        asserts.eq({ 1 }, values)
+    end)
+
+    suite:case("iter() does not yield value if none", function(asserts)
+        local values = {}
+        for value in Option.none():iter() do
+            table.insert(values, value)
+        end
+        asserts.eq({}, values)
+    end)
+end)
+
+test.suite("all()", function(suite)
+    suite:case("all() returns some if all values some", function(asserts)
+        local i, values =
+            0, { Option.some(1), Option.some(2), Option.some(3) }
+        local iter = function()
+            i += 1
+            return if i <= #values then values[i] else nil
+        end
+        asserts.eq(Option.some({ 1, 2, 3 }), Option.all(iter))
+    end)
+
+    suite:case("all() returns none if any value none", function(asserts)
+        local i, values =
+            0, { Option.some(1), Option.none(), Option.some(3) }
+        local iter = function()
+            i += 1
+            return if i <= #values then values[i] else nil
+        end
+        asserts.eq(Option.none(), Option.all(iter))
+    end)
+
+    suite:case(
+        "all() throws if the iter contains a non-Option",
+        function(asserts)
+            local i, values = 0, { Option.some(1), 2, Option.some(3) }
+            local iter = function()
+                i += 1
+                return if i <= #values then values[i] else nil
+            end
+            Helpers.throwsWith(
+                asserts,
+                function()
+                    Option.all(iter :: any)
+                end,
                 "Called all on an Iterator that contains a non-Option value"
             )
         end
     )
 end)
 
-test.suite("Identity", function(suite)
+test.suite("firstSome()", function(suite)
+    suite:case("firstSome() returns first non-none", function(asserts)
+        local i, values =
+            0, { Option.none(), Option.none(), Option.some(3) }
+        local iter = function()
+            i += 1
+            return if i <= #values then values[i] else nil
+        end
+        asserts.eq(Option.some(3), Option.firstSome(iter))
+    end)
+
+    suite:case("firstSome() returns none if all none", function(asserts)
+        local i, values =
+            0, { Option.none(), Option.none(), Option.none() }
+        local iter = function()
+            i += 1
+            return if i <= #values then values[i] else nil
+        end
+        asserts.eq(Option.none(), Option.firstSome(iter))
+    end)
+
     suite:case(
-        "Option:filter() returns original option if predicate is true",
+        "firstSome() throws if the iter contains a non-Option",
         function(asserts)
-            local opt = Option.some(1)
-            asserts.eq(
-                true,
-                rawequal(
-                    opt:filter(function()
-                        return true
-                    end),
-                    opt
-                )
+            local i, values = 0, { Option.none(), 2, Option.none() }
+            local iter = function()
+                i += 1
+                return if i <= #values then values[i] else nil
+            end
+            Helpers.throwsWith(
+                asserts,
+                function()
+                    Option.firstSome(iter :: any)
+                end,
+                "Called firstSome on an Iterator that "
+                    .. "contains a non-Option value"
             )
         end
     )
+end)
 
+test.suite("is()", function(suite)
     suite:case(
-        "Option:orOption() returns original option if self is some",
+        "is() returns true if object is an Option",
         function(asserts)
-            local opt = Option.some(1)
-            asserts.eq(true, rawequal(opt:orOption(Option.none()), opt))
+            asserts.eq(true, Option.is(Option.some(1)))
+            asserts.eq(true, Option.is(Option.none()))
         end
     )
 
     suite:case(
-        "orOption returns other itself when self is none",
+        "is() returns false if object is not an Option",
         function(asserts)
-            local other = Option.some(2)
-            asserts.eq(
-                true,
-                rawequal(Option.none():orOption(other), other)
-            )
+            asserts.eq(false, Option.is(1))
+            asserts.eq(false, Option.is({ _value = 1 }))
         end
     )
+end)
 
-    suite:case("inspect returns self", function(asserts)
-        local opt = Option.some(1)
-        asserts.eq(true, rawequal(opt:inspect(function() end), opt))
+test.suite("__eq()", function(suite)
+    suite:case('two "some"s are equal by inner value', function(asserts)
+        Helpers.eqByStr(asserts, Option.some(1), Option.some(1))
+        Helpers.neqByStr(asserts, Option.some(1), Option.some(2))
+    end)
+
+    suite:case('two "none"s are equal', function(asserts)
+        Helpers.eqByStr(asserts, Option.none(), Option.none())
+    end)
+
+    suite:case('"some" and "none" are not equal', function(asserts)
+        Helpers.neqByStr(asserts, Option.some(1), Option.none())
+        Helpers.neqByStr(asserts, Option.none(), Option.some(1))
+    end)
+
+    suite:case("Option and non-Option are not equal", function(asserts)
+        Helpers.neqByStr(asserts, Option.some(1), 1)
+        Helpers.neqByStr(asserts, 1, Option.some(1))
     end)
 end)
 
-test.suite("Errors", function(suite)
-    suite:case("Option:unwrap() throws on none", function(asserts)
-        asserts.throws(function()
-            Option.none():unwrap()
-        end)
-    end)
-
+test.suite("__tostring()", function(suite)
     suite:case(
-        "Option:expect() throws on none with message",
+        "toString() returns string representation of inside if some",
         function(asserts)
-            local ok, err = pcall(function()
-                Option.none():expect("error message")
-            end)
-            asserts.eq(false, ok)
-            asserts.eq(
-                true,
-                string.find(tostring(err), "error message", 1, true)
-                    ~= nil
-            )
+            asserts.eq("Some(1)", tostring(Option.some(1)))
+            asserts.eq('Some("a")', tostring(Option.some("a")))
         end
     )
+
+    suite:case('toString() returns "None" if none', function(asserts)
+        asserts.eq("None", tostring(Option.none()))
+    end)
 end)

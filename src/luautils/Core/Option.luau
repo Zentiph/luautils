@@ -62,6 +62,17 @@ function Option.fromNillable<T>(value: T?): Option<T>
     return if value == nil then Option.none() else new(value)
 end
 
+--- Returns the contained value if the `Option` is "some", otherwise returns
+--- `nil`.
+---
+--- Useful for Roblox APIs that expect `nil`, and provides type-checking where
+--- `unwrapOr(nil)` wouldn't.
+---
+--- @return T? -- The contained value, or `nil`
+function Option.toNillable<T>(self: Option<T>): T?
+    return self._value
+end
+
 --- Returns whether the `Option` contains a value.
 ---
 --- @return boolean -- Whether the `Option` contains a value
@@ -141,17 +152,6 @@ function Option.unwrapOrElse<T>(self: Option<T>, callback: () -> T): T
     return if self:isSome() then self._value :: T else callback()
 end
 
---- Returns the contained value if the `Option` is "some", otherwise returns
---- `nil`.
----
---- Useful for Roblox APIs that expect `nil`, and provides type-checking where
---- `unwrapOr(nil)` wouldn't.
----
---- @return T? -- The contained value, or `nil`
-function Option.toNillable<T>(self: Option<T>): T?
-    return self._value
-end
-
 --- Maps an `Option<T>` to `Option<U>` by applying a function to the contained
 --- value (if "some") or returns "none" (if "none").
 ---
@@ -166,18 +166,6 @@ function Option.map<T, U>(
     return if self:isSome()
         then Option.fromNillable(mapper(self._value :: T))
         else Option.none()
-end
-
---- Calls a function with the contained value if "some", then returns the
---- original option.
----
---- @param callback (T) -> () -- The function to call with the contained value
---- @return Option<T> -- The original `Option`
-function Option.inspect<T>(self: Option<T>, callback: (T) -> ()): Option<T>
-    if self:isSome() then
-        callback(self._value :: T)
-    end
-    return self
 end
 
 --- Returns the provided default result (if "none"), or applies a function to
@@ -197,22 +185,28 @@ end
 --- Computes a default function result (if "none"), or applies a different
 --- function to the contained value (if "some").
 ---
---- @param default types.Supplier<U> -- The function to compute the default value
+--- @param supplier types.Supplier<U> -- The function to compute the default value
 --- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
 --- @return U -- The computed default value, or the mapped value
 function Option.mapOrElse<T, U>(
     self: Option<T>,
-    default: types.Supplier<U>,
+    supplier: types.Supplier<U>,
     mapper: types.Mapper<T, U>
 ): U
-    return if self:isSome() then mapper(self._value :: T) else default()
+    return if self:isSome() then mapper(self._value :: T) else supplier()
 end
 
--- TODO: function Option.okOr<T, E>(self: Option<T>, err: E): Result<T, E> end
-
--- TODO: function Option.okOrElse<T, E>(self: Option<T>, err: Supplier<E>): Result<T, E> end
-
--- ^ these will be implemented in Result to prevent circular dependencies
+--- Calls a function with the contained value if "some", then returns the
+--- original option.
+---
+--- @param callback (T) -> () -- The function to call with the contained value
+--- @return Option<T> -- The original `Option`
+function Option.inspect<T>(self: Option<T>, callback: (T) -> ()): Option<T>
+    if self:isSome() then
+        callback(self._value :: T)
+    end
+    return self
+end
 
 --- Returns "none" if the `Option` is "none", otherwise returns `other`.
 ---
@@ -273,20 +267,20 @@ function Option.orElse<T>(
     return if self:isSome() then self else supplier()
 end
 
---- Calls `some` with the contained value if the option is "some", otherwise
---- calls `none`.
+--- Calls `ifSome` with the contained value if the option is "some", otherwise
+--- calls `ifNone`.
 ---
---- @param some types.Consumer<T> -- The function to call with the contained value
---- @param none types.Action -- The function to call if the option is "none"
+--- @param ifSome types.Consumer<T> -- The function to call with the contained value
+--- @param ifNone types.Action -- The function to call if the option is "none"
 function Option.match<T>(
     self: Option<T>,
-    some: types.Consumer<T>,
-    none: types.Action
+    ifSome: types.Consumer<T>,
+    ifNone: types.Action
 ): ()
     if self:isSome() then
-        some(self._value :: T)
+        ifSome(self._value :: T)
     else
-        none()
+        ifNone()
     end
 end
 
@@ -305,15 +299,16 @@ end
 --- `zipper`.
 ---
 --- If both `self` and `other` are "some", this method returns the result of
---- calling `zipper` with the wrapped values. Otherwise, it returns "none".
+--- calling `zipper` with the wrapped values, or "none" if `zipper` returns
+--- `nil`. Otherwise, it returns "none".
 ---
 --- @param other Option<U> -- The `Option` to combine with the current `Option`
---- @param zipper types.Zipper<T, U, R?> -- The function to call with the wrapped values
+--- @param zipper (a: T, b: U) -> R? -- The function to call with the wrapped values
 --- @return Option<R> -- The result of calling `zipper`, or "none"
 function Option.zip<T, U, R>(
     self: Option<T>,
     other: Option<U>,
-    zipper: types.Zipper<T, U, R?>
+    zipper: (a: T, b: U) -> R?
 ): Option<R>
     return if self:isSome() and other:isSome()
         then Option.fromNillable(
@@ -338,7 +333,7 @@ end
 function Option.reduce<T>(
     self: Option<T>,
     other: Option<T>,
-    reducer: (T, T) -> T
+    reducer: (a: T, b: T) -> T?
 ): Option<T>
     return if self:isSome() and other:isSome()
         then Option.fromNillable(
@@ -400,6 +395,26 @@ function Option.all<T>(
         table.insert(result, value._value)
     end
     return Option.some(result)
+end
+
+--- Returns the first non-"none" result from an iterator, or "none" if there
+--- aren't any.
+---
+--- @param iter types.Iterator<Option<T>> -- The iterator
+--- @return Option<T> -- The first non-"none" result
+function Option.firstSome<T>(iter: types.Iterator<Option<T>>): Option<T>
+    for value in iter do
+        if not Option.is(value) then
+            fail(
+                "Called firstSome on an Iterator that "
+                    .. "contains a non-Option value"
+            )
+        end
+        if value:isSome() then
+            return value
+        end
+    end
+    return Option.none()
 end
 
 --- Returns whether the given value is an `Option`.
