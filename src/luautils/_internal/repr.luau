@@ -10,7 +10,5 @@
 return function(v: any): string
     -- TODO: replace eventually with a string tools implementation,
     --       one that works with tables too
-    return if type(v) == "string"
-        then string.format("%q", v)
-        else tostring(v)
+    return if type(v) == "string" then string.format("%q", v) else tostring(v)
 end

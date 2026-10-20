@@ -14,6 +14,8 @@ export type Callback<A...> = (A...) -> ()
 export type Supplier<T> = () -> T
 --- A function that builds a value from arguments.
 export type Factory<T, A...> = (A...) -> T
+--- A function that builds a tuple from arguments.
+export type TupleFactory<T..., A...> = (A...) -> T...
 
 --- A function that takes one value and returns nothing.
 export type Consumer<T> = (value: T) -> ()
@@ -52,6 +54,8 @@ export type Array<T> = { T }
 export type Map<K, V> = { [K]: V }
 --- A membership table.
 export type Set<T> = { [T]: true }
+--- The result of `table.pack`.
+export type PackedTable = { n: number, [number]: any }
 
 --[[ Iteration ]]
 
@@ -66,17 +70,18 @@ export type Iterator<S, C, V...> = (state: S, control: C?) -> (C?, V...)
 
 --[[ protocols/"traits" ]]
 
---- A type that supports value equality (can be compared with `==` and `~=`).
-export type Equatable<Self> = { __eq: (self: Self, other: Self) -> boolean }
+--- A type that supports value equality.
+export type Equatable<Self> = { equals: (self: Self, other: Self) -> boolean }
 
---- A type that supports total ordering (can be compared with `<` and `<=`).
-export type Comparable<Self> = {
-    __lt: (self: Self, other: Self) -> boolean,
-    __le: (self: Self, other: Self) -> boolean,
-}
+--- A type that supports total ordering.
+---
+--- Its ordering function should return a negative `number` if `a < b`, zero if
+--- `a == b`, and a positive `number` if `a > b`.
+export type Comparable<Self> =
+    { compareTo: (self: Self, other: Self) -> number }
 
 --- A type that can be converted to a string.
-export type Stringable<Self> = { __tostring: (self: Self) -> string }
+export type Stringable<Self> = { toString: (self: Self) -> string }
 
 --- A type that can produce a stable hash/key, allowing for value-equal objects
 --- to share a table slot.
@@ -90,9 +95,9 @@ export type Serializable<Self, D> = { serialize: (self: Self) -> D }
 --- A type that can be statically converted from plain, DataStore-safe data.
 export type Deserializable<Self, D> = { deserialize: (data: D) -> Self }
 
---- A type that can be iterated with a `for ... in obj` loop.
+--- A type that can be iterated with a `for ... in obj:iter()` loop.
 export type Iterable<Self, C, V...> = {
-    __iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?),
+    iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?),
 }
 
 --[[ Roblox-compatible protocols ]]

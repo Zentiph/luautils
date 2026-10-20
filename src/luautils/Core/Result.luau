@@ -5,11 +5,12 @@
 
 local Option = require("./Option")
 local repr = require("../_internal").repr
+local types = require("./types")
 
 local fail = require("../_internal").Errors.errorWithScope("Result")
 
---- A crash-safe error propagation type that represents either success (Ok) or
---- failure (Err).
+--- A crash-safe error propagation type that represents either success ("ok") or
+--- failure ("err").
 local Result = {}
 Result.__index = Result
 
@@ -18,20 +19,11 @@ type ResultData<T, E> = {
     read _error: E?,
 }
 
-export type Result<T, E> = typeof(setmetatable(
-    {} :: ResultData<T, E>,
-    Result
-))
-
-type Predicate<T> = (value: T) -> boolean
-type Mapper<T, U> = (T) -> U
-type PackedTable = { n: number, [number]: any }
+export type Result<T, E> = typeof(setmetatable({} :: ResultData<T, E>, Result))
 
 -- Helper for creating a new Result
 local function new<T, E>(value: T, err: E?): Result<T, E>
-    return table.freeze(
-        setmetatable({ _value = value, _error = err }, Result)
-    )
+    return table.freeze(setmetatable({ _value = value, _error = err }, Result))
 end
 
 --- Creates a new `Result` with the specified value.
@@ -63,11 +55,11 @@ end
 --- Returns `true` if the `Result` is "ok" and the value inside of it matches a
 --- predicate.
 ---
---- @param predicate Predicate<T> -- The predicate to check the value against
+--- @param predicate types.Predicate<T> -- The predicate to check the value against
 --- @return boolean -- Whether the `Result` is "ok" and the value matches the predicate
 function Result.isOkAnd<T, E>(
     self: Result<T, E>,
-    predicate: Predicate<T>
+    predicate: types.Predicate<T>
 ): boolean
     return self:isOk() and predicate(self._value)
 end
@@ -82,11 +74,11 @@ end
 --- Returns `true` if the `Result` is "err" and the error inside of it matches a
 --- predicate.
 ---
---- @param predicate Predicate<E> -- The predicate to check the error against
+--- @param predicate types.Predicate<E> -- The predicate to check the error against
 --- @return boolean -- Whether the `Result` is "err" and the error matches the predicate
 function Result.isErrAnd<T, E>(
     self: Result<T, E>,
-    predicate: Predicate<E>
+    predicate: types.Predicate<E>
 ): boolean
     return self:isErr() and predicate(self._error :: E)
 end
@@ -106,19 +98,17 @@ end
 ---
 --- @return Option<E> -- The converted `Option`
 function Result.getErr<T, E>(self: Result<T, E>): Option.Option<E>
-    return if self:isErr()
-        then Option.some(self._error :: E)
-        else Option.none()
+    return if self:isErr() then Option.some(self._error :: E) else Option.none()
 end
 
 --- Maps a `Result<T, E>` to `Result<U, E>` by applying a function to a
 --- contained "ok" value, leaving an "err" value untouched.
 ---
---- @param mapper Mapper<T, U> -- The function to apply to the contained value
+--- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
 --- @return Result<U, E> -- The mapped `Result`
 function Result.map<T, E, U>(
     self: Result<T, E>,
-    mapper: Mapper<T, U>
+    mapper: types.Mapper<T, U>
 ): Result<U, E>
     return if self:isOk() then Result.ok(mapper(self._value)) else self
 end
@@ -127,12 +117,12 @@ end
 --- contained value (if "ok").
 ---
 --- @param default U -- The default value to return if the `Result` is "err"
---- @param mapper Mapper<T, U> -- The function to apply to the contained value
+--- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
 --- @return U -- The provided default value, or the mapped value
 function Result.mapOr<T, E, U>(
     self: Result<T, E>,
     default: U,
-    mapper: Mapper<T, U>
+    mapper: types.Mapper<T, U>
 ): U
     return if self:isOk() then mapper(self._value) else default
 end
@@ -140,13 +130,13 @@ end
 --- Maps a `Result<T, E>` to `U` by applying fallback function `default` to a
 --- contained "err" value, or a function `mapper` to a contained "ok" value.
 ---
---- @param default (E) -> U -- The function to apply on an "err"
---- @param mapper Mapper<T, U> -- The function to apply to the contained value
+--- @param default types.Mapper<E, U> -- The function to apply on an "err"
+--- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
 --- @return U -- The mapped value
 function Result.mapOrElse<T, E, U>(
     self: Result<T, E>,
-    default: (E) -> U,
-    mapper: Mapper<T, U>
+    default: types.Mapper<E, U>,
+    mapper: types.Mapper<T, U>
 ): U
     return if self:isOk()
         then mapper(self._value)
@@ -156,29 +146,27 @@ end
 --- Maps a `Result<T, E>` to `Result<T, F>` by applying a function to a
 --- contained "err" value, leaving an "ok" value untouched.
 ---
---- @param mapper Mapper<E, F> -- The function to apply to the contained error
+--- @param mapper types.Mapper<E, F> -- The function to apply to the contained error
 --- @return Result<T, F> -- The mapped `Result`
 function Result.mapErr<T, E, F>(
     self: Result<T, E>,
-    mapper: Mapper<E, F>
+    mapper: types.Mapper<E, F>
 ): Result<T, F>
-    return if self:isOk()
-        then self
-        else Result.err(mapper(self._error :: E))
+    return if self:isOk() then self else Result.err(mapper(self._error :: E))
 end
 
 --- Calls a function with the contained value if "ok".
 ---
 --- Returns the original `Result`.
 ---
---- @param callback (T) -> () -- The function to call with the contained value
+--- @param consumer types.Consumer<T> -- The function to call with the contained value
 --- @return Result<T, E> -- The original `Result`
 function Result.inspect<T, E>(
     self: Result<T, E>,
-    callback: (T) -> ()
+    consumer: types.Consumer<T>
 ): Result<T, E>
     if self:isOk() then
-        callback(self._value)
+        consumer(self._value)
     end
     return self
 end
@@ -187,14 +175,14 @@ end
 ---
 --- Returns the original `Result`.
 ---
---- @param callback (E) -> () -- The function to call with the contained error
+--- @param consumer types.Consumer<E> -- The function to call with the contained error
 --- @return Result<T, E> -- The original `Result`
 function Result.inspectErr<T, E>(
     self: Result<T, E>,
-    callback: (E) -> ()
+    consumer: types.Consumer<E>
 ): Result<T, E>
     if self:isErr() then
-        callback(self._error :: E)
+        consumer(self._error :: E)
     end
     return self
 end
@@ -250,21 +238,18 @@ end
 ---
 --- @param other Result<U, E> -- The `Result` to return if the `Result` is "ok"
 --- @return Result<U, E> -- The provided `Result`, or the "err" value of `self`
-function Result.andResult<T, E, U>(
-    self: Result<T, E>,
-    other: Result<U, E>
-): Result<U, E>
+function Result.andResult<T, E, U>(self: Result<T, E>, other: Result<U, E>): Result<U, E>
     return if self:isOk() then other else self
 end
 
 ---  Calls `mapper` if the `Result` is "ok", otherwise returns the "err" value
 --- of `self`.
 ---
---- @param mapper Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
+--- @param mapper types.Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
 --- @return Result<U, E> -- The provided `Result`, or the "err" value of `self`
 function Result.andThen<T, E, U>(
     self: Result<T, E>,
-    mapper: Mapper<T, Result<U, E>>
+    mapper: types.Mapper<T, Result<U, E>>
 ): Result<U, E>
     return if self:isOk() then mapper(self._value) else self
 end
@@ -274,21 +259,18 @@ end
 ---
 --- @param other Result<T, F> -- The `Result` to return if the `Result` is "err"
 --- @return Result<T, F> -- The provided `Result`, or the "ok" value of `self`
-function Result.orResult<T, E, F>(
-    self: Result<T, E>,
-    other: Result<T, F>
-): Result<T, F>
+function Result.orResult<T, E, F>(self: Result<T, E>, other: Result<T, F>): Result<T, F>
     return if self:isOk() then self else other
 end
 
 --- Calls `mapper` if the `Result` is "err", otherwise returns the "ok" value
 --- of `self`.
 ---
---- @param mapper Mapper<E, Result<T, F>> -- The function to call if the `Result` is "err"
+--- @param mapper types.Mapper<E, Result<T, F>> -- The function to call if the `Result` is "err"
 --- @return Result<T, F> -- The provided `Result`, or the "ok" value of `self`
 function Result.orElse<T, E, F>(
     self: Result<T, E>,
-    mapper: Mapper<E, Result<T, F>>
+    mapper: types.Mapper<E, Result<T, F>>
 ): Result<T, F>
     return if self:isOk() then self else mapper(self._error :: E)
 end
@@ -302,24 +284,30 @@ function Result.unwrapOr<T, E>(self: Result<T, E>, default: T): T
 end
 
 --- Returns the contained "ok" value or computes it from a default from a
---- callback.
+--- closure.
 ---
---- @param mapper Mapper<E, T> -- The function to call if the `Result` is "err"
+--- @param mapper types.Mapper<E, T> -- The function to call if the `Result` is "err"
 --- @return T -- The contained value, or the provided default
-function Result.unwrapOrElse<T, E>(self: Result<T, E>, mapper: Mapper<E, T>): T
+function Result.unwrapOrElse<T, E>(self: Result<T, E>, mapper: types.Mapper<E, T>): T
     return if self:isOk() then self._value else mapper(self._error :: E)
 end
 
---- Calls `callback` with the given arguments in protected mode, returning "ok"
+--- Calls `factory` with the given arguments in protected mode, returning "ok"
 --- with its first return value, or "err" with the thrown value.
 ---
---- If `callback` throws `nil`, then the error is replaced with a descriptive
+--- If `factory` throws `nil`, then the error is replaced with a descriptive
 --- string, since an "err" cannot hold `nil`.
 ---
---- @param callback (A...) -> T -- The function to call in protected mode
+--- Since `pcall` cannot check error types, the error is typed as `unknown`.
+--- Cast this `Result` to one with the desired error type if desired.
+---
+--- @param factory types.Factory<T, A...> -- The function to call in protected mode
 --- @return Result<T, unknown> -- The `Result`
-function Result.try<T, A...>(callback: (A...) -> T, ...: A...): Result<T, unknown>
-    local ok, result = pcall(callback, ...)
+function Result.try<T, A...>(
+    factory: types.Factory<T, A...>,
+    ...: A...
+): Result<T, unknown>
+    local ok, result = pcall(factory, ...)
     return if ok
         then Result.ok(result)
         else Result.err(
@@ -330,24 +318,24 @@ end
 -- TODO: eventually rework to use xpcall (or add a variant) since pcall discards
 --        the traceback
 
---- Like `Result.try`, but packs all return values of `callback` into a table.
+--- Like `Result.try`, but packs all return values of `factory` into a table.
 ---
 --- Use `table.unpack(packed, 1, packed.n)` to get the values back.
 ---
---- @param callback (A...) -> ...any -- The function to call in protected mode
---- @return Result<PackedTable, unknown> -- The `Result`
+--- @param factory types.TupleFactory<...any, A...> -- The function to call in protected mode
+--- @return Result<types.PackedTable, unknown> -- The `Result`
 function Result.tryPack<A...>(
-    callback: (A...) -> ...any,
+    factory: types.TupleFactory<...any, A...>,
     ...: A...
-): Result<PackedTable, unknown>
-    local results = table.pack(pcall(callback, ...))
+): Result<types.PackedTable, unknown>
+    local results = table.pack(pcall(factory, ...))
     if results[1] then
         return Result.ok(table.pack(table.unpack(results, 2, results.n)))
     else
         local err = results[2]
         return Result.err(
-            if err == nil then "error(nil) was called" else err
-        ) :: Result<PackedTable, unknown>
+                if err == nil then "error(nil) was called" else err
+            ) :: Result<types.PackedTable, unknown>
     end
 end
 
@@ -397,19 +385,21 @@ end
 ---
 --- @param other Result<T, E> -- The `Result` to compare with the current `Result`
 --- @return boolean -- Whether the two `Result`s are equal
-function Result.__eq<T, E>(self: Result<T, E>, other: Result<T, E>): boolean
+function Result.equals<T, E>(self: Result<T, E>, other: Result<T, E>): boolean
     return Result.is(other)
         and self._value == other._value
         and self._error == other._error
 end
+Result.__eq = Result.equals
 
 --- Returns a string representation of the `Result`.
 ---
 --- @return string -- A string representation of the `Result`
-function Result.__tostring<T, E>(self: Result<T, E>): string
+function Result.toString<T, E>(self: Result<T, E>): string
     return if self:isOk()
         then `Ok({repr(self._value)})`
         else `Err({repr(self._error)})`
 end
+Result.__tostring = Result.toString
 
 return Result

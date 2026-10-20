@@ -12,10 +12,7 @@ function Errors.errorWithScope(
     return function(message: string, level: number?): never
         local functionName = debug.info(2, "n") or "?"
         -- add 1 to level to account for this function's stack frame
-        error(
-            `[{moduleName}.{functionName}()]: {message}`,
-            (level or 2) + 1
-        )
+        error(`[{moduleName}.{functionName}()]: {message}`, (level or 2) + 1)
     end
 end
 
