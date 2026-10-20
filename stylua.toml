@@ -1,4 +1,4 @@
 syntax = "Luau"
-column_width = 74
+column_width = 80
 indent_type = "Spaces"
 indent_width = 4

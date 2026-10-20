@@ -13,8 +13,10 @@ export type Predicate<T> = types.Predicate<T>
 export type Supplier<T> = types.Supplier<T>
 export type Consumer<T> = types.Consumer<T>
 export type Mapper<T, U> = types.Mapper<T, U>
-export type Iterator<T> = types.Iterator<T>
-export type Iterable<T> = types.Iterable<T>
+export type Generator<T> = types.Generator<T>
+export type Iterator<S, C, V...> = types.Iterator<S, C, V...>
+export type Array<T> = types.Array<T>
+export type Map<K, V> = types.Map<K, V>
 
 -- same with the modules themselves
 export type Option<T> = Option.Option<T>

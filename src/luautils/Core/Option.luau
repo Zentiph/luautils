@@ -12,6 +12,9 @@ local fail = require("../_internal").Errors.errorWithScope("Option")
 
 --- An optional value: an `Option` is either "some" and has a value, or "none",
 --- and does not.
+---
+--- Supports `==` and `~=` comparison, `tostring()`, and iteration with
+--- `for v in opt do`.
 local Option = {}
 Option.__index = Option
 
@@ -35,8 +38,8 @@ local NONE = new(nil)
 function Option.some<T>(value: T): Option<T>
     if value == nil then
         fail(
-            "[Option.some()]: value cannot be nil "
-                .. "(use Option.from() for nillable values)"
+            "Value cannot be nil "
+                .. "(use Option.fromNillable() for nillable values)"
         )
     end
     return new(value)
@@ -144,12 +147,12 @@ function Option.unwrapOr<T>(self: Option<T>, default: T): T
 end
 
 --- Returns the contained value if the `Option` is "some", or computes a default
---- from a callback.
+--- from a supplier.
 ---
---- @param callback () -> T -- The callback to compute the default value
+--- @param supplier types.Supplier<T> -- The supplier to compute the default value
 --- @return T -- The contained value, or the computed default
-function Option.unwrapOrElse<T>(self: Option<T>, callback: () -> T): T
-    return if self:isSome() then self._value :: T else callback()
+function Option.unwrapOrElse<T>(self: Option<T>, supplier: types.Supplier<T>): T
+    return if self:isSome() then self._value :: T else supplier()
 end
 
 --- Maps an `Option<T>` to `Option<U>` by applying a function to the contained
@@ -159,10 +162,7 @@ end
 ---
 --- @param mapper types.Mapper<T, U?> -- The function to apply to the contained value
 --- @return Option<U> -- The mapped `Option`
-function Option.map<T, U>(
-    self: Option<T>,
-    mapper: types.Mapper<T, U?>
-): Option<U>
+function Option.map<T, U>(self: Option<T>, mapper: types.Mapper<T, U?>): Option<U>
     return if self:isSome()
         then Option.fromNillable(mapper(self._value :: T))
         else Option.none()
@@ -199,11 +199,11 @@ end
 --- Calls a function with the contained value if "some", then returns the
 --- original option.
 ---
---- @param callback (T) -> () -- The function to call with the contained value
+--- @param consumer types.Consumer<T> -- The function to call with the contained value
 --- @return Option<T> -- The original `Option`
-function Option.inspect<T>(self: Option<T>, callback: (T) -> ()): Option<T>
+function Option.inspect<T>(self: Option<T>, consumer: types.Consumer<T>): Option<T>
     if self:isSome() then
-        callback(self._value :: T)
+        consumer(self._value :: T)
     end
     return self
 end
@@ -227,9 +227,7 @@ function Option.andThen<T, U>(
     self: Option<T>,
     mapper: types.Mapper<T, Option<U>>
 ): Option<U>
-    return if self:isSome()
-        then mapper(self._value :: T)
-        else Option.none()
+    return if self:isSome() then mapper(self._value :: T) else Option.none()
 end
 
 --- Returns "none" if the option is "none", otherwise calls `predicate` with the
@@ -296,24 +294,22 @@ function Option.xor<T>(self: Option<T>, other: Option<T>): Option<T>
 end
 
 --- Combines the value in `self` with the value in another `Option`, using
---- `zipper`.
+--- `biMapper`.
 ---
 --- If both `self` and `other` are "some", this method returns the result of
---- calling `zipper` with the wrapped values, or "none" if `zipper` returns
+--- calling `biMapper` with the wrapped values, or "none" if `biMapper` returns
 --- `nil`. Otherwise, it returns "none".
 ---
 --- @param other Option<U> -- The `Option` to combine with the current `Option`
---- @param zipper (a: T, b: U) -> R? -- The function to call with the wrapped values
---- @return Option<R> -- The result of calling `zipper`, or "none"
+--- @param biMapper types.BiMapper<T, U, R?> -- The function to call with the wrapped values
+--- @return Option<R> -- The result of calling `biMapper`, or "none"
 function Option.zip<T, U, R>(
     self: Option<T>,
     other: Option<U>,
-    zipper: (a: T, b: U) -> R?
+    biMapper: types.BiMapper<T, U, R?>
 ): Option<R>
     return if self:isSome() and other:isSome()
-        then Option.fromNillable(
-            zipper(self._value :: T, other._value :: U)
-        )
+        then Option.fromNillable(biMapper(self._value :: T, other._value :: U))
         else Option.none()
 end
 
@@ -328,17 +324,15 @@ end
 --- If `reducer` returns `nil`, the result is "none".
 ---
 --- @param other Option<T> -- The `Option` to reduce with the current `Option`
---- @param reducer (T, T) -> T -- The function to call with the wrapped values
+--- @param reducer types.BiMapper<T, T, T?> -- The function to call with the wrapped values
 --- @return Option<T> -- The result of calling `reducer`, or "none"
 function Option.reduce<T>(
     self: Option<T>,
     other: Option<T>,
-    reducer: (a: T, b: T) -> T?
+    reducer: types.BiMapper<T, T, T?>
 ): Option<T>
     return if self:isSome() and other:isSome()
-        then Option.fromNillable(
-            reducer(self._value :: T, other._value :: T)
-        )
+        then Option.fromNillable(reducer(self._value :: T, other._value :: T))
         else if self:isSome() then self else other
 end
 
@@ -351,64 +345,59 @@ function Option.flatten<T>(self: Option<Option<T>>): Option<T>
     end
     local inner = self._value
     if not Option.is(inner) then
-        fail(
-            "Called flatten on an Option that does not contain an Option"
-        )
+        fail("Called flatten on an Option that does not contain an Option")
     end
     return inner :: Option<T>
 end
 
---- Returns an iterator over the possibly contained value.
----
---- @return types.Iterator<T> -- The iterator
-function Option.iter<T>(self: Option<T>): types.Iterator<T>
-    local yielded = false
-    return function()
-        if not yielded and self:isSome() then
-            yielded = true
-            return self._value
-        end
-        return nil
-    end
+-- Yields the value once (control is nil on the first call), then stops
+local function iterOnce<T>(self: Option<T>, control: T?): T?
+    return if control == nil then self._value else nil
 end
 
---- Converts an `Iterator<Option<T>>` to an `Option<Iterable<T>>`.
+--- Returns an iterator over the possibly contained value.
 ---
---- Returns "some" if all values in the iterator are "some", otherwise returns
+--- The returned iterator iterates once if the `Option` is "some", otherwise
+--- iterates zero times.
+---
+--- @return (types.Iterator<Option<T>, T>, Option<T>, nil) -- The iterator
+function Option.iter<T>(
+    self: Option<T>
+): (types.Iterator<Option<T>, T>, Option<T>, nil)
+    return iterOnce, self, nil
+end
+Option.__iter = Option.iter
+
+--- Converts a `Map<K, Option<T>>` to an `Option<Map<K, T>>`.
+---
+--- Returns "some" if all values in the table are "some", otherwise returns
 --- "none".
 ---
---- @param iter types.Iterator<Option<T>> -- The iterator
---- @return Option<types.Iterable<T>> -- The transposed `Option`
-function Option.all<T>(
-    iter: types.Iterator<Option<T>>
-): Option<types.Iterable<T>>
-    local result: types.Iterable<T> = {}
-    for value in iter do
+--- @param options types.Map<K, Option<T>> -- The table
+--- @return Option<types.Map<K, T>> -- The transposed `Option`
+function Option.all<T, K>(options: types.Map<K, Option<T>>): Option<types.Map<K, T>>
+    local result = {}
+    for key, value in options do
         if not Option.is(value) then
-            fail(
-                "Called all on an Iterator that contains a non-Option value"
-            )
+            fail("Called all on a table containing a non-Option value")
         end
-        if not value:isSome() then
-            return Option.none() :: Option<types.Iterable<T>>
+        if value:isNone() then
+            return Option.none() :: Option<types.Map<K, T>>
         end
-        table.insert(result, value._value)
+        result[key] = value._value
     end
     return Option.some(result)
 end
 
---- Returns the first non-"none" result from an iterator, or "none" if there
---- aren't any.
+--- Returns the first non-"none" result from an ordered table, or "none" if
+--- there aren't any.
 ---
---- @param iter types.Iterator<Option<T>> -- The iterator
+--- @param options types.Array<Option<T>> -- The table
 --- @return Option<T> -- The first non-"none" result
-function Option.firstSome<T>(iter: types.Iterator<Option<T>>): Option<T>
-    for value in iter do
+function Option.firstSome<T>(options: types.Array<Option<T>>): Option<T>
+    for _, value in ipairs(options) do
         if not Option.is(value) then
-            fail(
-                "Called firstSome on an Iterator that "
-                    .. "contains a non-Option value"
-            )
+            fail("Called firstSome on a table containing a non-Option value")
         end
         if value:isSome() then
             return value
@@ -433,15 +422,17 @@ end
 ---
 --- @param other Option<T> -- The `Option` to compare with the current `Option`
 --- @return boolean -- Whether the `Option`s are equal
-function Option.__eq<T>(self: Option<T>, other: Option<T>): boolean
+function Option.equals<T>(self: Option<T>, other: Option<T>): boolean
     return Option.is(other) and self._value == other._value
 end
+Option.__eq = Option.equals
 
 --- Returns a string representation of the `Option`.
 ---
 --- @return string -- A string representation of the `Option`
-function Option.__tostring<T>(self: Option<T>): string
+function Option.toString<T>(self: Option<T>): string
     return if self:isSome() then `Some({repr(self._value)})` else "None"
 end
+Option.__tostring = Option.toString
 
 return Option
