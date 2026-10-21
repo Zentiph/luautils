@@ -37,7 +37,11 @@ function Helpers.spy<A..., R...>(
     local state = { calls = 0 }
     state.fn = function(...: A...): R...
         state.calls += 1
-        return if impl then impl(...) else nil :: any
+        if impl then
+            return impl(...)
+        else
+            return nil :: any
+        end
     end
     return state
 end
