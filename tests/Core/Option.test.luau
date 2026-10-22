@@ -1,6 +1,6 @@
 --!strict
 
--- Option datatype tests
+-- Option tests
 -- by @vuppyan
 
 local test = require("@std/test")
@@ -719,7 +719,7 @@ test.suite("is()", function(suite)
     )
 end)
 
-test.suite("__eq()", function(suite)
+test.suite("equals()", function(suite)
     suite:case('two "some"s are equal by inner value', function(asserts)
         Helpers.eqByStr(asserts, Option.some(1), Option.some(1))
         Helpers.neqByStr(asserts, Option.some(1), Option.some(2))
@@ -740,7 +740,7 @@ test.suite("__eq()", function(suite)
     end)
 end)
 
-test.suite("__tostring()", function(suite)
+test.suite("toString()", function(suite)
     suite:case(
         "toString() returns string representation of inside if some",
         function(asserts)

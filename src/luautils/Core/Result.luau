@@ -88,7 +88,7 @@ end
 --- Converts a `nil` or error into a "none" `Option`.
 ---
 --- @return Option<T> -- The converted `Option`
-function Result.getOk<T, E>(self: Result<T, E>): Option.Option<T>
+function Result.asOk<T, E>(self: Result<T, E>): Option.Option<T>
     return if self:isOk()
         then Option.fromNillable(self._value)
         else Option.none()
@@ -97,7 +97,7 @@ end
 --- Converts from `Result<T, E>` to `Option<E>`.
 ---
 --- @return Option<E> -- The converted `Option`
-function Result.getErr<T, E>(self: Result<T, E>): Option.Option<E>
+function Result.asErr<T, E>(self: Result<T, E>): Option.Option<E>
     return if self:isErr() then Option.some(self._error :: E) else Option.none()
 end
 
@@ -194,7 +194,7 @@ end
 --- @return T -- The contained value
 function Result.expect<T, E>(self: Result<T, E>, message: string): T
     if self:isErr() then
-        fail(`{message}: {repr(self._error)}`)
+        fail(`{message}: {self._error}`)
     end
     return self._value
 end
@@ -242,7 +242,7 @@ function Result.andResult<T, E, U>(self: Result<T, E>, other: Result<U, E>): Res
     return if self:isOk() then other else self
 end
 
----  Calls `mapper` if the `Result` is "ok", otherwise returns the "err" value
+--- Calls `mapper` if the `Result` is "ok", otherwise returns the "err" value
 --- of `self`.
 ---
 --- @param mapper types.Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
@@ -294,6 +294,9 @@ end
 
 --- Calls `factory` with the given arguments in protected mode, returning "ok"
 --- with its first return value, or "err" with the thrown value.
+---
+--- It is recommended to use `Result.tryPack()` for functions that may return
+--- multiple values.
 ---
 --- If `factory` throws `nil`, then the error is replaced with a descriptive
 --- string, since an "err" cannot hold `nil`.
@@ -348,11 +351,16 @@ end
 function Result.transpose<T, E>(
     self: Result<Option.Option<T>, E>
 ): Option.Option<Result<T, E>>
-    return if self:isOk()
-        then if self._value:isSome()
-            then Option.some(Result.ok(self._value:unwrap()))
-            else Option.none() :: Option.Option<Result<T, E>>
-        else Option.some(Result.err(self._error :: E))
+    if self:isErr() then
+        return Option.some(Result.err(self._error :: E))
+    end
+    local inner = self._value
+    if not Option.is(inner) then
+        fail("Called transpose on a Result that does not contain an Option")
+    end
+    return if inner:isSome()
+        then Option.some(Result.ok(inner:unwrap()))
+        else Option.none() :: Option.Option<Result<T, E>>
 end
 
 --- Converts from `Result<Result<T, E>, E>` to `Result<T, E>`.
