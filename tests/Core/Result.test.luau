@@ -870,6 +870,37 @@ test.suite("flatten()", function(suite)
     )
 end)
 
+test.suite("all()", function(suite)
+    suite:case("all() returns ok if all are ok", function(asserts)
+        local values = {
+            Result.ok(1),
+            Result.ok(2),
+            Result.ok(3),
+        } :: { Result.Result<number, number> }
+        local result = Result.all(values)
+        asserts.eq(true, result:isOk())
+        asserts.eq({ 1, 2, 3 }, result:unwrap())
+    end)
+
+    suite:case("all() returns first error if error exists", function(asserts)
+        local values = {
+            Result.ok(1),
+            Result.err(2),
+            Result.ok(3),
+        } :: { Result.Result<number, number> }
+        local result = Result.all(values)
+        asserts.eq(true, result:isErr())
+        asserts.eq(2, result:unwrapErr())
+    end)
+
+    suite:case("all() throws if non-Result present", function(asserts)
+        local values = { Result.ok(1), 2, Result.ok(3) }
+        Helpers.throwsWith(asserts, function()
+            Result.all(values :: any)
+        end, "Called all on a table containing a non-Result value")
+    end)
+end)
+
 test.suite("is()", function(suite)
     suite:case("is() returns true for Results", function(asserts)
         asserts.eq(true, Result.is(Result.ok(1)))

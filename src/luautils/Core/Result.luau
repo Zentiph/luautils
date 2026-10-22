@@ -490,6 +490,29 @@ function Result.flatten<T, E>(self: Result<Result<T, E>, E>): Result<T, E>
     return inner
 end
 
+--- Converts a `Map<K, Result<T, E>>` to a `Result<Map<K, T>, E>`.
+---
+--- Returns "ok" if all values in the table are "ok", otherwise returns the
+--- first "err".
+---
+--- @param results types.Map<K, Result<T, E>> -- The table of `Result`s
+--- @return Result<Map<K, T>, E> -- The converted `Result`
+function Result.all<T, E, K>(
+    results: types.Map<K, Result<T, E>>
+): Result<types.Map<K, T>, E>
+    local result = {}
+    for key, value in results do
+        if not Result.is(value) then
+            fail("Called all on a table containing a non-Result value")
+        end
+        if value:isErr() then
+            return value
+        end
+        result[key] = value:unwrap()
+    end
+    return Result.ok(result)
+end
+
 --- Returns whether the given value is a `Result`.
 ---
 --- @param value any -- The value to check

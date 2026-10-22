@@ -355,7 +355,7 @@ end
 --- Returns "some" if all values in the table are "some", otherwise returns
 --- "none".
 ---
---- @param options types.Map<K, Option<T>> -- The table
+--- @param options types.Map<K, Option<T>> -- The table of `Option`s
 --- @return Option<types.Map<K, T>> -- The transposed `Option`
 function Option.all<T, K>(options: types.Map<K, Option<T>>): Option<types.Map<K, T>>
     local result = {}
@@ -374,7 +374,7 @@ end
 --- Returns the first non-"none" result from an ordered table, or "none" if
 --- there aren't any.
 ---
---- @param options types.Array<Option<T>> -- The table
+--- @param options types.Array<Option<T>> -- The table of `Option`s
 --- @return Option<T> -- The first non-"none" result
 function Option.firstSome<T>(options: types.Array<Option<T>>): Option<T>
     for _, value in ipairs(options) do
