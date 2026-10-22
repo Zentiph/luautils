@@ -620,32 +620,6 @@ test.suite("flatten()", function(suite)
     )
 end)
 
-test.suite("__iter()", function(suite)
-    suite:case("__iter() yields value if some", function(asserts)
-        local values = {}
-        for value in Option.some(1) do
-            table.insert(values, value)
-        end
-        asserts.eq({ 1 }, values)
-    end)
-
-    suite:case("__iter() checks nil, not thruthiness", function(asserts)
-        local values = {}
-        for value in Option.some(false) do
-            table.insert(values, value)
-        end
-        asserts.eq({ false }, values)
-    end)
-
-    suite:case("__iter() does not yield value if none", function(asserts)
-        local values = {}
-        for value in Option.none() do
-            table.insert(values, value)
-        end
-        asserts.eq({}, values)
-    end)
-end)
-
 test.suite("all()", function(suite)
     suite:case("all() returns some if all values some", function(asserts)
         local values = {

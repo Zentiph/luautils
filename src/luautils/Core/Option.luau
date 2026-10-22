@@ -350,24 +350,6 @@ function Option.flatten<T>(self: Option<Option<T>>): Option<T>
     return inner :: Option<T>
 end
 
--- Yields the value once (control is nil on the first call), then stops
-local function iterOnce<T>(self: Option<T>, control: T?): T?
-    return if control == nil then self._value else nil
-end
-
---- Returns an iterator over the possibly contained value.
----
---- The returned iterator iterates once if the `Option` is "some", otherwise
---- iterates zero times.
----
---- @return (types.Iterator<Option<T>, T>, Option<T>, nil) -- The iterator
-function Option.iter<T>(
-    self: Option<T>
-): (types.Iterator<Option<T>, T>, Option<T>, nil)
-    return iterOnce, self, nil
-end
-Option.__iter = Option.iter
-
 --- Converts a `Map<K, Option<T>>` to an `Option<Map<K, T>>`.
 ---
 --- Returns "some" if all values in the table are "some", otherwise returns
