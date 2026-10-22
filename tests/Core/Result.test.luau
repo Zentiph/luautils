@@ -754,6 +754,75 @@ test.suite("try()", function(suite)
     )
 end)
 
+test.suite("tryTrace()", function(suite)
+    local factorySpy = Helpers.spy(
+        function(
+            x: number,
+            y: number,
+            fail: boolean?,
+            failNil: boolean?
+        ): (number, number)
+            if fail then
+                error(if failNil then nil else "Error")
+            end
+            return y, x
+        end
+    )
+    local onErrSpy = Helpers.spy(function(err: unknown): string?
+        return if err == nil
+            then nil
+            else "Handled: " .. tostring(err) .. "\n" .. debug.traceback()
+    end)
+
+    suite:afterEach(function()
+        factorySpy.calls = 0
+        onErrSpy.calls = 0
+    end)
+
+    suite:case(
+        "tryTrace() returns first value if factory is ok",
+        function(asserts)
+            Helpers.eqByStr(
+                asserts,
+                Result.ok(2),
+                Result.tryTrace(factorySpy.fn :: any, onErrSpy.fn, 1, 2)
+            )
+            asserts.eq(1, factorySpy.calls)
+            asserts.eq(0, onErrSpy.calls)
+        end
+    )
+
+    suite:case("tryTrace() returns err if factory fails", function(asserts)
+        local res =
+            Result.tryTrace(factorySpy.fn :: any, onErrSpy.fn, 1, 2, true)
+        asserts.eq(true, res:isErr())
+        asserts.strContains(res:unwrapErr() :: string, "Handled:")
+        asserts.strContains(res:unwrapErr() :: string, "Error")
+        asserts.eq(1, factorySpy.calls)
+        asserts.eq(1, onErrSpy.calls)
+    end)
+
+    suite:case(
+        "tryTrace() returns custom err message if factory fails with nil error",
+        function(asserts)
+            Helpers.eqByStr(
+                asserts,
+                Result.err("error(nil) was called"),
+                Result.tryTrace(
+                    factorySpy.fn :: any,
+                    onErrSpy.fn,
+                    1,
+                    2,
+                    true,
+                    true
+                )
+            )
+            asserts.eq(1, factorySpy.calls)
+            asserts.eq(1, onErrSpy.calls)
+        end
+    )
+end)
+
 test.suite("tryPack()", function(suite)
     local factorySpy = Helpers.spy(
         function(

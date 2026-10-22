@@ -432,7 +432,7 @@ end
 --- Cast this `Result` to one with the desired error type if desired.
 ---
 --- @param factory types.Factory<T, A...> -- The function to call in protected mode
---- @return Result<T, unknown> -- The `Result`
+--- @return Result<T, unknown> -- The `Result` of running the function
 function Result.try<T, A...>(
     factory: types.Factory<T, A...>,
     ...: A...
@@ -445,8 +445,24 @@ function Result.try<T, A...>(
         )
 end
 
--- TODO: eventually rework to use xpcall (or add a variant) since pcall discards
---        the traceback
+--- Like `Result.try`, but runs the function in extended protected mode with an
+--- error handler.
+---
+--- @param factory types.Factory<T, A...> -- The function to call in extended protected mode
+--- @param onErr types.Mapper<unknown, E?> -- The error handler to call if the function fails
+--- @return Result<T, E> -- The `Result` of running the function
+function Result.tryTrace<T, E, A...>(
+    factory: types.Factory<T, A...>,
+    onErr: types.Mapper<unknown, E?>,
+    ...: A...
+): Result<T, E>
+    local ok, result = xpcall(factory, onErr, ...)
+    return if ok
+        then Result.ok(result)
+        else Result.err(
+            if result == nil then "error(nil) was called" else result
+        )
+end
 
 --- Like `Result.try`, but packs all return values of `factory` into a table.
 ---
