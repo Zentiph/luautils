@@ -250,7 +250,7 @@ function Result.inspectErr<T, E>(
     return self
 end
 
---- Returns the contained "ok" value, or errors with the provided message and
+--- Returns the contained "ok" value, or throws with the provided message and
 --- the content of the inner error if the `Result` is "err".
 ---
 --- @param message string -- The error message
@@ -262,7 +262,7 @@ function Result.expect<T, E>(self: Result<T, E>, message: string): T
     return self._value
 end
 
---- Returns the contained "ok" value, or errors if the `Result` is "err" with an
+--- Returns the contained "ok" value, or throws if the `Result` is "err" with an
 --- error message provided by the "err" value.
 ---
 --- If the "err" is a table or userdata, a raw error is raised instead, in order
@@ -280,7 +280,7 @@ function Result.unwrap<T, E>(self: Result<T, E>): T
     return self._value
 end
 
---- Returns the contained "err" value, or errors if the `Result` is "ok", with
+--- Returns the contained "err" value, or throws if the `Result` is "ok", with
 --- an error message including the passed message, and the content of the "ok".
 ---
 --- @param message string -- The error message
@@ -292,7 +292,7 @@ function Result.expectErr<T, E>(self: Result<T, E>, message: string): E
     return self._error :: E
 end
 
---- Returns the contained "err" value, or errors if the `Result` is "ok", with
+--- Returns the contained "err" value, or throws if the `Result` is "ok", with
 --- an error message provided by the "ok" value.
 ---
 --- @return E -- The contained error
@@ -495,6 +495,8 @@ end
 --- Returns "ok" if all values in the table are "ok", otherwise returns the
 --- first "err".
 ---
+--- Keys are preserved, so array input produces arrays with gaps.
+---
 --- @param results types.Map<K, Result<T, E>> -- The table of `Result`s
 --- @return Result<Map<K, T>, E> -- The converted `Result`
 function Result.all<T, E, K>(
@@ -511,6 +513,33 @@ function Result.all<T, E, K>(
         result[key] = value:unwrap()
     end
     return Result.ok(result)
+end
+
+--- Splits a table of `Result`s into two tables: one of unwrapped "ok" values,
+--- and the other of unwrapped "err" values.
+---
+--- Unlike `all`, this never short-circuits and always returns both tables
+--- fully. "Ok" values of `nil` are omitted, since tables cannot hold `nil`.
+---
+--- Keys are preserved, so array input produces arrays with gaps.
+---
+--- @param results types.Map<K, Result<T, E>> -- The table of `Result`s
+--- @return types.Map<K, T>, types.Map<K, E> -- A tuple of unwrapped "ok" and "err" values
+function Result.partition<T, E, K>(
+    results: types.Map<K, Result<T, E>>
+): (types.Map<K, T>, types.Map<K, E>)
+    local oks, errs = {}, {}
+    for key, value in results do
+        if not Result.is(value) then
+            fail("Called partition on a table containing a non-Result value")
+        end
+        if value:isOk() then
+            oks[key] = value._value
+        else
+            errs[key] = value._error
+        end
+    end
+    return oks, errs
 end
 
 --- Returns whether the given value is a `Result`.

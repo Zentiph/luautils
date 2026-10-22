@@ -901,6 +901,31 @@ test.suite("all()", function(suite)
     end)
 end)
 
+test.suite("partition()", function(suite)
+    suite:case("partition() returns oks and errs", function(asserts)
+        local values = {
+            Result.ok(1),
+            Result.err(2),
+            Result.ok(3),
+            Result.err(4),
+        } :: { Result.Result<number, number> }
+        local oks, errs = Result.partition(values)
+        asserts.eq({ [1] = 1, [3] = 3 }, oks)
+        asserts.eq({ [2] = 2, [4] = 4 }, errs)
+    end)
+
+    suite:case("partition() throws if non-Result present", function(asserts)
+        local values = {
+            Result.ok(1),
+            Result.err(2),
+            3,
+        }
+        Helpers.throwsWith(asserts, function()
+            Result.partition(values :: any)
+        end, "Called partition on a table containing a non-Result value")
+    end)
+end)
+
 test.suite("is()", function(suite)
     suite:case("is() returns true for Results", function(asserts)
         asserts.eq(true, Result.is(Result.ok(1)))
