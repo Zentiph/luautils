@@ -209,10 +209,17 @@ end
 --- Returns the contained "ok" value, or errors if the `Result` is "err" with an
 --- error message provided by the "err" value.
 ---
+--- If the "err" is a table or userdata, a raw error is raised instead, in order
+--- to preserve table data.
+---
 --- @return T -- The contained value
 function Result.unwrap<T, E>(self: Result<T, E>): T
     if self:isErr() then
-        fail(tostring(self._error))
+        local err = self._error
+        if type(err) == "table" or type(err) == "userdata" then
+            error(err, 2)
+        end
+        fail(tostring(err))
     end
     return self._value
 end
