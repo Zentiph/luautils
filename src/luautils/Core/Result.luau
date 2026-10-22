@@ -45,6 +45,28 @@ function Result.err<T, E>(err: E): Result<T, E>
     return new(nil, err)
 end
 
+--- Returns the contained value if the `Result` is "ok", otherwise returns
+--- `nil`.
+---
+--- Useful for Roblox APIs that expect `nil`, and provides type-checking where
+--- `unwrapOr(nil)` wouldn't.
+---
+--- @return T? -- The contained value, or `nil`
+function Result.toNillable<T, E>(self: Result<T, E>): T?
+    return self._value
+end
+
+--- Returns the contained error if the `Result` is "err", otherwise returns
+--- `nil`.
+---
+--- Useful for Roblox APIs that expect `nil`, and provides type-checking where
+--- `unwrapErrOr(nil)` wouldn't.
+---
+--- @return E? -- The contained error, or `nil`
+function Result.errToNillable<T, E>(self: Result<T, E>): E?
+    return self._error
+end
+
 --- Returns `true` if the `Result` is "ok".
 ---
 --- @return boolean -- Whether the `Result` is "ok"
