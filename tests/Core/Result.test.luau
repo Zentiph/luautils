@@ -629,6 +629,40 @@ test.suite("tryPack()", function(suite)
     )
 end)
 
+test.suite("wrap()", function(suite)
+    local factorySpy = Helpers.spy(function(fail: boolean): number
+        if fail then
+            error("Error")
+        else
+            return 1
+        end
+    end)
+
+    suite:afterEach(function()
+        factorySpy.calls = 0
+    end)
+
+    suite:case(
+        "wrap() returns function that returns ok on valid return",
+        function(asserts)
+            Helpers.eqByStr(
+                asserts,
+                Result.ok(1),
+                Result.wrap(factorySpy.fn)(false)
+            )
+        end
+    )
+
+    suite:case(
+        "wrap() returns function that returns err on thrown error",
+        function(asserts)
+            local res = Result.wrap(factorySpy.fn)(true)
+            asserts.eq(true, res:isErr())
+            asserts.strContains(res:unwrapErr() :: string, "Error")
+        end
+    )
+end)
+
 test.suite("transpose()", function(suite)
     suite:case(
         "transpose() maps ok with some to some with ok",

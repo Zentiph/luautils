@@ -395,6 +395,18 @@ function Result.tryPack<A...>(
     end
 end
 
+--- Wraps a function that may throw an error into one that returns a `Result`.
+---
+--- @param factory types.Factory<T, A...> -- The function to wrap
+--- @return Result<T, unknown>
+function Result.wrap<T, A...>(
+    factory: types.Factory<T, A...>
+): types.Factory<Result<T, unknown>, A...>
+    return function(...: A...)
+        return Result.try(factory, ...)
+    end
+end
+
 --- Transposes a `Result` of an `Option` into an `Option` of a `Result`.
 ---
 --- An "ok" with a "none" is mapped to "none". An "ok" with a "some" is mapped
