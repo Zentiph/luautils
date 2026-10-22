@@ -290,8 +290,8 @@ function Result.unwrapOr<T, E>(self: Result<T, E>, default: T): T
     return if self:isOk() then self._value else default
 end
 
---- Returns the contained "ok" value or computes it from a default from a
---- closure.
+--- Returns the contained "ok" value or computes one from the error using
+--- `mapper`.
 ---
 --- @param mapper types.Mapper<E, T> -- The function to call if the `Result` is "err"
 --- @return T -- The contained value, or the provided default
