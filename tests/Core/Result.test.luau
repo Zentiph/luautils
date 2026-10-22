@@ -286,7 +286,7 @@ test.suite("expect()", function(suite)
     suite:case("expect() throws if err", function(asserts)
         Helpers.throwsWith(asserts, function()
             Result.err("Problem"):expect("Unexpected issue")
-        end, "Unexpected issue: Problem")
+        end, 'Unexpected issue: "Problem"')
     end)
 end)
 

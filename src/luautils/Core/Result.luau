@@ -194,7 +194,7 @@ end
 --- @return T -- The contained value
 function Result.expect<T, E>(self: Result<T, E>, message: string): T
     if self:isErr() then
-        fail(`{message}: {self._error}`)
+        fail(`{message}: {repr(self._error)}`)
     end
     return self._value
 end
