@@ -136,6 +136,52 @@ test.suite("isErrAnd()", function(suite)
     end)
 end)
 
+test.suite("fromOption()", function(suite)
+    suite:case("fromOption() returns ok if some", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.ok(1),
+            Result.fromOption(Option.some(1), "Error")
+        )
+    end)
+
+    suite:case("fromOption() returns err if none", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.err("Error"),
+            Result.fromOption(Option.none(), "Error")
+        )
+    end)
+end)
+
+test.suite("fromOptionElse()", function(suite)
+    local supplierSpy = Helpers.spy(function()
+        return "Error"
+    end)
+
+    suite:afterEach(function()
+        supplierSpy.calls = 0
+    end)
+
+    suite:case("fromOptionElse() returns ok if some", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.ok(1),
+            Result.fromOptionElse(Option.some(1), supplierSpy.fn)
+        )
+        asserts.eq(0, supplierSpy.calls)
+    end)
+
+    suite:case("fromOptionElse() returns err if none", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.err("Error"),
+            Result.fromOptionElse(Option.none(), supplierSpy.fn)
+        )
+        asserts.eq(1, supplierSpy.calls)
+    end)
+end)
+
 test.suite("asOk()", function(suite)
     suite:case("asOk() returns some if ok", function(asserts)
         Helpers.eqByStr(asserts, Option.some(1), Result.ok(1):asOk())

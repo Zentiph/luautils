@@ -105,6 +105,32 @@ function Result.isErrAnd<T, E>(
     return self:isErr() and predicate(self._error :: E)
 end
 
+--- Transforms the `Option<T>` into a `Result<T, E>`, mapping "some" to "ok"
+--- and "none" to "err".
+---
+--- @param option Option.Option<T> -- The `Option` to convert
+--- @param err E -- The error to provide if the `Option` is "none"
+--- @return Result<T, E> -- The converted `Result`
+function Result.fromOption<T, E>(option: Option.Option<T>, err: E): Result<T, E>
+    return if option:isSome()
+        then Result.ok(option:unwrap())
+        else Result.err(err)
+end
+
+--- Like `fromOption`, but computes the error from a supplier instead.
+---
+--- @param option Option.Option<T> -- The `Option` to convert
+--- @param err types.Supplier<E> -- The error to provide if the `Option` is "none"
+--- @return Result<T, E> -- The converted `Result`
+function Result.fromOptionElse<T, E>(
+    option: Option.Option<T>,
+    err: types.Supplier<E>
+): Result<T, E>
+    return if option:isSome()
+        then Result.ok(option:unwrap())
+        else Result.err(err())
+end
+
 --- Converts from `Result<T, E>` to `Option<T>`.
 ---
 --- Converts a `nil` or error into a "none" `Option`.
