@@ -482,6 +482,28 @@ test.suite("unwrapOrElse()", function(suite)
     end)
 end)
 
+test.suite("match()", function(suite)
+    local okSpy = Helpers.spy(function(_) end)
+    local errSpy = Helpers.spy(function(_) end)
+
+    suite:afterEach(function()
+        okSpy.calls = 0
+        errSpy.calls = 0
+    end)
+
+    suite:case("match() calls ifOk() on ok", function(asserts)
+        Result.ok(1):match(okSpy.fn, errSpy.fn)
+        asserts.eq(1, okSpy.calls)
+        asserts.eq(0, errSpy.calls)
+    end)
+
+    suite:case("match() calls ifErr() on err", function(asserts)
+        Result.err(1):match(okSpy.fn, errSpy.fn)
+        asserts.eq(0, okSpy.calls)
+        asserts.eq(1, errSpy.calls)
+    end)
+end)
+
 test.suite("try()", function(suite)
     local factorySpy = Helpers.spy(
         function(

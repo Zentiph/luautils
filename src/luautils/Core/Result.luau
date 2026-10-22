@@ -306,6 +306,23 @@ function Result.unwrapOrElse<T, E>(self: Result<T, E>, mapper: types.Mapper<E, T
     return if self:isOk() then self._value else mapper(self._error :: E)
 end
 
+--- Calls `ifOk` with the contained value if the `Result` is "ok", otherwise
+--- calls `ifErr` with the contained error.
+---
+--- @param ifOk types.Consumer<T> -- The function to call with the contained value
+--- @param ifErr types.Consumer<E> -- The function to call with the contained error
+function Result.match<T, E>(
+    self: Result<T, E>,
+    ifOk: types.Consumer<T>,
+    ifErr: types.Consumer<E>
+): ()
+    if self:isOk() then
+        ifOk(self._value)
+    else
+        ifErr(self._error :: E)
+    end
+end
+
 --- Calls `factory` with the given arguments in protected mode, returning "ok"
 --- with its first return value, or "err" with the thrown value.
 ---
