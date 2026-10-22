@@ -455,6 +455,48 @@ test.suite("andThen()", function(suite)
     end)
 end)
 
+test.suite("tryAndThen()", function(suite)
+    local mapperSpy = Helpers.spy(
+        function(x: number): Result.Result<string, unknown>
+            if x == 0 then
+                error("Error")
+            end
+            return Result.ok(tostring(x))
+        end
+    )
+
+    suite:afterEach(function()
+        mapperSpy.calls = 0
+    end)
+
+    suite:case("tryAndThen() calls mapper if ok", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.ok("1"),
+            Result.ok(1):tryAndThen(mapperSpy.fn)
+        )
+        asserts.eq(1, mapperSpy.calls)
+    end)
+
+    suite:case("tryAndThen() does not call mapper if err", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.err(1),
+            (Result.err(1) :: Result.Result<number, number>):tryAndThen(
+                mapperSpy.fn
+            )
+        )
+        asserts.eq(0, mapperSpy.calls)
+    end)
+
+    suite:case("tryAndThen() returns err if mapper throws", function(asserts)
+        local res = Result.ok(0):tryAndThen(mapperSpy.fn)
+        asserts.eq(true, res:isErr())
+        asserts.strContains(res:unwrapErr() :: string, "Error")
+        asserts.eq(1, mapperSpy.calls)
+    end)
+end)
+
 test.suite("orResult()", function(suite)
     suite:case("orResult() returns self if ok", function(asserts)
         Helpers.eqByStr(

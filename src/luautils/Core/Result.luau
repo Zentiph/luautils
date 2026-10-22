@@ -166,7 +166,7 @@ function Result.mapOrElse<T, E, U>(
 end
 
 --- Like `map`, except this method returns an "err" `Result` if `mapper` throws,
---- with the error's value as thrown error.
+--- with the error's content as the "err" value.
 ---
 --- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
 --- @return Result<U, E> -- The mapped `Result`
@@ -174,12 +174,7 @@ function Result.tryMap<T, E, U>(
     self: Result<T, E>,
     mapper: types.Mapper<T, U>
 ): Result<U, E>
-    if self:isOk() then
-        local ok, result = pcall(mapper, self._value)
-        return if ok then Result.ok(result) else Result.err(result)
-    else
-        return self
-    end
+    return if self:isOk() then Result.try(mapper, self._value) else self
 end
 
 --- Maps a `Result<T, E>` to `Result<T, F>` by applying a function to a
@@ -305,6 +300,20 @@ function Result.andThen<T, E, U>(
     mapper: types.Mapper<T, Result<U, E>>
 ): Result<U, E>
     return if self:isOk() then mapper(self._value) else self
+end
+
+--- Like `andThen`, except this method returns an "err" `Result` if `mapper`
+--- throws, with the error's content as the "err" value.
+---
+--- @param mapper types.Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
+--- @return Result<U, E> -- The provided `Result`, or the "err" value of `self`
+function Result.tryAndThen<T, E, U>(
+    self: Result<T, E>,
+    mapper: types.Mapper<T, Result<U, E>>
+): Result<U, E>
+    return if self:isOk()
+        then Result.try(mapper, self._value):flatten()
+        else self
 end
 
 --- Returns `other` if the `Result` is "err", otherwise returns the "ok" value
