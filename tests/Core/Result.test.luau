@@ -240,6 +240,14 @@ test.suite("mapErr()", function(suite)
         )
         asserts.eq(0, mapperSpy.calls)
     end)
+
+    suite:case("mapErr() throws if mapper maps to nil", function(asserts)
+        Helpers.throwsWith(asserts, function()
+            Result.err(1):mapErr(function()
+                return nil
+            end)
+        end, 'Mapper gave a nil error; "err" Results cannot hold nil')
+    end)
 end)
 
 test.suite("inspect()", function(suite)

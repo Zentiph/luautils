@@ -152,7 +152,14 @@ function Result.mapErr<T, E, F>(
     self: Result<T, E>,
     mapper: types.Mapper<E, F>
 ): Result<T, F>
-    return if self:isOk() then self else Result.err(mapper(self._error :: E))
+    if self:isOk() then
+        return self
+    end
+    local mapped = mapper(self._error :: E)
+    if mapped == nil then
+        fail('Mapper gave a nil error; "err" Results cannot hold nil')
+    end
+    return Result.err(mapped)
 end
 
 --- Calls a function with the contained value if "ok".
