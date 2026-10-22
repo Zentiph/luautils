@@ -243,6 +243,41 @@ test.suite("mapOrElse()", function(suite)
     end)
 end)
 
+test.suite("tryMap()", function(suite)
+    local mapperSpy = Helpers.spy(function(x: number): string
+        if x == 0 then
+            error("Error")
+        end
+        return tostring(x)
+    end)
+
+    suite:afterEach(function()
+        mapperSpy.calls = 0
+    end)
+
+    suite:case("tryMap() maps value if ok", function(asserts)
+        asserts.eq("1", Result.ok(1):tryMap(mapperSpy.fn):unwrap())
+        asserts.eq(1, mapperSpy.calls)
+    end)
+
+    suite:case("tryMap() does not map value if err", function(asserts)
+        asserts.eq(
+            true,
+            (Result.err(1) :: Result.Result<number, number>)
+                :tryMap(mapperSpy.fn)
+                :isErr()
+        )
+        asserts.eq(0, mapperSpy.calls)
+    end)
+
+    suite:case("tryMap() returns err if mapper throws", function(asserts)
+        local res = Result.ok(0):tryMap(mapperSpy.fn)
+        asserts.eq(true, res:isErr())
+        asserts.strContains(res:unwrapErr() :: string, "Error")
+        asserts.eq(1, mapperSpy.calls)
+    end)
+end)
+
 test.suite("mapErr()", function(suite)
     local mapperSpy = Helpers.spy(function(x: number): string
         return tostring(x)
@@ -650,6 +685,7 @@ test.suite("wrap()", function(suite)
                 Result.ok(1),
                 Result.wrap(factorySpy.fn)(false)
             )
+            asserts.eq(1, factorySpy.calls)
         end
     )
 
@@ -659,6 +695,7 @@ test.suite("wrap()", function(suite)
             local res = Result.wrap(factorySpy.fn)(true)
             asserts.eq(true, res:isErr())
             asserts.strContains(res:unwrapErr() :: string, "Error")
+            asserts.eq(1, factorySpy.calls)
         end
     )
 end)

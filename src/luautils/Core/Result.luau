@@ -165,6 +165,23 @@ function Result.mapOrElse<T, E, U>(
         else default(self._error :: E)
 end
 
+--- Like `map`, except this method returns an "err" `Result` if `mapper` throws,
+--- with the error's value as thrown error.
+---
+--- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
+--- @return Result<U, E> -- The mapped `Result`
+function Result.tryMap<T, E, U>(
+    self: Result<T, E>,
+    mapper: types.Mapper<T, U>
+): Result<U, E>
+    if self:isOk() then
+        local ok, result = pcall(mapper, self._value)
+        return if ok then Result.ok(result) else Result.err(result)
+    else
+        return self
+    end
+end
+
 --- Maps a `Result<T, E>` to `Result<T, F>` by applying a function to a
 --- contained "err" value, leaving an "ok" value untouched.
 ---
