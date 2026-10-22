@@ -311,6 +311,59 @@ test.suite("mapErr()", function(suite)
     end)
 end)
 
+test.suite("filterOrElse()", function(suite)
+    local predicateSpy = Helpers.spy(function(x: number): boolean
+        return x == 1
+    end)
+    local errorFactorySpy = Helpers.spy(function(x: number): string
+        return tostring(x)
+    end)
+
+    suite:afterEach(function()
+        predicateSpy.calls = 0
+        errorFactorySpy.calls = 0
+    end)
+
+    suite:case(
+        "filterOrElse() returns ok if predicate is met",
+        function(asserts)
+            Helpers.eqByStr(
+                asserts,
+                Result.ok(1),
+                Result.ok(1):filterOrElse(predicateSpy.fn, errorFactorySpy.fn)
+            )
+            asserts.eq(1, predicateSpy.calls)
+            asserts.eq(0, errorFactorySpy.calls)
+        end
+    )
+
+    suite:case(
+        "filterOrElse() returns err from error factory if predicate fails",
+        function(asserts)
+            Helpers.eqByStr(
+                asserts,
+                Result.err("2"),
+                Result.ok(2):filterOrElse(predicateSpy.fn, errorFactorySpy.fn)
+            )
+            asserts.eq(1, predicateSpy.calls)
+            asserts.eq(1, errorFactorySpy.calls)
+        end
+    )
+
+    suite:case("filterOrElse() returns self if err", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.err(1),
+            (Result.err(1) :: Result.Result<number, number>):filterOrElse(
+                predicateSpy.fn,
+                errorFactorySpy.fn
+            )
+        )
+        asserts.eq(0, predicateSpy.calls)
+        asserts.eq(0, errorFactorySpy.calls)
+    end)
+end)
+
 test.suite("inspect()", function(suite)
     local consumerSpy = Helpers.spy(function(_) end)
 

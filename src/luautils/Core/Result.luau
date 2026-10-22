@@ -196,6 +196,28 @@ function Result.mapErr<T, E, F>(
     return Result.err(mapped)
 end
 
+--- Tests the contained value of the `Result` if "ok", and returns a `Result`
+--- containing either the verified value or a validation error.
+---
+--- If the `Result` is "err", returns the original `Result`.
+---
+--- @param predicate types.Predicate<T> -- The predicate to check the value against
+--- @param errorFactory types.Factory<E, T> -- The function to create a validation error
+--- @return Result<T, E> -- The validated `Result`
+function Result.filterOrElse<T, E>(
+    self: Result<T, E>,
+    predicate: types.Predicate<T>,
+    errorFactory: types.Factory<E, T>
+): Result<T, E>
+    if self:isOk() then
+        return if predicate(self._value)
+            then self
+            else Result.err(errorFactory(self._value))
+    else
+        return self
+    end
+end
+
 --- Calls a function with the contained value if "ok".
 ---
 --- Returns the original `Result`.
