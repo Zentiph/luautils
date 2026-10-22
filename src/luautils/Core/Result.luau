@@ -228,7 +228,7 @@ end
 --- @return E -- The contained error
 function Result.unwrapErr<T, E>(self: Result<T, E>): E
     if self:isOk() then
-        fail(tostring(self._value))
+        fail(`Called on an ok value: {repr(self._value)}`)
     end
     return self._error :: E
 end

@@ -322,7 +322,7 @@ test.suite("unwrapErr()", function(suite)
     suite:case("unwrapErr() throws if ok", function(asserts)
         Helpers.throwsWith(asserts, function()
             Result.ok(1):unwrapErr()
-        end, "1")
+        end, "Called on an ok value: 1")
     end)
 end)
 
