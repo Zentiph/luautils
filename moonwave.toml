@@ -1,0 +1,10 @@
+title = "luautils"
+gitRepoUrl = "https://github.com/Zentiph/luautils"
+gitSourceBranch = "master"
+
+[docs]
+sidebarPosition = 1
+
+[[classOrder]]
+section = "Core"
+classes = ["Option", "Result"]
