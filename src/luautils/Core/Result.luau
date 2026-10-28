@@ -694,15 +694,15 @@ function Result.transposeOption<T, E>(
     if option:isNone() then
         return Result.ok(Option.none())
     end
-    local inner = option._value :: Result<T, E>
+    local inner = option:unwrap()
     if not Result.is(inner) then
         fail(
             "Called transposeOption on an Option that does not contain a Result"
         )
     end
     return if inner:isOk()
-        then Result.ok(Option.some(inner:unwrap()))
-        else Result.err(inner:unwrapErr()) :: Result<Option.Option<T>, E>
+        then Result.ok(Option.fromNillable(inner._value))
+        else inner
 end
 
 --- Converts from `Result<Result<T, E>, E>` to `Result<T, E>`.
