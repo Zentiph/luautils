@@ -43,6 +43,10 @@ test.suite("fromNillable()", function(suite)
     suite:case("fromNillable(nil) is none", function(asserts)
         asserts.eq(true, Option.fromNillable(nil):isNone())
     end)
+
+    suite:case("fromNillable(nil) reuses the none singleton", function(asserts)
+        asserts.eq(true, rawequal(Option.fromNillable(nil), Option.none()))
+    end)
 end)
 
 test.suite("immutability", function(suite)
@@ -1039,8 +1043,13 @@ test.suite("toString()", function(suite)
         function(asserts)
             asserts.eq("Some(1)", tostring(Option.some(1)))
             asserts.eq('Some("a")', tostring(Option.some("a")))
+            asserts.eq("Some(false)", tostring(Option.some(false)))
         end
     )
+
+    suite:case("toString() nests inner Options", function(asserts)
+        asserts.eq("Some(Some(1))", tostring(Option.some(Option.some(1))))
+    end)
 
     suite:case('toString() returns "None" if none', function(asserts)
         asserts.eq("None", tostring(Option.none()))

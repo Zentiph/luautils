@@ -16,6 +16,11 @@ local fail = require("../_internal").Errors.errorWithScope("Option")
 ---
 --- Supports `==` and `~=` comparison and `tostring()`.
 ---
+--- Error messages thrown by `Option` functions are prefixed with the function
+--- that threw them, such as `[Option.unwrap()]: `, after the usual position
+--- prefix added by `error()`. Errors from [Option:unwrapOrThrow] are thrown
+--- as-is and are not prefixed.
+---
 --- @class Option
 local Option = {}
 Option.__index = Option
@@ -41,7 +46,7 @@ local NONE = new(nil)
 ---
 --- @param value T -- The value to wrap
 --- @return Option<T> -- The new `Option`
---- @error "Value cannot be nil" -- Thrown if `value` is `nil`; use [Option.fromNillable] for nillable values
+--- @error "[Option.some()]: Value cannot be nil" -- Thrown if `value` is `nil`; use [Option.fromNillable] for nillable values
 function Option.some<T>(value: T): Option<T>
     if value == nil then
         fail(
@@ -142,7 +147,7 @@ end
 --- @within Option
 --- @param message string -- The error message
 --- @return T -- The contained value
---- @error "{message}" -- Thrown if the `Option` is "none"
+--- @error "[Option.expect()]: {message}" -- Thrown if the `Option` is "none"
 function Option.expect<T>(self: Option<T>, message: string): T
     if self:isNone() then
         fail(message)
@@ -155,7 +160,7 @@ end
 --- @method unwrap
 --- @within Option
 --- @return T -- The contained value
---- @error 'Attempted to unwrap an Option that was "none"' -- Thrown if the `Option` is "none"
+--- @error '[Option.unwrap()]: Attempted to unwrap an Option that was "none"' -- Thrown if the `Option` is "none"
 function Option.unwrap<T>(self: Option<T>): T
     if self:isNone() then
         fail('Attempted to unwrap an Option that was "none"')
@@ -229,7 +234,7 @@ end
 --- @param condition boolean -- The condition to check
 --- @param value T -- The value to wrap if `condition` is `true`
 --- @return Option<T> -- A "some" holding `value`, or "none"
---- @error "Value cannot be nil" -- Thrown if `condition` is `true` and `value` is `nil`
+--- @error "[Option.some()]: Value cannot be nil" -- Thrown if `condition` is `true` and `value` is `nil`
 function Option.when<T>(condition: boolean, value: T): Option<T>
     return if condition then Option.some(value) else Option.none()
 end
@@ -241,7 +246,7 @@ end
 --- @param condition boolean -- The condition to check
 --- @param supplier types.Supplier<T> -- The function to call if `condition` is `true`
 --- @return Option<T> -- The result of calling `supplier`, or "none"
---- @error "Value cannot be nil" -- Thrown if `condition` is `true` and `supplier` returns `nil`
+--- @error "[Option.some()]: Value cannot be nil" -- Thrown if `condition` is `true` and `supplier` returns `nil`
 function Option.whenThen<T>(
     condition: boolean,
     supplier: types.Supplier<T>
@@ -476,7 +481,7 @@ end
 --- @method flatten
 --- @within Option
 --- @return Option<T> -- The flattened `Option`
---- @error "Called flatten on an Option that does not contain an Option" -- Thrown if the `Option` is "some" and does not hold an `Option`
+--- @error "[Option.flatten()]: Called flatten on an Option that does not contain an Option" -- Thrown if the `Option` is "some" and does not hold an `Option`
 function Option.flatten<T>(self: Option<Option<T>>): Option<T>
     if self:isNone() then
         return Option.none()
@@ -495,7 +500,7 @@ end
 ---
 --- @param options types.Map<K, Option<T>> -- The table of `Option`s
 --- @return Option<types.Map<K, T>> -- The converted `Option`
---- @error "Called all on a table containing a non-Option value" -- Thrown if a non-`Option` value is found before any "none"
+--- @error "[Option.all()]: Called all on a table containing a non-Option value" -- Thrown if a non-`Option` value is found before any "none"
 function Option.all<T, K>(options: types.Map<K, Option<T>>): Option<types.Map<K, T>>
     local result = {}
     for key, value in options do
@@ -517,7 +522,7 @@ end
 ---
 --- @param options types.Array<Option<T>> -- The array of `Option`s
 --- @return Option<T> -- The first "some" `Option`, or "none"
---- @error "Called firstSome on a table containing a non-Option value" -- Thrown if a non-`Option` value is found before any "some"
+--- @error "[Option.firstSome()]: Called firstSome on a table containing a non-Option value" -- Thrown if a non-`Option` value is found before any "some"
 function Option.firstSome<T>(options: types.Array<Option<T>>): Option<T>
     for _, value in ipairs(options) do
         if not Option.is(value) then
@@ -537,7 +542,7 @@ end
 ---
 --- @param options types.Array<Option<T>> -- The array of `Option`s
 --- @return types.Array<T> -- The contained values
---- @error "Called somes on a table containing a non-Option value" -- Thrown if any value is not an `Option`
+--- @error "[Option.somes()]: Called somes on a table containing a non-Option value" -- Thrown if any value is not an `Option`
 function Option.somes<T>(options: types.Array<Option<T>>): types.Array<T>
     local result = {}
     for _, value in ipairs(options) do
@@ -557,7 +562,7 @@ end
 --- @method toArray
 --- @within Option
 --- @return types.Array<T> -- The contained value as an array
-function Option.toArray<T>(self: Option<T>): { T } | {}
+function Option.toArray<T>(self: Option<T>): types.Array<T>
     return if self:isSome() then { self._value } else {}
 end
 

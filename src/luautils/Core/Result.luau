@@ -17,6 +17,11 @@ local fail = require("../_internal").Errors.errorWithScope("Result")
 ---
 --- Supports `==` and `~=` comparison and `tostring()`.
 ---
+--- Error messages thrown by `Result` functions are prefixed with the function
+--- that threw them, such as `[Result.unwrap()]: `, after the usual position
+--- prefix added by `error()`. Errors that are thrown as-is, such as table
+--- errors from [Result:unwrap], are not prefixed.
+---
 --- @class Result
 local Result = {}
 Result.__index = Result
@@ -57,7 +62,7 @@ end
 ---
 --- @param err E -- The error to wrap
 --- @return Result<T, E> -- The new `Result`
---- @error "Error cannot be nil" -- Thrown if `err` is `nil`
+--- @error "[Result.err()]: Error cannot be nil" -- Thrown if `err` is `nil`
 function Result.err<T, E>(err: E): Result<T, E>
     if err == nil then
         fail("Error cannot be nil")
@@ -152,7 +157,7 @@ end
 --- @param option Option.Option<T> -- The `Option` to convert
 --- @param err E -- The error to provide if the `Option` is "none"
 --- @return Result<T, E> -- The converted `Result`
---- @error "Given error produced a nil error" -- Thrown if the `Option` is "none" and `err` is `nil`
+--- @error "[Result.fromOption()]: Given error produced a nil error" -- Thrown if the `Option` is "none" and `err` is `nil`
 function Result.fromOption<T, E>(option: Option.Option<T>, err: E): Result<T, E>
     if option:isSome() then
         return Result.ok(option:unwrap())
@@ -170,7 +175,7 @@ end
 --- @param option Option.Option<T> -- The `Option` to convert
 --- @param err types.Supplier<E> -- The function that supplies the error if the `Option` is "none"
 --- @return Result<T, E> -- The converted `Result`
---- @error "Error supplier produced a nil error" -- Thrown if the `Option` is "none" and `err` returns `nil`
+--- @error "[Result.fromOptionElse()]: Error supplier produced a nil error" -- Thrown if the `Option` is "none" and `err` returns `nil`
 function Result.fromOptionElse<T, E>(
     option: Option.Option<T>,
     err: types.Supplier<E>
@@ -285,7 +290,7 @@ end
 --- @within Result
 --- @param mapper types.Mapper<E, F> -- The function to apply to the contained error
 --- @return Result<T, F> -- The mapped `Result`
---- @error "Mapper produced a nil error" -- Thrown if `mapper` returns `nil`
+--- @error "[Result.mapErr()]: Mapper produced a nil error" -- Thrown if `mapper` returns `nil`
 function Result.mapErr<T, E, F>(
     self: Result<T, E>,
     mapper: types.Mapper<E, F>
@@ -312,7 +317,7 @@ end
 --- @param predicate types.Predicate<T> -- The predicate to check the value against
 --- @param errorFactory types.Factory<E, T> -- The function that creates the error from the value
 --- @return Result<T, E> -- The original `Result`, or the new "err"
---- @error "Error factory produced a nil error" -- Thrown if `errorFactory` returns `nil`
+--- @error "[Result.filterOrElse()]: Error factory produced a nil error" -- Thrown if `errorFactory` returns `nil`
 function Result.filterOrElse<T, E>(
     self: Result<T, E>,
     predicate: types.Predicate<T>,
@@ -371,7 +376,7 @@ end
 --- @within Result
 --- @param message string -- The error message
 --- @return T -- The contained value
---- @error "{message}: {error}" -- Thrown if the `Result` is "err"
+--- @error "[Result.expect()]: {message}: {error}" -- Thrown if the `Result` is "err"
 function Result.expect<T, E>(self: Result<T, E>, message: string): T
     if self:isErr() then
         fail(`{message}: {repr(self._error)}`)
@@ -389,7 +394,7 @@ end
 --- @method unwrap
 --- @within Result
 --- @return T -- The contained value
---- @error unknown -- Thrown if the `Result` is "err"
+--- @error unknown -- Thrown if the `Result` is "err"; `"[Result.unwrap()]: {error}"` unless the error is a table or userdata
 function Result.unwrap<T, E>(self: Result<T, E>): T
     if self:isErr() then
         local err = self._error
@@ -408,7 +413,7 @@ end
 --- @within Result
 --- @param message string -- The error message
 --- @return E -- The contained error
---- @error "{message}: {value}" -- Thrown if the `Result` is "ok"
+--- @error "[Result.expectErr()]: {message}: {value}" -- Thrown if the `Result` is "ok"
 function Result.expectErr<T, E>(self: Result<T, E>, message: string): E
     if self:isOk() then
         fail(`{message}: {repr(self._value)}`)
@@ -425,7 +430,7 @@ end
 --- @method unwrapErr
 --- @within Result
 --- @return E -- The contained error
---- @error "Called on an ok value: {value}" -- Thrown if the `Result` is "ok"
+--- @error "[Result.unwrapErr()]: Called on an ok value: {value}" -- Thrown if the `Result` is "ok"
 function Result.unwrapErr<T, E>(self: Result<T, E>): E
     if self:isOk() then
         fail(`Called on an ok value: {repr(self._value)}`)
@@ -630,7 +635,7 @@ end
 --- @within Result
 --- @param mapper types.Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
 --- @return Result<U, unknown> -- The `Result` returned by `mapper`, the thrown error, or the original "err" `Result`
---- @error "Called flatten on a Result that does not contain a Result" -- Thrown if `mapper` returns a non-`Result` value without throwing
+--- @error "[Result.flatten()]: Called flatten on a Result that does not contain a Result" -- Thrown if `mapper` returns a non-`Result` value without throwing
 function Result.tryAndThen<T, E, U>(
     self: Result<T, E>,
     mapper: types.Mapper<T, Result<U, E>>
@@ -663,7 +668,7 @@ end
 --- @method transpose
 --- @within Result
 --- @return Option.Option<Result<T, E>> -- The transposed `Option`
---- @error "Called transpose on a Result that does not contain an Option" -- Thrown if the `Result` is "ok" and does not hold an `Option`
+--- @error "[Result.transpose()]: Called transpose on a Result that does not contain an Option" -- Thrown if the `Result` is "ok" and does not hold an `Option`
 function Result.transpose<T, E>(
     self: Result<Option.Option<T>, E>
 ): Option.Option<Result<T, E>>
@@ -681,13 +686,13 @@ end
 
 --- Transposes an [Option] of a `Result` into a `Result` of an [Option].
 ---
---- A "some" with an "ok" is mapped to a "ok" with the "some". A "some" with
---- an "err" is mapped to an "err". A "none" is mapped to a "ok" with a "none".
+--- A "some" with an "ok" is mapped to an "ok" with the "some". A "some" with
+--- an "err" is mapped to an "err". A "none" is mapped to an "ok" with a
+--- "none".
 ---
---- @method transposeOption
---- @within Result
 --- @param option Option.Option<Result<T, E>> -- The `Option` to transpose
 --- @return Result<Option.Option<T>, E> -- The transposed `Result`
+--- @error "[Result.transposeOption()]: Called transposeOption on an Option that does not contain a Result" -- Thrown if the `Option` is "some" and does not hold a `Result`
 function Result.transposeOption<T, E>(
     option: Option.Option<Result<T, E>>
 ): Result<Option.Option<T>, E>
@@ -712,7 +717,7 @@ end
 --- @method flatten
 --- @within Result
 --- @return Result<T, E> -- The flattened `Result`
---- @error "Called flatten on a Result that does not contain a Result" -- Thrown if the `Result` is "ok" and does not hold a `Result`
+--- @error "[Result.flatten()]: Called flatten on a Result that does not contain a Result" -- Thrown if the `Result` is "ok" and does not hold a `Result`
 function Result.flatten<T, E>(self: Result<Result<T, E>, E>): Result<T, E>
     if self:isErr() then
         return self
@@ -735,7 +740,7 @@ end
 ---
 --- @param results types.Map<K, Result<T, E>> -- The table of `Result`s
 --- @return Result<types.Map<K, T>, E> -- The converted `Result`
---- @error "Called all on a table containing a non-Result value" -- Thrown if a non-`Result` value is found before any "err"
+--- @error "[Result.all()]: Called all on a table containing a non-Result value" -- Thrown if a non-`Result` value is found before any "err"
 function Result.all<T, E, K>(
     results: types.Map<K, Result<T, E>>
 ): Result<types.Map<K, T>, E>
@@ -764,7 +769,7 @@ end
 --- @param results types.Map<K, Result<T, E>> -- The table of `Result`s
 --- @return types.Map<K, T> -- The unwrapped "ok" values
 --- @return types.Map<K, E> -- The unwrapped "err" values
---- @error "Called partition on a table containing a non-Result value" -- Thrown if any value is not a `Result`
+--- @error "[Result.partition()]: Called partition on a table containing a non-Result value" -- Thrown if any value is not a `Result`
 function Result.partition<T, E, K>(
     results: types.Map<K, Result<T, E>>
 ): (types.Map<K, T>, types.Map<K, E>)

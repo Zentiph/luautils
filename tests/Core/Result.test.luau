@@ -1204,6 +1204,73 @@ test.suite("transpose()", function(suite)
     )
 end)
 
+test.suite("transposeOption()", function(suite)
+    suite:case(
+        "transposeOption() maps some with ok to ok with some",
+        function(asserts)
+            Helpers.eqByStr(
+                asserts,
+                Result.ok(Option.some(1)),
+                Result.transposeOption(Option.some(Result.ok(1)))
+            )
+        end
+    )
+
+    suite:case(
+        "transposeOption() maps some with err to the same err",
+        function(asserts)
+            local inner = Result.err("Error")
+            local res = Result.transposeOption(Option.some(inner))
+            Helpers.eqByStr(asserts, Result.err("Error"), res)
+            asserts.eq(true, rawequal(inner, res))
+        end
+    )
+
+    suite:case("transposeOption() maps none to ok with none", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.ok(Option.none()),
+            Result.transposeOption(
+                Option.none() :: Option.Option<Result.Result<number, string>>
+            )
+        )
+    end)
+
+    suite:case(
+        "transposeOption() maps some with ok holding nil to ok with none",
+        function(asserts)
+            Helpers.eqByStr(
+                asserts,
+                Result.ok(Option.none()),
+                Result.transposeOption(Option.some(Result.ok(nil)))
+            )
+        end
+    )
+
+    suite:case("transposeOption() undoes transpose()", function(asserts)
+        local original = Result.ok(Option.some(1))
+        Helpers.eqByStr(
+            asserts,
+            original,
+            Result.transposeOption(original:transpose())
+        )
+    end)
+
+    suite:case(
+        "transposeOption() throws if some and inner value is not a result",
+        function(asserts)
+            Helpers.throwsWith(
+                asserts,
+                function()
+                    Result.transposeOption(Option.some(1) :: any)
+                end,
+                "[Result.transposeOption()]: Called transposeOption on an Option "
+                    .. "that does not contain a Result"
+            )
+        end
+    )
+end)
+
 test.suite("flatten()", function(suite)
     suite:case("flatten() flattens ok", function(asserts)
         Helpers.eqByStr(
