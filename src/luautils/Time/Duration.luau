@@ -6,6 +6,9 @@
 local Core = require("../Core")
 local repr = require("../_internal").repr
 
+-- TODO: add enum creators with type support
+-- TODO: other oop tools like "final class" metatable locking, easy interface checking, etc
+
 --- A fixed-length span of time with nanosecond precision and no upper bound.
 ---
 --- Internally, a `Duration` is represented by two `number` fields. The first
@@ -38,6 +41,7 @@ local NANOS_PER_SECOND = 1_000_000_000
 local SECONDS_PER_MINUTE = 60
 local SECONDS_PER_HOUR = 3_600
 local SECONDS_PER_DAY = 86_400
+local SECONDS_PER_WEEK = 604_800
 
 -- Helper for normalizing seconds and nanoseconds to their expected ranges
 local function normalize(secs: number, nanos: number): (number, number)
@@ -102,6 +106,12 @@ Duration.HOUR = new(SECONDS_PER_HOUR, 0)
 --- @prop DAY Duration
 --- @within Duration
 Duration.DAY = new(SECONDS_PER_DAY, 0)
+
+--- A duration of one week.
+---
+--- @prop WEEK Duration
+--- @within Duration
+Duration.WEEK = new(SECONDS_PER_WEEK, 0)
 
 -- TODO: ofNanos ... ofDays
 
