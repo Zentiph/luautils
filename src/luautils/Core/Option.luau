@@ -3,7 +3,7 @@
 -- Option type
 -- by @vuppyan
 
--- TODO: eventually make all docs accurate to moonwave doc tags
+-- TODO: eventually make all docs accurate to moonwave doc tags, and add any missing pieces in documentation
 
 local repr = require("../_internal").repr
 local types = require("./types")
@@ -13,8 +13,7 @@ local fail = require("../_internal").Errors.errorWithScope("Option")
 --- An optional value: an `Option` is either "some" and has a value, or "none",
 --- and does not.
 ---
---- Supports `==` and `~=` comparison, `tostring()`, and iteration with
---- `for v in opt do`.
+--- Supports `==` and `~=` comparison and `tostring()`.
 local Option = {}
 Option.__index = Option
 
@@ -153,6 +152,28 @@ end
 --- @return T -- The contained value, or the computed default
 function Option.unwrapOrElse<T>(self: Option<T>, supplier: types.Supplier<T>): T
     return if self:isSome() then self._value :: T else supplier()
+end
+
+--- Returns the provided value if `condition` is true, otherwise returns "none".
+---
+--- @param condition boolean -- The condition to check
+--- @param value T -- The value to return if the condition is true
+--- @return Option<T> -- The provided value, or "none"
+function Option.when<T>(condition: boolean, value: T): Option<T>
+    return if condition then Option.some(value) else Option.none()
+end
+
+--- Returns the result of calling `supplier` if `condition` is true, otherwise
+--- returns "none".
+---
+--- @param condition boolean -- The condition to check
+--- @param supplier types.Supplier<T> -- The function to call if the condition is true
+--- @return Option<T> -- The result of calling `supplier`, or "none"
+function Option.whenThen<T>(
+    condition: boolean,
+    supplier: types.Supplier<T>
+): Option<T>
+    return if condition then supplier() else Option.none()
 end
 
 --- Maps an `Option<T>` to `Option<U>` by applying a function to the contained
