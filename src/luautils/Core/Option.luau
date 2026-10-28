@@ -154,6 +154,18 @@ function Option.unwrapOrElse<T>(self: Option<T>, supplier: types.Supplier<T>): T
     return if self:isSome() then self._value :: T else supplier()
 end
 
+--- Returns the contained value if the `Option` is "some", otherwise throws.
+---
+--- @param errorSupplier types.Supplier<any> -- The supplier to compute the error message
+--- @return T -- The contained value
+--- @error any -- Thrown if the `Option` is "none"
+function Option.unwrapOrThrow<T>(
+    self: Option<T>,
+    errorSupplier: types.Supplier<any>
+): T
+    return if self:isSome() then self._value :: T else fail(errorSupplier())
+end
+
 --- Returns whether the `Option` contains a value equal to the provided value.
 ---
 --- Equality is checked using `==`.
