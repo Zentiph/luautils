@@ -38,13 +38,9 @@ local function new<T, E>(value: T, err: E?): Result<T, E>
     return table.freeze(setmetatable({ _value = value, _error = err }, Result))
 end
 
--- Helper for when an error is produced from an
--- external function and could be nil
-local function errFrom<T, E>(err: E, source: string): Result<T, E>
-    if err == nil then
-        fail(`{source} produced a nil error; "err" Results cannot hold nil`, 3)
-    end
-    return new(nil, err)
+-- Helper for the message thrown when an external function produces a nil error.
+local function nilErrorMessage(source: string): string
+    return `{source} produced a nil error; "err" Results cannot hold nil`
 end
 
 --- Creates a new "ok" `Result` with the specified value.
@@ -158,9 +154,13 @@ end
 --- @return Result<T, E> -- The converted `Result`
 --- @error "Given error produced a nil error" -- Thrown if the `Option` is "none" and `err` is `nil`
 function Result.fromOption<T, E>(option: Option.Option<T>, err: E): Result<T, E>
-    return if option:isSome()
-        then Result.ok(option:unwrap())
-        else errFrom(err, "Given error")
+    if option:isSome() then
+        return Result.ok(option:unwrap())
+    end
+    if err == nil then
+        fail(nilErrorMessage("Given error"))
+    end
+    return new(nil, err)
 end
 
 --- Like `Result.fromOption`, but computes the error from a supplier instead.
@@ -170,14 +170,19 @@ end
 --- @param option Option.Option<T> -- The `Option` to convert
 --- @param err types.Supplier<E> -- The function that supplies the error if the `Option` is "none"
 --- @return Result<T, E> -- The converted `Result`
---- @error "Error supplier produced a nil error" -- Thrown if `err` returns `nil`
+--- @error "Error supplier produced a nil error" -- Thrown if the `Option` is "none" and `err` returns `nil`
 function Result.fromOptionElse<T, E>(
     option: Option.Option<T>,
     err: types.Supplier<E>
 ): Result<T, E>
-    return if option:isSome()
-        then Result.ok(option:unwrap())
-        else errFrom(err(), "Error supplier")
+    if option:isSome() then
+        return Result.ok(option:unwrap())
+    end
+    local supplied = err()
+    if supplied == nil then
+        fail(nilErrorMessage("Error supplier"))
+    end
+    return new(nil, supplied)
 end
 
 --- Converts from `Result<T, E>` to `Option<T>`.
@@ -285,9 +290,14 @@ function Result.mapErr<T, E, F>(
     self: Result<T, E>,
     mapper: types.Mapper<E, F>
 ): Result<T, F>
-    return if self:isOk()
-        then self
-        else errFrom(mapper(self._error :: E), "Mapper")
+    if self:isOk() then
+        return self
+    end
+    local mapped = mapper(self._error :: E)
+    if mapped == nil then
+        fail(nilErrorMessage("Mapper"))
+    end
+    return new(nil, mapped)
 end
 
 --- Tests the contained value of the `Result` if "ok". Returns the original
@@ -308,13 +318,14 @@ function Result.filterOrElse<T, E>(
     predicate: types.Predicate<T>,
     errorFactory: types.Factory<E, T>
 ): Result<T, E>
-    if self:isOk() then
-        return if predicate(self._value)
-            then self
-            else errFrom(errorFactory(self._value), "Error factory")
-    else
+    if self:isErr() or predicate(self._value) then
         return self
     end
+    local err = errorFactory(self._value)
+    if err == nil then
+        fail(nilErrorMessage("Error factory"))
+    end
+    return new(nil, err)
 end
 
 --- Calls a function with the contained value if "ok".
@@ -373,7 +384,7 @@ end
 ---
 --- If the error is a table or userdata, it is thrown as-is, in order to
 --- preserve its data. Otherwise, it is converted with `tostring()` and thrown
---- as a message.
+--- as a message, prefixed with `[Result.unwrap()]: `.
 ---
 --- @method unwrap
 --- @within Result
@@ -447,25 +458,6 @@ function Result.andThen<T, E, U>(
     mapper: types.Mapper<T, Result<U, E>>
 ): Result<U, E>
     return if self:isOk() then mapper(self._value) else self
-end
-
---- Like `Result.andThen`, except this method returns an "err" `Result` if
---- `mapper` throws, with the thrown value as the "err" value.
----
---- As with `Result.try`, a thrown `nil` is replaced with a descriptive string.
----
---- @method tryAndThen
---- @within Result
---- @param mapper types.Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
---- @return Result<U, E> -- The `Result` returned by `mapper`, the thrown error, or the original "err" `Result`
---- @error "Called flatten on a Result that does not contain a Result" -- Thrown if `mapper` returns a non-`Result` value
-function Result.tryAndThen<T, E, U>(
-    self: Result<T, E>,
-    mapper: types.Mapper<T, Result<U, E>>
-): Result<U, E>
-    return if self:isOk()
-        then Result.try(mapper, self._value):flatten()
-        else self
 end
 
 --- Returns `other` if the `Result` is "err", otherwise returns `self`.
@@ -581,6 +573,9 @@ end
 --- return value becomes the "err" value. If `onErr` returns `nil`, the error is
 --- replaced with a descriptive string, since an "err" cannot hold `nil`.
 ---
+--- Unlike `Result.try`, a thrown `nil` is passed to `onErr` as-is, so `onErr`
+--- decides what it becomes.
+---
 --- Note that `onErr` comes before the arguments to `factory`.
 ---
 --- @param factory types.Factory<T, A...> -- The function to call in extended protected mode
@@ -622,6 +617,27 @@ function Result.tryPack<A...>(
                 if err == nil then "error(nil) was called" else err
             ) :: Result<types.PackedTable, unknown>
     end
+end
+
+--- Like `Result.andThen`, except this method returns an "err" `Result` if
+--- `mapper` throws, with the thrown value as the "err" value.
+---
+--- As with `Result.try`, a thrown `nil` is replaced with a descriptive string,
+--- and the error is typed as `unknown`, since it may be either the original
+--- error, an error returned by `mapper`, or a thrown value.
+---
+--- @method tryAndThen
+--- @within Result
+--- @param mapper types.Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
+--- @return Result<U, unknown> -- The `Result` returned by `mapper`, the thrown error, or the original "err" `Result`
+--- @error "Called flatten on a Result that does not contain a Result" -- Thrown if `mapper` returns a non-`Result` value without throwing
+function Result.tryAndThen<T, E, U>(
+    self: Result<T, E>,
+    mapper: types.Mapper<T, Result<U, E>>
+): Result<U, unknown>
+    return if self:isOk()
+        then Result.try(mapper, self._value):flatten()
+        else self
 end
 
 --- Wraps a function that may throw an error into one that returns a `Result`.
