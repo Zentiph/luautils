@@ -16,17 +16,68 @@ is to clone the repository:
 git clone https://github.com/Zentiph/luautils.git
 ```
 
+The tools used by this project are pinned in `rokit.toml`. To install them,
+run the following from the repository root:
+
+```bash
+rokit install
+```
+
+### Verifying Installation
+
+To verify that the version of the library you have is compatible for use, you
+can run the test suite and type checker on the library from the repository
+root:
+
+```bash
+# test suite (discovers every *.test.luau file under tests/)
+lute test
+```
+
+```bash
+# type check
+luau-lsp analyze --platform standard --flag:LuauSolverV2=true src tests
+```
+
+`--flag:LuauSolverV2=true` is required; without it, `luau-lsp analyze` uses the
+old type solver, which reports false errors for this library.
+
+## Development
+
+All commands are run from the repository root.
+
+```bash
+# run a single test file
+lute test tests/Core/Result.test.luau
+```
+
+```bash
+# check formatting, then fix it
+stylua --check src tests
+stylua src tests
+```
+
+```bash
+# lint (selene.toml uses the roblox std, so only src is linted)
+selene src
+```
+
+```bash
+# preview the documentation locally, or build it into build/
+moonwave dev
+moonwave build
+```
+
+```bash
+# build the library into a model file, or sync it live into Roblox Studio
+rojo build -o luautils.rbxm
+rojo serve
+```
+
 ## Structure
 
 With `rojo` and the default `default.project.json`, the library is copied into
 the `ReplicatedStorage/Luautils` `Folder`.
-
-The library is split into the following sub-libraries:
-
-- datatypes (`.../DataTypes`)
-  - All `ModuleScript`s part of the public API return classes
-- functions (`.../Functions`)
-  - All `ModuleScript`s part of the public API return functions directly
 
 ## QnA
 
