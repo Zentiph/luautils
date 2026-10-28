@@ -34,6 +34,20 @@ test.suite("err()", function(suite)
     end)
 end)
 
+test.suite("immutability", function(suite)
+    suite:case("Results are frozen", function(asserts)
+        asserts.eq(true, table.isfrozen(Result.ok(1) :: any))
+        asserts.eq(true, table.isfrozen(Result.err(1) :: any))
+    end)
+
+    suite:case("modifying a Result throws", function(asserts)
+        local ok = pcall(function()
+            (Result.ok(1) :: any)._value = 2
+        end)
+        asserts.eq(false, ok)
+    end)
+end)
+
 test.suite("toNillable()", function(suite)
     suite:case("toNillable() returns value if ok", function(asserts)
         asserts.eq(1, Result.ok(1):toNillable())
@@ -44,6 +58,10 @@ test.suite("toNillable()", function(suite)
 
     suite:case("toNillable() returns nil if err", function(asserts)
         asserts.eq(nil, Result.err(1):toNillable())
+    end)
+
+    suite:case("toNillable() returns nil if ok holds nil", function(asserts)
+        asserts.eq(nil, Result.ok(nil):toNillable())
     end)
 end)
 
@@ -152,6 +170,23 @@ test.suite("fromOption()", function(suite)
             Result.fromOption(Option.none(), "Error")
         )
     end)
+
+    suite:case("fromOption() throws if none and error is nil", function(asserts)
+        Helpers.throwsWith(asserts, function()
+            Result.fromOption(Option.none(), nil)
+        end, "[Result.fromOption()]: Given error produced a nil error")
+    end)
+
+    suite:case(
+        "fromOption() does not throw if some and error is nil",
+        function(asserts)
+            Helpers.eqByStr(
+                asserts,
+                Result.ok(1),
+                Result.fromOption(Option.some(1), nil)
+            )
+        end
+    )
 end)
 
 test.suite("fromOptionElse()", function(suite)
@@ -180,6 +215,21 @@ test.suite("fromOptionElse()", function(suite)
         )
         asserts.eq(1, supplierSpy.calls)
     end)
+
+    suite:case(
+        "fromOptionElse() throws if supplier returns nil",
+        function(asserts)
+            Helpers.throwsWith(
+                asserts,
+                function()
+                    Result.fromOptionElse(Option.none(), function()
+                        return nil
+                    end)
+                end,
+                "[Result.fromOptionElse()]: Error supplier produced a nil error"
+            )
+        end
+    )
 end)
 
 test.suite("asOk()", function(suite)
@@ -203,6 +253,10 @@ test.suite("asErr()", function(suite)
 
     suite:case("asErr() returns none if ok", function(asserts)
         Helpers.eqByStr(asserts, Option.none(), Result.ok(1):asErr())
+    end)
+
+    suite:case("asErr() returns some if err holds false", function(asserts)
+        Helpers.eqByStr(asserts, Option.some(false), Result.err(false):asErr())
     end)
 end)
 
@@ -287,6 +341,18 @@ test.suite("mapOrElse()", function(suite)
         asserts.eq(1, defaultSpy.calls)
         asserts.eq(0, mapperSpy.calls)
     end)
+
+    suite:case("mapOrElse() passes error to default", function(asserts)
+        asserts.eq(
+            "Error!",
+            (Result.err("Error") :: Result.Result<number, string>):mapOrElse(
+                function(err)
+                    return err .. "!"
+                end,
+                tostring
+            )
+        )
+    end)
 end)
 
 test.suite("tryMap()", function(suite)
@@ -322,6 +388,20 @@ test.suite("tryMap()", function(suite)
         asserts.strContains(res:unwrapErr() :: string, "Error")
         asserts.eq(1, mapperSpy.calls)
     end)
+
+    suite:case(
+        "tryMap() returns custom err message if mapper throws nil",
+        function(asserts)
+            Helpers.eqByStr(
+                asserts,
+                Result.err("error(nil) was called"),
+                Result.ok(1):tryMap(function(_)
+                    error(nil)
+                    return 0 -- for the type checker
+                end)
+            )
+        end
+    )
 end)
 
 test.suite("mapErr()", function(suite)
@@ -353,8 +433,22 @@ test.suite("mapErr()", function(suite)
             Result.err(1):mapErr(function()
                 return nil
             end)
-        end, 'Mapper gave a nil error; "err" Results cannot hold nil')
+        end, 'Mapper produced a nil error; "err" Results cannot hold nil')
     end)
+
+    suite:case(
+        "mapErr() blames the caller if mapper maps to nil",
+        function(asserts)
+            local ok, err = pcall(function()
+                Result.err(1):mapErr(function()
+                    return nil
+                end)
+            end)
+            asserts.eq(false, ok)
+            asserts.strContains(tostring(err), "[Result.mapErr()]")
+            asserts.strContains(tostring(err), "Result.test.luau:")
+        end
+    )
 end)
 
 test.suite("filterOrElse()", function(suite)
@@ -408,6 +502,17 @@ test.suite("filterOrElse()", function(suite)
         asserts.eq(0, predicateSpy.calls)
         asserts.eq(0, errorFactorySpy.calls)
     end)
+
+    suite:case(
+        "filterOrElse() throws if error factory returns nil",
+        function(asserts)
+            Helpers.throwsWith(asserts, function()
+                Result.ok(2):filterOrElse(predicateSpy.fn, function(_)
+                    return nil
+                end)
+            end, "[Result.filterOrElse()]: Error factory produced a nil error")
+        end
+    )
 end)
 
 test.suite("inspect()", function(suite)
@@ -420,6 +525,21 @@ test.suite("inspect()", function(suite)
     suite:case("inspect() calls consumer if ok", function(asserts)
         Result.ok(1):inspect(consumerSpy.fn)
         asserts.eq(1, consumerSpy.calls)
+    end)
+
+    suite:case("inspect() passes value and returns self", function(asserts)
+        local received
+        local res = Result.ok(1)
+        asserts.eq(
+            true,
+            rawequal(
+                res,
+                res:inspect(function(x)
+                    received = x
+                end)
+            )
+        )
+        asserts.eq(1, received)
     end)
 
     suite:case("inspect() does not call consumer if err", function(asserts)
@@ -438,6 +558,21 @@ test.suite("inspectErr()", function(suite)
     suite:case("inspectErr() calls consumer if err", function(asserts)
         Result.err(1):inspectErr(consumerSpy.fn)
         asserts.eq(1, consumerSpy.calls)
+    end)
+
+    suite:case("inspectErr() passes error and returns self", function(asserts)
+        local received
+        local res = Result.err(1)
+        asserts.eq(
+            true,
+            rawequal(
+                res,
+                res:inspectErr(function(x)
+                    received = x
+                end)
+            )
+        )
+        asserts.eq(1, received)
     end)
 
     suite:case("inspectErr() does not call consumer if ok", function(asserts)
@@ -466,7 +601,20 @@ test.suite("unwrap()", function(suite)
     suite:case("unwrap() throws if err", function(asserts)
         Helpers.throwsWith(asserts, function()
             Result.err("Problem"):unwrap()
-        end, "Problem")
+        end, "[Result.unwrap()]: Problem")
+    end)
+
+    suite:case("unwrap() throws table errors as-is", function(asserts)
+        local errValue = { code = 1 }
+        local ok, err = pcall(function()
+            Result.err(errValue):unwrap()
+        end)
+        asserts.eq(false, ok)
+        asserts.eq(true, rawequal(errValue, err))
+    end)
+
+    suite:case("unwrap() returns nil if ok holds nil", function(asserts)
+        asserts.eq(nil, Result.ok(nil):unwrap())
     end)
 end)
 
@@ -478,7 +626,7 @@ test.suite("expectErr()", function(suite)
     suite:case("expectErr() throws if ok", function(asserts)
         Helpers.throwsWith(asserts, function()
             Result.ok(1):expectErr("Unexpected issue")
-        end, "Unexpected issue")
+        end, "Unexpected issue: 1")
     end)
 end)
 
@@ -594,6 +742,27 @@ test.suite("tryAndThen()", function(suite)
         asserts.strContains(res:unwrapErr() :: string, "Error")
         asserts.eq(1, mapperSpy.calls)
     end)
+
+    suite:case("tryAndThen() returns err returned by mapper", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.err("Error"),
+            Result.ok(1):tryAndThen(function(_)
+                return Result.err("Error")
+            end)
+        )
+    end)
+
+    suite:case(
+        "tryAndThen() throws if mapper returns a non-Result",
+        function(asserts)
+            Helpers.throwsWith(asserts, function()
+                Result.ok(1):tryAndThen(function(_)
+                    return 1 :: any
+                end)
+            end, "Called flatten on a Result that does not contain a Result")
+        end
+    )
 end)
 
 test.suite("orResult()", function(suite)
@@ -633,6 +802,16 @@ test.suite("orElse()", function(suite)
 
     suite:afterEach(function()
         mapperSpy.calls = 0
+    end)
+
+    suite:case("orElse() can recover to ok", function(asserts)
+        Helpers.eqByStr(
+            asserts,
+            Result.ok(2),
+            Result.err(1):orElse(function(x)
+                return Result.ok(x + 1)
+            end)
+        )
     end)
 
     suite:case("orElse() calls mapper if err", function(asserts)
@@ -678,6 +857,17 @@ test.suite("unwrapOrElse()", function(suite)
         asserts.eq(1, mapperSpy.calls)
     end)
 
+    suite:case("unwrapOrElse() passes error to mapper", function(asserts)
+        asserts.eq(
+            "Error!",
+            (Result.err("Error") :: Result.Result<string, string>):unwrapOrElse(
+                function(err)
+                    return err .. "!"
+                end
+            )
+        )
+    end)
+
     suite:case("unwrapOrElse() returns value if ok", function(asserts)
         asserts.eq(1, Result.ok(1):unwrapOrElse(mapperSpy.fn))
         asserts.eq(0, mapperSpy.calls)
@@ -703,6 +893,19 @@ test.suite("match()", function(suite)
         Result.err(1):match(okSpy.fn, errSpy.fn)
         asserts.eq(0, okSpy.calls)
         asserts.eq(1, errSpy.calls)
+    end)
+
+    suite:case("match() passes contained values", function(asserts)
+        local received
+        Result.ok(1):match(function(x)
+            received = x
+        end, errSpy.fn)
+        asserts.eq(1, received)
+
+        Result.err(2):match(okSpy.fn, function(x)
+            received = x
+        end)
+        asserts.eq(2, received)
     end)
 end)
 
@@ -803,11 +1006,11 @@ test.suite("tryTrace()", function(suite)
     end)
 
     suite:case(
-        "tryTrace() returns custom err message if factory fails with nil error",
+        "tryTrace() returns custom err message if onErr returns nil",
         function(asserts)
             Helpers.eqByStr(
                 asserts,
-                Result.err("error(nil) was called"),
+                Result.err("error handler returned nil"),
                 Result.tryTrace(
                     factorySpy.fn :: any,
                     onErrSpy.fn,
@@ -821,6 +1024,30 @@ test.suite("tryTrace()", function(suite)
             asserts.eq(1, onErrSpy.calls)
         end
     )
+
+    suite:case("tryTrace() passes thrown value to onErr", function(asserts)
+        local thrown = { code = 1 }
+        local received
+        local res = Result.tryTrace(function()
+            error(thrown)
+            return 0 -- for the type checker
+        end, function(err)
+            received = err
+            return "mapped"
+        end)
+        asserts.eq(thrown, received)
+        Helpers.eqByStr(asserts, Result.err("mapped"), res)
+    end)
+
+    suite:case("tryTrace() passes thrown nil to onErr", function(asserts)
+        local res = Result.tryTrace(function()
+            error(nil)
+            return 0 -- for the type checker
+        end, function(err)
+            return if err == nil then "was nil" else "was not nil"
+        end)
+        Helpers.eqByStr(asserts, Result.err("was nil"), res)
+    end)
 end)
 
 test.suite("tryPack()", function(suite)
@@ -872,6 +1099,20 @@ test.suite("tryPack()", function(suite)
             asserts.eq(1, factorySpy.calls)
         end
     )
+
+    suite:case("tryPack() preserves nil return values", function(asserts)
+        local packed = Result.tryPack(function()
+            return nil, 1, nil
+        end):unwrap()
+        asserts.eq(3, packed.n)
+        asserts.eq(nil, packed[1])
+        asserts.eq(1, packed[2])
+        asserts.eq(nil, packed[3])
+    end)
+
+    suite:case("tryPack() packs zero return values", function(asserts)
+        asserts.eq(0, Result.tryPack(function() end):unwrap().n)
+    end)
 end)
 
 test.suite("wrap()", function(suite)
@@ -908,6 +1149,21 @@ test.suite("wrap()", function(suite)
             asserts.eq(1, factorySpy.calls)
         end
     )
+
+    suite:case(
+        "wrap() passes all arguments and keeps only the first return",
+        function(asserts)
+            local wrapped = Result.wrap(function(x: number, y: number)
+                return x + y, x - y
+            end :: any)
+            Helpers.eqByStr(asserts, Result.ok(3), wrapped(1, 2))
+        end
+    )
+
+    suite:case("wrap() does not call factory until invoked", function(asserts)
+        Result.wrap(factorySpy.fn)
+        asserts.eq(0, factorySpy.calls)
+    end)
 end)
 
 test.suite("transpose()", function(suite)
@@ -1014,6 +1270,29 @@ test.suite("all()", function(suite)
             Result.all(values :: any)
         end, "Called all on a table containing a non-Result value")
     end)
+
+    suite:case("all() returns ok with empty table if empty", function(asserts)
+        local result = Result.all({})
+        asserts.eq(true, result:isOk())
+        asserts.eq({}, result:unwrap())
+    end)
+
+    suite:case("all() preserves keys", function(asserts)
+        local values = {
+            a = Result.ok(1),
+            b = Result.ok(2),
+        } :: { [string]: Result.Result<number, number> }
+        asserts.eq({ a = 1, b = 2 }, Result.all(values):unwrap())
+    end)
+
+    suite:case("all() omits ok values of nil", function(asserts)
+        local values = {
+            Result.ok(1),
+            Result.ok(nil),
+            Result.ok(3),
+        } :: { Result.Result<number?, number> }
+        asserts.eq({ [1] = 1, [3] = 3 }, Result.all(values):unwrap())
+    end)
 end)
 
 test.suite("partition()", function(suite)
@@ -1027,6 +1306,22 @@ test.suite("partition()", function(suite)
         local oks, errs = Result.partition(values)
         asserts.eq({ [1] = 1, [3] = 3 }, oks)
         asserts.eq({ [2] = 2, [4] = 4 }, errs)
+    end)
+
+    suite:case("partition() preserves keys", function(asserts)
+        local values = {
+            a = Result.ok(1),
+            b = Result.err(2),
+        } :: { [string]: Result.Result<number, number> }
+        local oks, errs = Result.partition(values)
+        asserts.eq({ a = 1 }, oks)
+        asserts.eq({ b = 2 }, errs)
+    end)
+
+    suite:case("partition() returns empty tables if empty", function(asserts)
+        local oks, errs = Result.partition({})
+        asserts.eq({}, oks)
+        asserts.eq({}, errs)
     end)
 
     suite:case("partition() throws if non-Result present", function(asserts)
@@ -1069,6 +1364,19 @@ test.suite("equals()", function(suite)
         end
     )
 
+    suite:case("equals() is used by == and ~=", function(asserts)
+        asserts.eq(true, Result.ok(1) == Result.ok(1))
+        asserts.eq(true, Result.ok(nil) == Result.ok(nil))
+        asserts.eq(true, Result.ok(1) ~= Result.err(1))
+        asserts.eq(true, Result.ok(1):equals(Result.ok(1)))
+    end)
+
+    suite:case("equals() compares tables by reference", function(asserts)
+        local t = {}
+        asserts.eq(true, Result.ok(t) == Result.ok(t))
+        asserts.eq(false, Result.ok({}) == Result.ok({}))
+    end)
+
     suite:case("equals() returns false for non-Results", function(asserts)
         Helpers.neqByStr(asserts, Result.ok(1), 1)
         Helpers.neqByStr(asserts, Result.ok("a"), "a")
@@ -1082,5 +1390,7 @@ test.suite("toString()", function(suite)
     suite:case("toString() shows state and inner value", function(asserts)
         asserts.eq("Ok(1)", tostring(Result.ok(1)))
         asserts.eq('Err("Error")', tostring(Result.err("Error")))
+        asserts.eq("Ok(nil)", tostring(Result.ok(nil)))
+        asserts.eq("Ok(1)", Result.ok(1):toString())
     end)
 end)
