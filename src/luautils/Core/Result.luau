@@ -29,7 +29,7 @@ type ResultData<T, E> = {
 --- A `Result` holding either an "ok" value of type `T` or an "err" value of
 --- type `E`.
 ---
---- @type Result<T, E> Result<T, E>
+--- @type Result Result<T, E>
 --- @within Result
 export type Result<T, E> = typeof(setmetatable({} :: ResultData<T, E>, Result))
 
