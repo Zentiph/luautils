@@ -154,6 +154,16 @@ function Option.unwrapOrElse<T>(self: Option<T>, supplier: types.Supplier<T>): T
     return if self:isSome() then self._value :: T else supplier()
 end
 
+--- Returns whether the `Option` contains a value equal to the provided value.
+---
+--- Equality is checked using `==`.
+---
+--- @param value T -- The value to check against
+--- @return boolean -- Whether the `Option` contains the value
+function Option.contains<T>(self: Option<T>, value: T): boolean
+    return self:isSome() and self._value == value
+end
+
 --- Returns the provided value if `condition` is true, otherwise returns "none".
 ---
 --- @param condition boolean -- The condition to check
