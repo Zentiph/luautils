@@ -448,6 +448,13 @@ function Option.somes<T>(options: types.Array<Option<T>>): types.Array<T>
     return result
 end
 
+--- Returns the wrapped value as an array.
+---
+--- @return types.Array<T> -- The wrapped value as an array
+function Option.toArray<T>(self: Option<T>): { T } | {}
+    return if self:isSome() then { self._value } else {}
+end
+
 --- Returns whether the given value is an `Option`.
 ---
 --- @param value any -- The value to check
