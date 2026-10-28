@@ -431,6 +431,23 @@ function Option.firstSome<T>(options: types.Array<Option<T>>): Option<T>
     return Option.none()
 end
 
+--- Returns all non-"none" results from an ordered table.
+---
+--- @param options types.Array<Option<T>> -- The table of `Option`s
+--- @return types.Array<T> -- The non-"none" results
+function Option.somes<T>(options: types.Array<Option<T>>): types.Array<T>
+    local result = {}
+    for _, value in ipairs(options) do
+        if not Option.is(value) then
+            fail("Called somes on a table containing a non-Option value")
+        end
+        if value:isSome() then
+            table.insert(result, value._value)
+        end
+    end
+    return result
+end
+
 --- Returns whether the given value is an `Option`.
 ---
 --- @param value any -- The value to check
