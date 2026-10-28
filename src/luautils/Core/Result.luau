@@ -15,7 +15,7 @@ local fail = require("../_internal").Errors.errorWithScope("Result")
 --- An "ok" may hold `nil`, but an "err" cannot; a `Result` is "err" exactly
 --- when its error is not `nil`. `Result`s are frozen and cannot be modified.
 ---
---- Supports `==` and `~=` comparison, and `tostring()`.
+--- Supports `==` and `~=` comparison and `tostring()`.
 ---
 --- @class Result
 local Result = {}
@@ -72,7 +72,7 @@ end
 --- where `unwrapOr(nil)` wouldn't.
 ---
 --- An "ok" holding `nil` also returns `nil`, so the result alone cannot tell it
---- apart from an "err". Use `Result.isOk` if the difference matters.
+--- apart from an "err". Use [Result:isOk] if the difference matters.
 ---
 --- @method toNillable
 --- @within Result
@@ -143,11 +143,11 @@ function Result.isErrAnd<T, E>(
     return self:isErr() and predicate(self._error :: E)
 end
 
---- Converts an `Option<T>` into a `Result<T, E>`, mapping "some" to "ok" and
+--- Converts an [Option] into a `Result<T, E>`, mapping "some" to "ok" and
 --- "none" to "err".
 ---
 --- `err` is evaluated even if the `Option` is "some"; use
---- `Result.fromOptionElse` if the error is expensive to create.
+--- [Result.fromOptionElse] if the error is expensive to create.
 ---
 --- @param option Option.Option<T> -- The `Option` to convert
 --- @param err E -- The error to provide if the `Option` is "none"
@@ -163,9 +163,9 @@ function Result.fromOption<T, E>(option: Option.Option<T>, err: E): Result<T, E>
     return new(nil, err)
 end
 
---- Like `Result.fromOption`, but computes the error from a supplier instead.
+--- Like [Result.fromOption], but computes the error from a supplier instead.
 ---
---- `err` is only called if the `Option` is "none".
+--- `err` is only called if the [Option] is "none".
 ---
 --- @param option Option.Option<T> -- The `Option` to convert
 --- @param err types.Supplier<E> -- The function that supplies the error if the `Option` is "none"
@@ -185,7 +185,7 @@ function Result.fromOptionElse<T, E>(
     return new(nil, supplied)
 end
 
---- Converts from `Result<T, E>` to `Option<T>`.
+--- Converts from `Result<T, E>` to an [Option] of the "ok" value.
 ---
 --- An "err", or an "ok" holding `nil`, becomes a "none" `Option`.
 ---
@@ -198,7 +198,7 @@ function Result.asOk<T, E>(self: Result<T, E>): Option.Option<T>
         else Option.none()
 end
 
---- Converts from `Result<T, E>` to `Option<E>`.
+--- Converts from `Result<T, E>` to an [Option] of the "err" value.
 ---
 --- An "ok" becomes a "none" `Option`.
 ---
@@ -226,7 +226,7 @@ end
 --- Maps a `Result<T, E>` to `U` by applying a function to a contained "ok"
 --- value, or returning the provided default if "err".
 ---
---- `default` is evaluated even if the `Result` is "ok"; use `Result.mapOrElse`
+--- `default` is evaluated even if the `Result` is "ok"; use [Result:mapOrElse]
 --- if the default is expensive to create.
 ---
 --- @method mapOr
@@ -260,10 +260,10 @@ function Result.mapOrElse<T, E, U>(
         else default(self._error :: E)
 end
 
---- Like `Result.map`, except this method returns an "err" `Result` if `mapper`
+--- Like [Result:map], except this method returns an "err" `Result` if `mapper`
 --- throws, with the thrown value as the "err" value.
 ---
---- As with `Result.try`, a thrown `nil` is replaced with a descriptive string,
+--- As with [Result.try], a thrown `nil` is replaced with a descriptive string,
 --- and the error is typed as `unknown`, since it may be either the original
 --- error or a thrown value.
 ---
@@ -419,7 +419,7 @@ end
 --- Returns the contained "err" value, or throws if the `Result` is "ok", with
 --- an error message containing the contained value.
 ---
---- Unlike `Result.unwrap`, the contained value is always included in a message,
+--- Unlike [Result:unwrap], the contained value is always included in a message,
 --- never thrown as-is.
 ---
 --- @method unwrapErr
@@ -435,7 +435,7 @@ end
 
 --- Returns `other` if the `Result` is "ok", otherwise returns `self`.
 ---
---- `other` is evaluated even if the `Result` is "err"; use `Result.andThen` if
+--- `other` is evaluated even if the `Result` is "err"; use [Result:andThen] if
 --- it is expensive to create.
 ---
 --- @method andResult
@@ -462,7 +462,7 @@ end
 
 --- Returns `other` if the `Result` is "err", otherwise returns `self`.
 ---
---- `other` is evaluated even if the `Result` is "ok"; use `Result.orElse` if it
+--- `other` is evaluated even if the `Result` is "ok"; use [Result:orElse] if it
 --- is expensive to create.
 ---
 --- @method orResult
@@ -490,7 +490,7 @@ end
 --- Returns the contained "ok" value or a provided default.
 ---
 --- `default` is evaluated even if the `Result` is "ok"; use
---- `Result.unwrapOrElse` if the default is expensive to create.
+--- [Result:unwrapOrElse] if the default is expensive to create.
 ---
 --- @method unwrapOr
 --- @within Result
@@ -515,7 +515,7 @@ end
 --- calls `ifErr` with the contained error.
 ---
 --- Returns nothing; the return values of `ifOk` and `ifErr` are discarded. Use
---- `Result.mapOrElse` to produce a value instead.
+--- [Result:mapOrElse] to produce a value instead.
 ---
 --- @method match
 --- @within Result
@@ -536,7 +536,7 @@ end
 --- Calls `factory` with the given arguments in protected mode, returning "ok"
 --- with its first return value, or "err" with the thrown value.
 ---
---- Any additional return values are discarded; use `Result.tryPack` for
+--- Any additional return values are discarded; use [Result.tryPack] for
 --- functions that return multiple values.
 ---
 --- If `factory` throws `nil`, then the error is replaced with a descriptive
@@ -545,7 +545,7 @@ end
 --- Since `pcall` cannot check error types, the error is typed as `unknown`.
 --- Cast this `Result` to one with the expected error type if needed.
 ---
---- The traceback of the error is lost; use `Result.tryTrace` to capture it.
+--- The traceback of the error is lost; use [Result.tryTrace] to capture it.
 ---
 --- @param factory types.Factory<T, A...> -- The function to call in protected mode
 --- @param ... A... -- The arguments to pass to `factory`
@@ -562,7 +562,7 @@ function Result.try<T, A...>(
         )
 end
 
---- Like `Result.try`, but runs the function in extended protected mode with an
+--- Like [Result.try], but runs the function in extended protected mode with an
 --- error handler.
 ---
 --- This is recommended when you want to inspect the traceback of an error that
@@ -573,7 +573,7 @@ end
 --- return value becomes the "err" value. If `onErr` returns `nil`, the error is
 --- replaced with a descriptive string, since an "err" cannot hold `nil`.
 ---
---- Unlike `Result.try`, a thrown `nil` is passed to `onErr` as-is, so `onErr`
+--- Unlike [Result.try], a thrown `nil` is passed to `onErr` as-is, so `onErr`
 --- decides what it becomes.
 ---
 --- Note that `onErr` comes before the arguments to `factory`.
@@ -595,11 +595,11 @@ function Result.tryTrace<T, E, A...>(
         )
 end
 
---- Like `Result.try`, but packs all return values of `factory` into a table.
+--- Like [Result.try], but packs all return values of `factory` into a table.
 ---
 --- Use `table.unpack(packed, 1, packed.n)` to get the values back.
 ---
---- As with `Result.try`, a thrown `nil` is replaced with a descriptive string.
+--- As with [Result.try], a thrown `nil` is replaced with a descriptive string.
 ---
 --- @param factory types.TupleFactory<...any, A...> -- The function to call in protected mode
 --- @param ... A... -- The arguments to pass to `factory`
@@ -619,10 +619,10 @@ function Result.tryPack<A...>(
     end
 end
 
---- Like `Result.andThen`, except this method returns an "err" `Result` if
+--- Like [Result:andThen], except this method returns an "err" `Result` if
 --- `mapper` throws, with the thrown value as the "err" value.
 ---
---- As with `Result.try`, a thrown `nil` is replaced with a descriptive string,
+--- As with [Result.try], a thrown `nil` is replaced with a descriptive string,
 --- and the error is typed as `unknown`, since it may be either the original
 --- error, an error returned by `mapper`, or a thrown value.
 ---
@@ -643,7 +643,7 @@ end
 --- Wraps a function that may throw an error into one that returns a `Result`.
 ---
 --- The returned function passes its arguments to `factory` and behaves like
---- `Result.try`, so only the first return value is kept.
+--- [Result.try], so only the first return value is kept.
 ---
 --- @param factory types.Factory<T, A...> -- The function to wrap
 --- @return types.Factory<Result<T, unknown>, A...> -- The wrapped function
@@ -655,7 +655,7 @@ function Result.wrap<T, A...>(
     end
 end
 
---- Transposes a `Result` of an `Option` into an `Option` of a `Result`.
+--- Transposes a `Result` of an [Option] into an `Option` of a `Result`.
 ---
 --- An "ok" with a "none" is mapped to "none". An "ok" with a "some" is mapped
 --- to a "some" with the "ok". An "err" is mapped to a "some" with the "err".
@@ -729,7 +729,7 @@ end
 --- Splits a table of `Result`s into two tables: one of unwrapped "ok" values,
 --- and the other of unwrapped "err" values.
 ---
---- Unlike `Result.all`, this never short-circuits and always returns both
+--- Unlike [Result.all], this never short-circuits and always returns both
 --- tables fully.
 ---
 --- "ok" values of `nil` are omitted, since tables cannot hold `nil`. Keys are
