@@ -679,6 +679,32 @@ function Result.transpose<T, E>(
         else Option.none() :: Option.Option<Result<T, E>>
 end
 
+--- Transposes an [Option] of a `Result` into a `Result` of an [Option].
+---
+--- A "some" with an "ok" is mapped to a "ok" with the "some". A "some" with
+--- an "err" is mapped to an "err". A "none" is mapped to a "ok" with a "none".
+---
+--- @method transposeOption
+--- @within Result
+--- @param option Option.Option<Result<T, E>> -- The `Option` to transpose
+--- @return Result<Option.Option<T>, E> -- The transposed `Result`
+function Result.transposeOption<T, E>(
+    option: Option.Option<Result<T, E>>
+): Result<Option.Option<T>, E>
+    if option:isNone() then
+        return Result.ok(Option.none())
+    end
+    local inner = option._value :: Result<T, E>
+    if not Result.is(inner) then
+        fail(
+            "Called transposeOption on an Option that does not contain a Result"
+        )
+    end
+    return if inner:isOk()
+        then Result.ok(Option.some(inner:unwrap()))
+        else Result.err(inner:unwrapErr()) :: Result<Option.Option<T>, E>
+end
+
 --- Converts from `Result<Result<T, E>, E>` to `Result<T, E>`.
 ---
 --- Only one level of nesting is removed.
