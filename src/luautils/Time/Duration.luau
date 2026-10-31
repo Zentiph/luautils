@@ -82,6 +82,10 @@ local function normalize(secs: number, nanos: number): (number, number)
     return secs + carry, nanos - carry * NANOS_PER_SECOND
 end
 
+local function truncateTowardZero(x: number): number
+    return if x >= 0 then math.floor(x) else math.ceil(x)
+end
+
 -- Helper for generating Duration.parse()/tryParse() error messages
 local function parseErrMsg(input: string, pos: number, reason: string): string
     return `Invalid ISO-8601 duration: "{input} ({reason} at position {pos})`
@@ -316,6 +320,78 @@ end
 --- @return number -- The total number of weeks
 function Duration.toWeeks(self: Duration): number
     return self:toSeconds() / SECONDS_PER_WEEK
+end
+
+--- Returns the total number of whole nanoseconds contained by this `Duration`.
+---
+--- @method wholeNanos
+--- @within Duration
+--- @return number -- The total number of whole nanoseconds
+function Duration.wholeNanos(self: Duration): number
+    return truncateTowardZero(self:toNanos())
+end
+
+--- Returns the total number of whole microseconds contained by this `Duration`.
+---
+--- @method wholeMicros
+--- @within Duration
+--- @return number -- The total number of whole microseconds
+function Duration.wholeMicros(self: Duration): number
+    return truncateTowardZero(self:toMicros())
+end
+
+--- Returns the total number of whole milliseconds contained by this `Duration`.
+---
+--- @method wholeMillis
+--- @within Duration
+--- @return number -- The total number of whole milliseconds
+function Duration.wholeMillis(self: Duration): number
+    return truncateTowardZero(self:toMillis())
+end
+
+--- Returns the total number of whole seconds contained by this `Duration`.
+---
+--- @method wholeSeconds
+--- @within Duration
+--- @return number -- The total number of whole seconds
+function Duration.wholeSeconds(self: Duration): number
+    return truncateTowardZero(self:toSeconds())
+end
+
+--- Returns the total number of whole minutes contained by this `Duration`.
+---
+--- @method wholeMinutes
+--- @within Duration
+--- @return number -- The total number of whole minutes
+function Duration.wholeMinutes(self: Duration): number
+    return truncateTowardZero(self:toMinutes())
+end
+
+--- Returns the total number of whole hours contained by this `Duration`.
+---
+--- @method wholeHours
+--- @within Duration
+--- @return number -- The total number of whole hours
+function Duration.wholeHours(self: Duration): number
+    return truncateTowardZero(self:toHours())
+end
+
+--- Returns the total number of whole days contained by this `Duration`.
+---
+--- @method wholeDays
+--- @within Duration
+--- @return number -- The total number of whole days
+function Duration.wholeDays(self: Duration): number
+    return truncateTowardZero(self:toDays())
+end
+
+--- Returns the total number of whole weeks contained by this `Duration`.
+---
+--- @method wholeWeeks
+--- @within Duration
+--- @return number -- The total number of whole weeks
+function Duration.wholeWeeks(self: Duration): number
+    return truncateTowardZero(self:toWeeks())
 end
 
 --- Creates a new `Duration` from the specified start time.
