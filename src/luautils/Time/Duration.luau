@@ -20,6 +20,9 @@ local fail = require("../_internal").Errors.errorWithScope("Duration")
 --- precision beyond ~104 days. Splitting into seconds and nanoseconds gives
 --- exact time arithmetic at both scales without any practical upper limit.
 ---
+--- Supports `+`, `-`, `//`, and `%` arithmetic with other `Duration`s, `*` and
+--- `/` with a scalar, and `-` negation.
+---
 --- @class Duration
 local Duration = {}
 Duration.__index = Duration
@@ -550,6 +553,15 @@ function Duration.between(start: number, stop: number): Duration
     return Duration.new(stop - start, 0)
 end
 
+--- Returns whether this `Duration` is zero.
+---
+--- @method isZero
+--- @within Duration
+--- @return boolean -- Whether this `Duration` is zero
+function Duration.isZero(self: Duration): boolean
+    return self._secs == 0 and self._nanos == 0
+end
+
 --- Returns whether this `Duration` is negative.
 ---
 --- @method isNegative
@@ -557,6 +569,195 @@ end
 --- @return boolean -- Whether this `Duration` is negative
 function Duration.isNegative(self: Duration): boolean
     return self._secs < 0
+end
+
+--- Returns the result of adding this `Duration` and another.
+---
+--- @method plus
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The sum
+function Duration.plus(self: Duration, other: Duration): Duration
+    if not Duration.is(other) then
+        fail(`Attempted to perform addition on a non-Duration value: {other}`)
+    end
+    return Duration.new(self._secs + other._secs, self._nanos + other._nanos)
+end
+Duration.__add = Duration.plus
+
+--- Returns the result of subtracting another `Duration` from this one.
+---
+--- @method minus
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The difference
+function Duration.minus(self: Duration, other: Duration): Duration
+    if not Duration.is(other) then
+        fail(
+            `Attempted to perform subtraction on a non-Duration value: {other}`
+        )
+    end
+    return Duration.new(self._secs - other._secs, self._nanos - other._nanos)
+end
+Duration.__sub = Duration.minus
+
+--- Returns the result of multiplying this `Duration` and a scalar.
+---
+--- @method times
+--- @within Duration
+--- @param scalar number -- The scalar
+--- @return Duration -- The product
+function Duration.times(self: Duration, scalar: number): Duration
+    if type(scalar) ~= "number" then
+        fail(
+            `Attempted to perform multiplication on a non-number value: {scalar}`
+        )
+    end
+    return Duration.new(self._secs * scalar, self._nanos * scalar)
+end
+Duration.__mul = function(
+    durationOrScalar1: Duration | number,
+    durationOrScalar2: Duration | number
+): Duration
+    if Duration.is(durationOrScalar1) then
+        -- may fail, but times will handle it
+        return (durationOrScalar1 :: Duration):times(durationOrScalar2 :: any)
+    elseif Duration.is(durationOrScalar2) then
+        -- same as above
+        return (durationOrScalar2 :: Duration):times(durationOrScalar1 :: any)
+    else
+        -- both are numbers, should be unreachable
+        error("Unreachable", 2)
+    end
+end
+
+--- Returns the result of dividing this `Duration` by a scalar, rounded to the
+--- nearest nanosecond.
+---
+--- @method dividedBy
+--- @within Duration
+--- @param scalar number -- The scalar
+--- @return Duration -- The quotient
+function Duration.dividedBy(self: Duration, scalar: number): Duration
+    if scalar == 0 then
+        fail("Attempted to divide by 0")
+    end
+    local mag = self:abs()
+    local absScalar = math.abs(scalar)
+    local q = math.floor(mag._secs / absScalar)
+    local rem = (mag._secs - q * absScalar) * NANOS_PER_SECOND + mag._nanos
+    local result = Duration.new(q, rem / absScalar)
+    return if self:isNegative() ~= (scalar < 0)
+        then result:negated()
+        else result
+end
+Duration.__div = Duration.dividedBy
+
+--- Returns how many times another whole `Duration` can fit into this one.
+---
+--- @method floorDividedBy
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return number -- The quotient
+function Duration.floorDividedBy(self: Duration, other: Duration): number
+    if not Duration.is(other) then
+        fail(
+            `Attempted to perform floor division on a non-Duration value: {other}`
+        )
+    end
+    if other:isZero() then
+        fail("Attempted to divide by 0")
+    end
+    return self:toNanos() // other:toNanos()
+end
+Duration.__idiv = Duration.floorDividedBy
+
+--- Returns the floored remainder of dividing this `Duration` by another, with
+--- the sign of `other`.
+---
+--- @method mod
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The remainder
+function Duration.mod(self: Duration, other: Duration): Duration
+    if not Duration.is(other) then
+        fail(`Attempted to perform modulus on a non-Duration value: {other}`)
+    end
+    if other:isZero() then
+        fail("Attempted to divide by 0")
+    end
+    return Duration.new(0, self:toNanos() % other:toNanos())
+end
+
+--- Returns a `Duration` with the opposite sign of this one.
+---
+--- @method negated
+--- @within Duration
+--- @return Duration -- The negated `Duration`
+function Duration.negated(self: Duration): Duration
+    return Duration.new(-self._secs, -self._nanos)
+end
+Duration.__unm = Duration.negated
+
+--- Returns the truncated quotient of dividing this `Duration` by another.
+---
+--- @method truncatedDividedBy
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return number -- The quotient
+function Duration.truncatedDividedBy(self: Duration, other: Duration): number
+    if other:isZero() then
+        fail("Attempted to divide by 0")
+    end
+    return truncateTowardZero(self:toNanos() / other:toNanos())
+end
+
+--- Returns the truncated remainder of dividing this `Duration` by another, with
+--- the sign of `self`.
+---
+--- @method remainder
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The remainder
+function Duration.remainder(self: Duration, other: Duration): Duration
+    return Duration.new(0, self:truncatedDividedBy(other))
+end
+
+--- Returns the ratio between this `Duration` and another.
+---
+--- @method ratio
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return number -- The ratio
+function Duration.ratio(self: Duration, other: Duration): number
+    if other:isZero() then
+        fail("Attempted to calculate a ratio with a zero Duration")
+    end
+    return self:toNanos() / other:toNanos()
+end
+
+--- Returns the result of subtracting another `Duration` from this one, clamped
+--- at zero.
+---
+--- @method saturatingMinus
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The difference
+function Duration.saturatingMinus(self: Duration, other: Duration): Duration
+    return Duration.new(
+        math.max(0, self._secs - other._secs),
+        math.max(0, self._nanos - other._nanos)
+    )
+end
+
+--- Returns the absolute value of this `Duration`.
+---
+--- @method abs
+--- @within Duration
+--- @return Duration -- The absolute value
+function Duration.abs(self: Duration): Duration
+    local sign = toMagnitude(self)
+    return if sign >= 0 then self else self:negated()
 end
 
 --- Creates a new `Duration` from an ISO 8601 duration string.
