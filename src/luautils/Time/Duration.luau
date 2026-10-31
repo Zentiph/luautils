@@ -403,6 +403,15 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     return Core.Result.ok(duration)
 end
 
+--- Creates a new `Duration` from a serialized data table.
+---
+--- This function guarantees to always deserialize valid `Duration`s serialized
+--- using Duration:serialize(). Any other method of serialization is not
+--- guaranteed to work with deserialization.
+---
+--- @param data Core.Map<any, any> -- The data table
+--- @return Duration -- The new `Duration`
+--- @error "Failed to deserialize duration" -- If the data could not be deserialized
 function Duration.deserialize(data: Core.Map<any, any>): Duration
     local res = Duration.tryDeserialize(data)
     if res:isErr() then
