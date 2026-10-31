@@ -1160,6 +1160,18 @@ function Duration.format(self: Duration, pattern: string): string
     return if self:isNegative() then "-" .. result else result
 end
 
+--- Converts this `Duration` to a human-readable string, like
+--- '2d 12h 18m 05s 123ms'.
+---
+--- Zero-valued components are not included.
+---
+--- @method toHumanString
+--- @within Duration
+--- @return string -- The human-readable string
+function Duration.toHumanString(self: Duration): string
+    return self:format("%dd %02Hh %02Mm %02Ss %03fms")
+end
+
 --- Serializes this `Duration` into a `DataStore`-safe data table.
 ---
 --- @method serialize
