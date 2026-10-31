@@ -452,10 +452,10 @@ end
 
 --- Returns the seconds component of this `Duration`.
 ---
---- @method secsPart
+--- @method secondsPart
 --- @within Duration
 --- @return number -- The seconds
-function Duration.secsPart(self: Duration): number
+function Duration.secondsPart(self: Duration): number
     local sign, secs = toMagnitude(self)
     return signedPart(sign, secs % SECONDS_PER_MINUTE)
 end
@@ -501,13 +501,13 @@ end
 function Duration.toParts(self: Duration): TimePartsO
     return {
         negative = self:isNegative(),
-        days = self:toDays(),
-        hours = self:toHours(),
-        minutes = self:toMinutes(),
-        seconds = self:toSeconds(),
-        millis = self:toMillis(),
-        micros = self:toMicros(),
-        nanos = self:toNanos(),
+        days = math.abs(self:daysPart()),
+        hours = math.abs(self:hoursPart()),
+        minutes = math.abs(self:minutesPart()),
+        seconds = math.abs(self:secondsPart()),
+        millis = math.abs(self:millisPart()),
+        micros = math.abs(self:microsPart()),
+        nanos = math.abs(self:nanosPart()),
     }
 end
 
