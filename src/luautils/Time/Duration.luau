@@ -852,6 +852,85 @@ function Duration.roundedTo(self: Duration, unit: Duration): Duration
     )
 end
 
+--- Returns whether the given value is a `Duration`.
+---
+--- @param value any -- The value to check
+--- @return boolean -- Whether the value is a `Duration`
+function Duration.is(value: any): boolean
+    return getmetatable(value) == Duration
+end
+
+--- Returns `true` if both `Duration`s represent the same span of time.
+---
+--- @method equals
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return boolean -- Whether the two `Duration`s are equal
+function Duration.equals(self: Duration, other: Duration): boolean
+    return Duration.is(other)
+        and self._secs == other._secs
+        and self._nanos == other._nanos
+end
+
+--- Compares two `Duration`s with total ordering, returning -1 if `self` is
+--- "less than" `other`, 0 if they are equal, and 1 if `self` is "greater than"
+--- `other`.
+---
+--- @method compareTo
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return number -- The result of the comparison
+function Duration.compareTo(self: Duration, other: Duration): number
+    if not Duration.is(other) then
+        fail("Attempted to compare a Duration with a non-Duration value")
+    end
+    local diff = self:toNanos() - other:toNanos()
+    return if diff < 0 then -1 elseif diff > 0 then 1 else 0
+end
+Duration.__lt = function(self: Duration, other: Duration): boolean
+    return self:compareTo(other) < 0
+end
+Duration.__le = function(self: Duration, other: Duration): boolean
+    return self:compareTo(other) <= 0
+end
+Duration.__gt = function(self: Duration, other: Duration): boolean
+    return self:compareTo(other) > 0
+end
+Duration.__ge = function(self: Duration, other: Duration): boolean
+    return self:compareTo(other) >= 0
+end
+
+--- Returns the smaller of `self` and `other`.
+---
+--- @method min
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The smaller of `self` and `other`
+function Duration.min(self: Duration, other: Duration): Duration
+    return if self:compareTo(other) <= 0 then self else other
+end
+
+--- Returns the larger of `self` and `other`.
+---
+--- @method max
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The larger of `self` and `other`
+function Duration.max(self: Duration, other: Duration): Duration
+    return if self:compareTo(other) >= 0 then self else other
+end
+
+--- Returns the result of clamping `self` between `min` and `max`.
+---
+--- @method clamp
+--- @within Duration
+--- @param min Duration -- The minimum `Duration`
+--- @param max Duration -- The maximum `Duration`
+--- @return Duration -- The clamped `Duration`
+function Duration.clamp(self: Duration, min: Duration, max: Duration): Duration
+    return self:min(max):max(min)
+end
+
 --- Creates a new `Duration` from an ISO 8601 duration string.
 ---
 --- @param s string -- The ISO 8601 duration string
@@ -979,84 +1058,59 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     return Core.Result.ok(duration)
 end
 
---- Returns whether the given value is a `Duration`.
+--- Converts this `Duration` to an ISO 8601 duration string.
 ---
---- @param value any -- The value to check
---- @return boolean -- Whether the value is a `Duration`
-function Duration.is(value: any): boolean
-    return getmetatable(value) == Duration
-end
-
---- Returns `true` if both `Duration`s represent the same span of time.
----
---- @method equals
+--- @method toString
 --- @within Duration
---- @param other Duration -- The other `Duration`
---- @return boolean -- Whether the two `Duration`s are equal
-function Duration.equals(self: Duration, other: Duration): boolean
-    return Duration.is(other)
-        and self._secs == other._secs
-        and self._nanos == other._nanos
-end
-
---- Compares two `Duration`s with total ordering, returning -1 if `self` is
---- "less than" `other`, 0 if they are equal, and 1 if `self` is "greater than"
---- `other`.
----
---- @method compareTo
---- @within Duration
---- @param other Duration -- The other `Duration`
---- @return number -- The result of the comparison
-function Duration.compareTo(self: Duration, other: Duration): number
-    if not Duration.is(other) then
-        fail("Attempted to compare a Duration with a non-Duration value")
+--- @return string -- The ISO 8601 duration string
+function Duration.toString(self: Duration): string
+    if self:isZero() then
+        return "PT0S"
     end
-    local diff = self:toNanos() - other:toNanos()
-    return if diff < 0 then -1 elseif diff > 0 then 1 else 0
-end
-Duration.__lt = function(self: Duration, other: Duration): boolean
-    return self:compareTo(other) < 0
-end
-Duration.__le = function(self: Duration, other: Duration): boolean
-    return self:compareTo(other) <= 0
-end
-Duration.__gt = function(self: Duration, other: Duration): boolean
-    return self:compareTo(other) > 0
-end
-Duration.__ge = function(self: Duration, other: Duration): boolean
-    return self:compareTo(other) >= 0
-end
 
---- Returns the smaller of `self` and `other`.
----
---- @method min
---- @within Duration
---- @param other Duration -- The other `Duration`
---- @return Duration -- The smaller of `self` and `other`
-function Duration.min(self: Duration, other: Duration): Duration
-    return if self:compareTo(other) <= 0 then self else other
-end
+    local negative = self:isNegative()
+    local mag = self:abs()
+    local secs = mag._secs
+    local nanos = mag._nanos
 
---- Returns the larger of `self` and `other`.
----
---- @method max
---- @within Duration
---- @param other Duration -- The other `Duration`
---- @return Duration -- The larger of `self` and `other`
-function Duration.max(self: Duration, other: Duration): Duration
-    return if self:compareTo(other) >= 0 then self else other
-end
+    local d = math.floor(secs / SECONDS_PER_DAY)
+    secs %= SECONDS_PER_DAY
+    local h = math.floor(secs / SECONDS_PER_HOUR)
+    secs %= SECONDS_PER_HOUR
+    local m = math.floor(secs / SECONDS_PER_MINUTE)
+    secs %= SECONDS_PER_MINUTE
 
---- Returns the result of clamping `self` between `min` and `max`.
----
---- @method clamp
---- @within Duration
---- @param min Duration -- The minimum `Duration`
---- @param max Duration -- The maximum `Duration`
---- @return Duration -- The clamped `Duration`
-function Duration.clamp(self: Duration, min: Duration, max: Duration): Duration
-    return self:min(max):max(min)
+    local result = (negative and "-" or "") .. "P"
+    if d > 0 then
+        result ..= string.format("%.0f", d) .. "D"
+    end
+
+    local t = ""
+    if h > 0 then
+        t ..= string.format("%.0f", h) .. "H"
+    end
+    if m > 0 then
+        t ..= string.format("%.0f", m) .. "M"
+    end
+
+    if secs > 0 or nanos > 0 then
+        if nanos == 0 then
+            t ..= string.format("%.0f", secs) .. "S"
+        else
+            local fracStr = string.format("%09d", nanos):gsub("0+$", "")
+            t ..= string.format("%.0f", secs) .. "." .. fracStr .. "S"
+        end
+    end
+
+    if t ~= "" then
+        result ..= "T" .. t
+    end
+    if result == "P" or result == "-P" then
+        return "PT0S"
+    end
+    return result
 end
+Duration.__tostring = Duration.toString
 
 --- Serializes this `Duration` into a `DataStore`-safe data table.
 ---
