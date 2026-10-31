@@ -52,17 +52,21 @@ end
 ---
 --- The value may be `nil`.
 ---
+--- While the return type is typed as `Result<T, never>`, the `Result` created
+--- by this function can still be used generically as a `Result<T, E>`. This is
+--- done to prevent false positives from the type checker.
+---
 --- @param value T -- The value to wrap
 --- @return Result<T, E> -- The new `Result`
-function Result.ok<T, E>(value: T): Result<T, E>
-    return new(value, nil)
+function Result.ok<T, E>(value: T): Result<T, never>
+    return new(value, nil :: any)
 end
 
 --- Creates a new "err" `Result` with the specified error.
 ---
 --- While the return type is typed as `Result<never, E>`, the `Result` created
 --- by this function can still be used generically as a `Result<T, E>`. This is
---- done simply to appease the type checker.
+--- done to prevent false positives from the type checker.
 ---
 --- @param err E -- The error to wrap
 --- @return Result<T, E> -- The new `Result`
