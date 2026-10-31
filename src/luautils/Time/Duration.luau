@@ -129,6 +129,9 @@ local function parseErrMsg(input: string, pos: number, reason: string): string
     return `Invalid ISO-8601 duration: "{input} ({reason} at position {pos})`
 end
 
+-- TODO: handling for NaN or +/- infinity passed to constructors or
+-- times or dividedBy
+
 --- Creates a new `Duration` from the specified number of seconds and
 --- additional nanoseconds.
 ---
@@ -928,6 +931,9 @@ end
 --- @param max Duration -- The maximum `Duration`
 --- @return Duration -- The clamped `Duration`
 function Duration.clamp(self: Duration, min: Duration, max: Duration): Duration
+    if min:compareTo(max) > 0 then
+        fail("Clamp value min must be less than or equal to max")
+    end
     return self:min(max):max(min)
 end
 
