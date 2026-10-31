@@ -1008,8 +1008,23 @@ end
 --- @param other Duration -- The other `Duration`
 --- @return number -- The result of the comparison
 function Duration.compareTo(self: Duration, other: Duration): number
+    if not Duration.is(other) then
+        fail("Attempted to compare a Duration with a non-Duration value")
+    end
     local diff = self:toNanos() - other:toNanos()
     return if diff < 0 then -1 elseif diff > 0 then 1 else 0
+end
+Duration.__lt = function(self: Duration, other: Duration): boolean
+    return self:compareTo(other) < 0
+end
+Duration.__le = function(self: Duration, other: Duration): boolean
+    return self:compareTo(other) <= 0
+end
+Duration.__gt = function(self: Duration, other: Duration): boolean
+    return self:compareTo(other) > 0
+end
+Duration.__ge = function(self: Duration, other: Duration): boolean
+    return self:compareTo(other) >= 0
 end
 
 --- Returns the smaller of `self` and `other`.
