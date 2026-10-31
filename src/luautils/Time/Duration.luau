@@ -4,7 +4,8 @@
 -- by @vuppyan
 
 local Core = require("../Core")
-local repr = require("../_internal").repr
+
+local fail = require("../_internal").Errors.errorWithScope("Duration")
 
 -- TODO: add enum creators with type support
 -- TODO: other oop tools like "final class" metatable locking, easy interface checking, etc
@@ -49,6 +50,9 @@ export type TimeParts = {
     nanos: number?,
 }
 
+local NANOS_MIN = 0
+local NANOS_MAX = 999_999_999
+
 -- TODO: maybe extract these to a separate time constants file where it makes sense?
 local NANOS_PER_MICRO = 1_000
 local NANOS_PER_MILLI = 1_000_000
@@ -78,9 +82,9 @@ local function normalize(secs: number, nanos: number): (number, number)
     return secs + carry, nanos - carry * NANOS_PER_SECOND
 end
 
--- Helper for generating Duration.parse() error messages
+-- Helper for generating Duration.parse()/tryParse() error messages
 local function parseErrMsg(input: string, pos: number, reason: string): string
-    return `[Duration.parse()]: Invalid ISO-8601 duration: "{input} ({reason} at position {pos})`
+    return `Invalid ISO-8601 duration: "{input} ({reason} at position {pos})`
 end
 
 --- Creates a new `Duration` from the specified number of seconds and
@@ -96,6 +100,12 @@ end
 --- @return Duration -- The new `Duration`
 function Duration.new(secs: number, nanos: number): Duration
     local s, n = normalize(secs, nanos)
+    if n > NANOS_MAX then
+        fail(
+            "Nanoseconds must be less than 1 billion "
+                .. `(got {n} after normalization)`
+        )
+    end
     return table.freeze(setmetatable({ _secs = s, _nanos = n }, Duration))
 end
 
@@ -272,11 +282,15 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "Failed to parse duration" -- If the string could not be parsed
 function Duration.parse(s: string): Duration
-    return Duration.tryParse(s):expect(
-        "Failed to parse duration. "
-            .. "If you are working with potentially malformed input, "
-            .. "use Duration.tryParse() instead."
-    )
+    local res = Duration.tryParse(s)
+    if res:isErr() then
+        fail(
+            `Failed to parse duration: {res:unwrapErr()}`
+                .. ". If you are working with potentially malformed strings, "
+                .. "use Duration.tryParse() instead."
+        )
+    end
+    return res:unwrap()
 end
 
 --- Tries to create a new `Duration` from an ISO 8601 duration string.
@@ -387,6 +401,77 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
         then Duration.new(-secs, -nanos)
         else Duration.new(secs, nanos)
     return Core.Result.ok(duration)
+end
+
+function Duration.deserialize(data: Core.Map<any, any>): Duration
+    local res = Duration.tryDeserialize(data)
+    if res:isErr() then
+        fail(
+            `Failed to deserialize duration: {res:unwrapErr()}`
+                .. ". If you are working with potentially malformed data, "
+                .. "use Duration.tryDeserialize() instead."
+        )
+    end
+    return res:unwrap()
+end
+
+--- Tries to create a new `Duration` from a serialized data table.
+---
+--- This function guarantees to always deserialize valid `Duration`s serialized
+--- using Duration:serialize(). Any other method of serialization is not
+--- guaranteed to work with deserialization.
+---
+--- @param data Core.Map<any, any> -- The data table
+--- @return Core.Result<Duration, string> -- The result of parsing the data
+function Duration.tryDeserialize(
+    data: Core.Map<any, any>
+): Core.Result<Duration, string>
+    local secs = data.secs
+    local nanos = data.nanos
+
+    if secs == nil then
+        return Core.Result.err("Expected key 'secs' in data table")
+    end
+    if nanos == nil then
+        return Core.Result.err("Expected key 'nanos' in data table")
+    end
+
+    if type(secs) ~= "number" then
+        return Core.Result.err(
+            "Expected key 'secs' to be a number in data table"
+        )
+    end
+    if type(nanos) ~= "number" then
+        return Core.Result.err(
+            "Expected key 'nanos' to be a number in data table"
+        )
+    end
+
+    if secs % 1 ~= 0 then
+        return Core.Result.err(
+            "Expected key 'secs' to be an integer in data table"
+        )
+    end
+    if nanos % 1 ~= 0 then
+        return Core.Result.err(
+            "Expected key 'nanos' to be an integer in data table"
+        )
+    end
+
+    if nanos < NANOS_MIN then
+        return Core.Result.err(
+            "Expected key 'nanos' to be greater than or equal "
+                .. `to {NANOS_MIN}, got {nanos}`
+        )
+    end
+    if nanos > NANOS_MAX then
+        return Core.Result.err(
+            "Expected key 'nanos' to be less than or equal "
+                .. `to {NANOS_MAX}, got {nanos}`
+        )
+    end
+
+    return Core.Result.ok(Duration.new(secs, nanos))
 end
 
 return Duration
