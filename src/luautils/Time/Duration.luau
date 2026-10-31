@@ -58,6 +58,16 @@ local SECONDS_PER_HOUR = 3_600
 local SECONDS_PER_DAY = 86_400
 local SECONDS_PER_WEEK = 604_800
 
+local DATE_UNITS: { [string]: { rank: number, secs: number } } = {
+    W = { rank = 1, secs = SECONDS_PER_WEEK },
+    D = { rank = 2, secs = SECONDS_PER_DAY },
+}
+local TIME_UNITS: { [string]: { rank: number, secs: number } } = {
+    H = { rank = 3, secs = SECONDS_PER_HOUR },
+    M = { rank = 4, secs = SECONDS_PER_MINUTE },
+    S = { rank = 5, secs = 1 },
+}
+
 -- Helper for normalizing seconds and nanoseconds to their expected ranges
 local function normalize(secs: number, nanos: number): (number, number)
     local fracSecs = secs % 1
@@ -66,6 +76,11 @@ local function normalize(secs: number, nanos: number): (number, number)
 
     local carry = math.floor(nanos / NANOS_PER_SECOND)
     return secs + carry, nanos - carry * NANOS_PER_SECOND
+end
+
+-- Helper for generating Duration.parse() error messages
+local function parseErrMsg(input: string, pos: number, reason: string): string
+    return `[Duration.parse()]: Invalid ISO-8601 duration: "{input} ({reason} at position {pos})`
 end
 
 --- Creates a new `Duration` from the specified number of seconds and
@@ -249,6 +264,129 @@ end
 --- @return Duration -- The new `Duration`
 function Duration.between(start: number, stop: number): Duration
     return Duration.new(stop - start, 0)
+end
+
+--- Creates a new `Duration` from an ISO 8601 duration string.
+---
+--- @param s string -- The ISO 8601 duration string
+--- @return Duration -- The new `Duration`
+--- @error "Failed to parse duration" -- If the string could not be parsed
+function Duration.parse(s: string): Duration
+    return Duration.tryParse(s):expect(
+        "Failed to parse duration. "
+            .. "If you are working with potentially malformed input, "
+            .. "use Duration.tryParse() instead."
+    )
+end
+
+--- Tries to create a new `Duration` from an ISO 8601 duration string.
+---
+--- @param s string -- The ISO 8601 duration string
+--- @return Core.Result<Duration, string> -- The result of parsing the string
+function Duration.tryParse(s: string): Core.Result<Duration, string>
+    local str = string.upper(s)
+    local pos = 1
+    local negative = false
+
+    local first = string.sub(str, 1, 1)
+    if first == "-" or first == "+" then
+        negative = first == "-"
+        pos += 1
+    end
+    if string.sub(str, pos, pos) ~= "P" then
+        return Core.Result.err(parseErrMsg(str, pos, "missing 'P' prefix"))
+    end
+    pos += 1
+
+    local secs = 0
+    local nanos = 0
+    local inTime = false
+    local lastRank = 0
+
+    while pos <= #str do
+        if string.sub(str, pos, pos) == "T" then
+            if inTime then
+                return Core.Result.err(
+                    parseErrMsg(str, pos, "repeated 'T' prefix")
+                )
+            end
+            inTime = true
+            pos += 1
+            continue
+        end
+
+        -- digits, optional decimal separator + digits,
+        -- unit letter, end position
+        local whole, sep, frac, unit, nextPos =
+            string.match(str, "^(%d+)([%.,]?)(%d*)(%a)()", pos)
+        if not whole or not sep or not frac or not unit or not nextPos then
+            return Core.Result.err(
+                parseErrMsg(str, pos, "expected a number and unit")
+            )
+        end
+
+        local info = (if inTime then TIME_UNITS else DATE_UNITS)[unit]
+        if not info then
+            if not inTime and (unit == "Y" or unit == "M") then
+                return Core.Result.err(
+                    parseErrMsg(
+                        str,
+                        pos,
+                        "years and months have no fixed length"
+                    )
+                )
+            end
+            local where = if inTime then "after" else "before"
+            return Core.Result.err(
+                parseErrMsg(str, pos, `'{unit}' is not valid {where} 'T'`)
+            )
+        end
+
+        if info.rank <= lastRank then
+            return Core.Result.err(
+                parseErrMsg(str, pos, `{unit} is repeated or out of order`)
+            )
+        end
+        if sep ~= "" then
+            if unit ~= "S" then
+                return Core.Result.err(
+                    parseErrMsg(str, pos, "only seconds may be fractional")
+                )
+            elseif frac == "" then
+                return Core.Result.err(
+                    parseErrMsg(
+                        str,
+                        pos,
+                        "missing digits after decimal separator"
+                    )
+                )
+            end
+        end
+
+        lastRank = info.rank
+        -- safe :: number cast; whole was validated by string.match
+        secs += (tonumber(whole) :: number) * info.secs
+        if frac ~= "" then
+            -- pad/truncate to 9 digits so the fraction parses as nanos
+            -- (another safe cast due to string.match)
+            nanos = tonumber(string.sub(frac .. "000000000", 1, 9)) :: number
+        end
+        pos = nextPos
+    end
+
+    if lastRank == 0 then
+        return Core.Result.err(parseErrMsg(str, pos, "no components"))
+    end
+    if inTime and lastRank < TIME_UNITS.H.rank then
+        return Core.Result.err(
+            parseErrMsg(str, pos, "'T' must be followed by a time component")
+        )
+    end
+
+    local duration = if negative
+        then Duration.new(-secs, -nanos)
+        else Duration.new(secs, nanos)
+    return Core.Result.ok(duration)
 end
 
 return Duration
