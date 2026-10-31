@@ -246,6 +246,78 @@ function Duration.fromParts(parts: TimeParts): Duration
     return Duration.new(secs, nanos)
 end
 
+--- Returns the total number of nanoseconds contained by this `Duration`.
+---
+--- @method toNanos
+--- @within Duration
+--- @return number -- The total number of nanoseconds
+function Duration.toNanos(self: Duration): number
+    return self._secs * NANOS_PER_SECOND + self._nanos
+end
+
+--- Returns the total number of microseconds contained by this `Duration`.
+---
+--- @method toMicros
+--- @within Duration
+--- @return number -- The total number of microseconds
+function Duration.toMicros(self: Duration): number
+    return self:toNanos() / NANOS_PER_MICRO
+end
+
+--- Returns the total number of milliseconds contained by this `Duration`.
+---
+--- @method toMillis
+--- @within Duration
+--- @return number -- The total number of milliseconds
+function Duration.toMillis(self: Duration): number
+    return self:toNanos() / NANOS_PER_MILLI
+end
+
+--- Returns the total number of seconds contained by this `Duration`.
+---
+--- @method toSeconds
+--- @within Duration
+--- @return number -- The total number of seconds
+function Duration.toSeconds(self: Duration): number
+    return self._secs + self._nanos / NANOS_PER_SECOND
+end
+
+--- Returns the total number of minutes contained by this `Duration`.
+---
+--- @method toMinutes
+--- @within Duration
+--- @return number -- The total number of minutes
+function Duration.toMinutes(self: Duration): number
+    return self:toSeconds() / SECONDS_PER_MINUTE
+end
+
+--- Returns the total number of hours contained by this `Duration`.
+---
+--- @method toHours
+--- @within Duration
+--- @return number -- The total number of hours
+function Duration.toHours(self: Duration): number
+    return self:toSeconds() / SECONDS_PER_HOUR
+end
+
+--- Returns the total number of days contained by this `Duration`.
+---
+--- @method toDays
+--- @within Duration
+--- @return number -- The total number of days
+function Duration.toDays(self: Duration): number
+    return self:toSeconds() / SECONDS_PER_DAY
+end
+
+--- Returns the total number of weeks contained by this `Duration`.
+---
+--- @method toWeeks
+--- @within Duration
+--- @return number -- The total number of weeks
+function Duration.toWeeks(self: Duration): number
+    return self:toSeconds() / SECONDS_PER_WEEK
+end
+
 --- Creates a new `Duration` from the specified start time.
 ---
 --- Both parameters passed should use the same clock source:
