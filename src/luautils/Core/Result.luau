@@ -60,14 +60,18 @@ end
 
 --- Creates a new "err" `Result` with the specified error.
 ---
+--- While the return type is typed as `Result<never, E>`, the `Result` created
+--- by this function can still be used generically as a `Result<T, E>`. This is
+--- done simply to appease the type checker.
+---
 --- @param err E -- The error to wrap
 --- @return Result<T, E> -- The new `Result`
 --- @error "[Result.err()]: Error cannot be nil" -- Thrown if `err` is `nil`
-function Result.err<T, E>(err: E): Result<T, E>
+function Result.err<T, E>(err: E): Result<never, E>
     if err == nil then
         fail("Error cannot be nil")
     end
-    return new(nil, err)
+    return new(nil :: any, err)
 end
 
 --- Returns the contained value if the `Result` is "ok", otherwise returns
