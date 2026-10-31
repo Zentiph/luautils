@@ -75,10 +75,13 @@ local NANOS_MAX = 999_999_999
 local NANOS_PER_MICRO = 1_000
 local NANOS_PER_MILLI = 1_000_000
 local NANOS_PER_SECOND = 1_000_000_000
+local MICROS_PER_MILLI = 1_000
 local SECONDS_PER_MINUTE = 60
 local SECONDS_PER_HOUR = 3_600
 local SECONDS_PER_DAY = 86_400
 local SECONDS_PER_WEEK = 604_800
+local MINUTES_PER_HOUR = 60
+local HOURS_PER_DAY = 24
 
 local DATE_UNITS: { [string]: { rank: number, secs: number } } = {
     W = { rank = 1, secs = SECONDS_PER_WEEK },
@@ -102,6 +105,20 @@ end
 
 local function truncateTowardZero(x: number): number
     return if x >= 0 then math.floor(x) else math.ceil(x)
+end
+
+-- Splits a Duration into its sign and non-negative seconds/nanoseconds
+local function toMagnitude(self: Duration): (number, number, number)
+    if self._secs >= 0 then
+        return 1, self._secs, self._nanos
+    elseif self._nanos == 0 then
+        return -1, -self._secs, 0
+    end
+    return -1, -self._secs - 1, NANOS_PER_SECOND - self._nanos
+end
+
+local function signedPart(sign: number, part: number): number
+    return sign * part + 0 -- + 0 to handle -0
 end
 
 -- Helper for generating Duration.parse()/tryParse() error messages
@@ -398,63 +415,76 @@ end
 ---
 --- @method nanosPart
 --- @within Duration
---- @return number -- The nanoseconds (0-999)
+--- @return number -- The nanoseconds
 function Duration.nanosPart(self: Duration): number
-    return self._nanos % NANOS_PER_SECOND
+    local sign, _, nanos = toMagnitude(self)
+    return signedPart(sign, nanos % NANOS_PER_SECOND)
 end
 
 --- Returns the microseconds component of this `Duration`.
 ---
 --- @method microsPart
 --- @within Duration
---- @return number -- The microseconds (0-999)
+--- @return number -- The microseconds
 function Duration.microsPart(self: Duration): number
-    return self._nanos % NANOS_PER_MILLI / NANOS_PER_MICRO
+    local sign, _, nanos = toMagnitude(self)
+    return signedPart(
+        sign,
+        math.floor(nanos / NANOS_PER_MICRO) % MICROS_PER_MILLI
+    )
 end
 
 --- Returns the milliseconds component of this `Duration`.
 ---
 --- @method millisPart
 --- @within Duration
---- @return number -- The milliseconds (0-999)
+--- @return number -- The milliseconds
 function Duration.millisPart(self: Duration): number
-    return self._nanos % NANOS_PER_SECOND / NANOS_PER_MILLI
+    local sign, _, nanos = toMagnitude(self)
+    return signedPart(sign, math.floor(nanos / NANOS_PER_MILLI))
 end
 
 --- Returns the seconds component of this `Duration`.
 ---
 --- @method secsPart
 --- @within Duration
---- @return number -- The seconds (0-59)
+--- @return number -- The seconds
 function Duration.secsPart(self: Duration): number
-    return self._secs % SECONDS_PER_MINUTE
+    local sign, secs = toMagnitude(self)
+    return signedPart(sign, secs % SECONDS_PER_MINUTE)
 end
 
 --- Returns the minutes component of this `Duration`.
 ---
 --- @method minutesPart
 --- @within Duration
---- @return number -- The minutes (0-59)
+--- @return number -- The minutes
 function Duration.minutesPart(self: Duration): number
-    return self._secs % SECONDS_PER_HOUR / SECONDS_PER_MINUTE
+    local sign, secs = toMagnitude(self)
+    return signedPart(
+        sign,
+        math.floor(secs / SECONDS_PER_MINUTE) % MINUTES_PER_HOUR
+    )
 end
 
 --- Returns the hours component of this `Duration`.
 ---
 --- @method hoursPart
 --- @within Duration
---- @return number -- The hours (0-23)
+--- @return number -- The hours
 function Duration.hoursPart(self: Duration): number
-    return self._secs % SECONDS_PER_DAY / SECONDS_PER_HOUR
+    local sign, secs = toMagnitude(self)
+    return signedPart(sign, math.floor(secs / SECONDS_PER_HOUR) % HOURS_PER_DAY)
 end
 
 --- Returns the days component of this `Duration`.
 ---
 --- @method daysPart
 --- @within Duration
---- @return number -- The days (0-infinity)
+--- @return number -- The days
 function Duration.daysPart(self: Duration): number
-    return self._secs / SECONDS_PER_DAY
+    local sign, secs = toMagnitude(self)
+    return signedPart(sign, math.floor(secs / SECONDS_PER_DAY))
 end
 
 --- Returns each component of this `Duration` as a table.
