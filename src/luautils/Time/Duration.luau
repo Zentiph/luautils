@@ -571,6 +571,18 @@ function Duration.isNegative(self: Duration): boolean
     return self._secs < 0
 end
 
+--- Returns whether this `Duration` is positive.
+---
+--- A `Duration` is not positive if it is zero. Use `Duration.isZero` to check
+--- for zero.
+---
+--- @method isPositive
+--- @within Duration
+--- @return boolean -- Whether this `Duration` is positive
+function Duration.isPositive(self: Duration): boolean
+    return self._secs > 0
+end
+
 --- Returns the result of adding this `Duration` and another.
 ---
 --- @method plus
@@ -1053,6 +1065,62 @@ end
 --- @return boolean -- Whether the value is a `Duration`
 function Duration.is(value: any): boolean
     return getmetatable(value) == Duration
+end
+
+--- Returns `true` if both `Duration`s represent the same span of time.
+---
+--- @method equals
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return boolean -- Whether the two `Duration`s are equal
+function Duration.equals(self: Duration, other: Duration): boolean
+    return Duration.is(other)
+        and self._secs == other._secs
+        and self._nanos == other._nanos
+end
+
+--- Compares two `Duration`s with total ordering, returning -1 if `self` is
+--- "less than" `other`, 0 if they are equal, and 1 if `self` is "greater than"
+--- `other`.
+---
+--- @method compareTo
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return number -- The result of the comparison
+function Duration.compareTo(self: Duration, other: Duration): number
+    local diff = self:toNanos() - other:toNanos()
+    return if diff < 0 then -1 elseif diff > 0 then 1 else 0
+end
+
+--- Returns the smaller of `self` and `other`.
+---
+--- @method min
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The smaller of `self` and `other`
+function Duration.min(self: Duration, other: Duration): Duration
+    return if self:compareTo(other) <= 0 then self else other
+end
+
+--- Returns the larger of `self` and `other`.
+---
+--- @method max
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The larger of `self` and `other`
+function Duration.max(self: Duration, other: Duration): Duration
+    return if self:compareTo(other) >= 0 then self else other
+end
+
+--- Returns the result of clamping `self` between `min` and `max`.
+---
+--- @method clamp
+--- @within Duration
+--- @param min Duration -- The minimum `Duration`
+--- @param max Duration -- The maximum `Duration`
+--- @return Duration -- The clamped `Duration`
+function Duration.clamp(self: Duration, min: Duration, max: Duration): Duration
+    return self:min(max):max(min)
 end
 
 return Duration
