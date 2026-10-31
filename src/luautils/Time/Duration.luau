@@ -786,13 +786,10 @@ end
 --- @param unit Duration -- The unit to truncate to
 --- @return Duration -- The truncated `Duration`
 function Duration.truncatedTo(self: Duration, unit: Duration): Duration
-    if unit:isNegative() then
-        fail("Cannot truncate using a negative unit")
+    if not unit:isPositive() then
+        fail("Cannot truncate using a non-positive unit")
     end
-    return Duration.new(
-        truncateTowardZero(self._secs / unit._secs) * unit._secs,
-        truncateTowardZero(self._nanos / unit._nanos) * unit._nanos
-    )
+    return unit:times(self:truncatedDividedBy(unit))
 end
 
 --- Returns the result of flooring this `Duration` to a multiple of `unit`,
@@ -806,13 +803,10 @@ end
 --- @param unit Duration -- The unit to floor to
 --- @return Duration -- The floored `Duration`
 function Duration.flooredTo(self: Duration, unit: Duration): Duration
-    if unit:isNegative() then
-        fail("Cannot floor using a negative unit")
+    if not unit:isPositive() then
+        fail("Cannot floor using a non-positive unit")
     end
-    return Duration.new(
-        math.floor(self._secs / unit._secs) * unit._secs,
-        math.floor(self._nanos / unit._nanos) * unit._nanos
-    )
+    return unit:times(self:floorDividedBy(unit))
 end
 
 --- Returns the result of ceiling this `Duration` to a multiple of `unit`,
@@ -826,17 +820,19 @@ end
 --- @param unit Duration -- The unit to ceil to
 --- @return Duration -- The ceiled `Duration`
 function Duration.ceiledTo(self: Duration, unit: Duration): Duration
-    if unit:isNegative() then
-        fail("Cannot ceil using a negative unit")
+    if not unit:isPositive() then
+        fail("Cannot ceil using a non-positive unit")
     end
-    return Duration.new(
-        math.ceil(self._secs / unit._secs) * unit._secs,
-        math.ceil(self._nanos / unit._nanos) * unit._nanos
-    )
+    -- computes floor(-(x / unit)), which equals -ceil(x / unit)
+    -- which is then multiplied by -unit, equalling ceil(x / unit) * unit
+    return unit:times(self:floorDividedBy(unit:negated())):negated()
 end
 
 --- Returns the result of rounding this `Duration` to the nearest multiple of
 --- `unit`.
+---
+--- Rounding is performed by moving away from zero if the `Duration` is exactly
+--- halfway or closer to the next multiple of `unit`.
 ---
 --- It is generally expected to pass a `Duration` unit constant to `unit`, such
 --- as `Duration.SECOND`, but any `Duration` is valid.
@@ -846,13 +842,19 @@ end
 --- @param unit Duration -- The unit to round to
 --- @return Duration -- The rounded `Duration`
 function Duration.roundedTo(self: Duration, unit: Duration): Duration
-    if unit:isNegative() then
-        fail("Cannot round using a negative unit")
+    if not unit:isPositive() then
+        fail("Cannot round using a non-positive unit")
     end
-    return Duration.new(
-        math.round(self._secs / unit._secs) * unit._secs,
-        math.round(self._nanos / unit._nanos) * unit._nanos
-    )
+    local q = self:truncatedDividedBy(unit)
+    local r = self:minus(unit:times(q))
+    -- if the remainder's magnitude is at least half the unit,
+    -- round away from zero
+    if (r:abs():times(2)):compareTo(unit) >= 0 then
+        local sign = toMagnitude(self)
+        return unit:times(q + sign)
+    else
+        return unit:times(q)
+    end
 end
 
 --- Returns whether the given value is a `Duration`.
