@@ -275,13 +275,19 @@ end
 --- @return Duration -- The new `Duration`
 function Duration.fromParts(parts: TimePartsI): Duration
     local sign = parts.negative and -1 or 1
-    local secs = sign * (parts.days or 0) * SECONDS_PER_DAY
-        + (parts.hours or 0) * SECONDS_PER_HOUR
-        + (parts.minutes or 0) * SECONDS_PER_MINUTE
-        + (parts.seconds or 0)
-    local nanos = sign * (parts.millis or 0) * NANOS_PER_MILLI
-        + (parts.micros or 0) * NANOS_PER_MICRO
-        + (parts.nanos or 0)
+    local secs = sign
+        * (
+            (parts.days or 0) * SECONDS_PER_DAY
+            + (parts.hours or 0) * SECONDS_PER_HOUR
+            + (parts.minutes or 0) * SECONDS_PER_MINUTE
+            + (parts.seconds or 0)
+        )
+    local nanos = sign
+        * (
+            (parts.millis or 0) * NANOS_PER_MILLI
+            + (parts.micros or 0) * NANOS_PER_MICRO
+            + (parts.nanos or 0)
+        )
     return Duration.new(secs, nanos)
 end
 
