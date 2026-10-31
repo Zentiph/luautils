@@ -1112,6 +1112,54 @@ function Duration.toString(self: Duration): string
 end
 Duration.__tostring = Duration.toString
 
+--- Formats this `Duration` using the given pattern.
+---
+--- Allowed format specifiers are:
+--- * %d - total days
+--- * %H - hours (0-23)
+--- * %M - minutes (0-59)
+--- * %S - seconds (0-59)
+--- * %f - milliseconds (0-999)
+--- * %% - literal '%'
+---
+--- An optional zero-pad width may follow the '%' (e.g. '%02H'). Negative
+--- `Duration`s are prefixed with a single '-'.
+---
+--- @method format
+--- @within Duration
+--- @param pattern string -- The pattern
+--- @return string -- The formatted string
+function Duration.format(self: Duration, pattern: string): string
+    local mag = self:abs()
+    local values = {
+        d = math.floor(mag._secs / SECONDS_PER_DAY),
+        H = math.floor(mag._secs % SECONDS_PER_DAY / SECONDS_PER_HOUR),
+        M = math.floor(mag._secs % SECONDS_PER_HOUR / SECONDS_PER_MINUTE),
+        S = mag._secs % SECONDS_PER_MINUTE,
+        f = math.floor(mag._nanos / NANOS_PER_MILLI),
+    }
+
+    local result = string.gsub(
+        pattern,
+        "%%(%d*.)",
+        function(token: string): string
+            local spec = string.sub(token, -1)
+            local width = string.sub(token, 1, -2)
+
+            if spec == "%" then
+                return "%"
+            end
+            local value = values[spec]
+            if value == nil then
+                fail(`Unknown specifier '%{spec}'`, 3)
+            end
+            return string.format(`%0{width}.0f`, value)
+        end
+    )
+
+    return if self:isNegative() then "-" .. result else result
+end
+
 --- Serializes this `Duration` into a `DataStore`-safe data table.
 ---
 --- @method serialize
