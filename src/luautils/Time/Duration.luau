@@ -475,6 +475,15 @@ function Duration.toParts(self: Duration): TimePartsO
     }
 end
 
+--- Returns the seconds and nanoseconds components of this `Duration`.
+---
+--- @method toSecondsAndNanos
+--- @within Duration
+--- @return number, number -- The seconds and nanoseconds
+function Duration.toSecondsAndNanos(self: Duration): (number, number)
+    return self._secs, self._nanos
+end
+
 --- Creates a new `Duration` from the specified start time.
 ---
 --- Both parameters passed should use the same clock source:
