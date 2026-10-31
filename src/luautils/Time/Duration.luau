@@ -483,4 +483,12 @@ function Duration.tryDeserialize(
     return Core.Result.ok(Duration.new(secs, nanos))
 end
 
+--- Returns whether the given value is a `Duration`.
+---
+--- @param value any -- The value to check
+--- @return boolean -- Whether the value is a `Duration`
+function Duration.is(value: any): boolean
+    return getmetatable(value) == Duration
+end
+
 return Duration
