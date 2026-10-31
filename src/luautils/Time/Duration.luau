@@ -760,6 +760,86 @@ function Duration.abs(self: Duration): Duration
     return if sign >= 0 then self else self:negated()
 end
 
+--- Returns the result of truncating this `Duration` to a multiple of `unit`,
+--- toward zero.
+---
+--- It is generally expected to pass a `Duration` unit constant to `unit`, such
+--- as `Duration.SECOND`, but any `Duration` is valid.
+---
+--- @method truncatedTo
+--- @within Duration
+--- @param unit Duration -- The unit to truncate to
+--- @return Duration -- The truncated `Duration`
+function Duration.truncatedTo(self: Duration, unit: Duration): Duration
+    if unit:isNegative() then
+        fail("Cannot truncate using a negative unit")
+    end
+    return Duration.new(
+        truncateTowardZero(self._secs / unit._secs) * unit._secs,
+        truncateTowardZero(self._nanos / unit._nanos) * unit._nanos
+    )
+end
+
+--- Returns the result of flooring this `Duration` to a multiple of `unit`,
+--- toward negative infinity.
+---
+--- It is generally expected to pass a `Duration` unit constant to `unit`, such
+--- as `Duration.SECOND`, but any `Duration` is valid.
+---
+--- @method flooredTo
+--- @within Duration
+--- @param unit Duration -- The unit to floor to
+--- @return Duration -- The floored `Duration`
+function Duration.flooredTo(self: Duration, unit: Duration): Duration
+    if unit:isNegative() then
+        fail("Cannot floor using a negative unit")
+    end
+    return Duration.new(
+        math.floor(self._secs / unit._secs) * unit._secs,
+        math.floor(self._nanos / unit._nanos) * unit._nanos
+    )
+end
+
+--- Returns the result of ceiling this `Duration` to a multiple of `unit`,
+--- toward positive infinity.
+---
+--- It is generally expected to pass a `Duration` unit constant to `unit`, such
+--- as `Duration.SECOND`, but any `Duration` is valid.
+---
+--- @method ceiledTo
+--- @within Duration
+--- @param unit Duration -- The unit to ceil to
+--- @return Duration -- The ceiled `Duration`
+function Duration.ceiledTo(self: Duration, unit: Duration): Duration
+    if unit:isNegative() then
+        fail("Cannot ceil using a negative unit")
+    end
+    return Duration.new(
+        math.ceil(self._secs / unit._secs) * unit._secs,
+        math.ceil(self._nanos / unit._nanos) * unit._nanos
+    )
+end
+
+--- Returns the result of rounding this `Duration` to the nearest multiple of
+--- `unit`.
+---
+--- It is generally expected to pass a `Duration` unit constant to `unit`, such
+--- as `Duration.SECOND`, but any `Duration` is valid.
+---
+--- @method roundedTo
+--- @within Duration
+--- @param unit Duration -- The unit to round to
+--- @return Duration -- The rounded `Duration`
+function Duration.roundedTo(self: Duration, unit: Duration): Duration
+    if unit:isNegative() then
+        fail("Cannot round using a negative unit")
+    end
+    return Duration.new(
+        math.round(self._secs / unit._secs) * unit._secs,
+        math.round(self._nanos / unit._nanos) * unit._nanos
+    )
+end
+
 --- Creates a new `Duration` from an ISO 8601 duration string.
 ---
 --- @param s string -- The ISO 8601 duration string
