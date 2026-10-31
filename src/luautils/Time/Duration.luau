@@ -35,12 +35,15 @@ type DurationData = {
 --- @within Duration
 export type Duration = typeof(setmetatable({} :: DurationData, Duration))
 
---- A set of parts in a `Duration`.
+--- An input set of parts in a `Duration`.
 ---
---- @type TimeParts
+--- All fields are optional, and will default to 0 (or false, in `negative`'s
+--- case).
+---
+--- @type TimePartsI
 --- @within Duration
-export type TimeParts = {
-    weeks: number?,
+export type TimePartsI = {
+    negative: boolean?,
     days: number?,
     hours: number?,
     minutes: number?,
@@ -48,6 +51,21 @@ export type TimeParts = {
     millis: number?,
     micros: number?,
     nanos: number?,
+}
+
+--- An output set of parts in a `Duration`.
+---
+--- @type TimePartsO
+--- @within Duration
+export type TimePartsO = {
+    negative: boolean,
+    days: number,
+    hours: number,
+    minutes: number,
+    seconds: number,
+    millis: number,
+    micros: number,
+    nanos: number,
 }
 
 local NANOS_MIN = 0
@@ -236,15 +254,15 @@ end
 --- Missing parts will be treated as zero, and an empty table will return a
 --- `Duration` of zero time.
 ---
---- @param parts TimeParts -- The table of parts
+--- @param parts TimePartsI -- The table of parts
 --- @return Duration -- The new `Duration`
-function Duration.fromParts(parts: TimeParts): Duration
-    local secs = (parts.weeks or 0) * SECONDS_PER_WEEK
-        + (parts.days or 0) * SECONDS_PER_DAY
+function Duration.fromParts(parts: TimePartsI): Duration
+    local sign = parts.negative and -1 or 1
+    local secs = sign * (parts.days or 0) * SECONDS_PER_DAY
         + (parts.hours or 0) * SECONDS_PER_HOUR
         + (parts.minutes or 0) * SECONDS_PER_MINUTE
         + (parts.seconds or 0)
-    local nanos = (parts.millis or 0) * NANOS_PER_MILLI
+    local nanos = sign * (parts.millis or 0) * NANOS_PER_MILLI
         + (parts.micros or 0) * NANOS_PER_MICRO
         + (parts.nanos or 0)
     return Duration.new(secs, nanos)
@@ -313,15 +331,6 @@ function Duration.toDays(self: Duration): number
     return self:toSeconds() / SECONDS_PER_DAY
 end
 
---- Returns the total number of weeks contained by this `Duration`.
----
---- @method toWeeks
---- @within Duration
---- @return number -- The total number of weeks
-function Duration.toWeeks(self: Duration): number
-    return self:toSeconds() / SECONDS_PER_WEEK
-end
-
 --- Returns the total number of whole nanoseconds contained by this `Duration`.
 ---
 --- @method wholeNanos
@@ -385,13 +394,85 @@ function Duration.wholeDays(self: Duration): number
     return truncateTowardZero(self:toDays())
 end
 
---- Returns the total number of whole weeks contained by this `Duration`.
+--- Returns the nanoseconds component of this `Duration`.
 ---
---- @method wholeWeeks
+--- @method nanosPart
 --- @within Duration
---- @return number -- The total number of whole weeks
-function Duration.wholeWeeks(self: Duration): number
-    return truncateTowardZero(self:toWeeks())
+--- @return number -- The nanoseconds (0-999)
+function Duration.nanosPart(self: Duration): number
+    return self._nanos % NANOS_PER_SECOND
+end
+
+--- Returns the microseconds component of this `Duration`.
+---
+--- @method microsPart
+--- @within Duration
+--- @return number -- The microseconds (0-999)
+function Duration.microsPart(self: Duration): number
+    return self._nanos % NANOS_PER_MILLI / NANOS_PER_MICRO
+end
+
+--- Returns the milliseconds component of this `Duration`.
+---
+--- @method millisPart
+--- @within Duration
+--- @return number -- The milliseconds (0-999)
+function Duration.millisPart(self: Duration): number
+    return self._nanos % NANOS_PER_SECOND / NANOS_PER_MILLI
+end
+
+--- Returns the seconds component of this `Duration`.
+---
+--- @method secsPart
+--- @within Duration
+--- @return number -- The seconds (0-59)
+function Duration.secsPart(self: Duration): number
+    return self._secs % SECONDS_PER_MINUTE
+end
+
+--- Returns the minutes component of this `Duration`.
+---
+--- @method minutesPart
+--- @within Duration
+--- @return number -- The minutes (0-59)
+function Duration.minutesPart(self: Duration): number
+    return self._secs % SECONDS_PER_HOUR / SECONDS_PER_MINUTE
+end
+
+--- Returns the hours component of this `Duration`.
+---
+--- @method hoursPart
+--- @within Duration
+--- @return number -- The hours (0-23)
+function Duration.hoursPart(self: Duration): number
+    return self._secs % SECONDS_PER_DAY / SECONDS_PER_HOUR
+end
+
+--- Returns the days component of this `Duration`.
+---
+--- @method daysPart
+--- @within Duration
+--- @return number -- The days (0-infinity)
+function Duration.daysPart(self: Duration): number
+    return self._secs / SECONDS_PER_DAY
+end
+
+--- Returns each component of this `Duration` as a table.
+---
+--- @method toParts
+--- @within Duration
+--- @return TimePartsO -- The parts
+function Duration.toParts(self: Duration): TimePartsO
+    return {
+        negative = self:isNegative(),
+        days = self:toDays(),
+        hours = self:toHours(),
+        minutes = self:toMinutes(),
+        seconds = self:toSeconds(),
+        millis = self:toMillis(),
+        micros = self:toMicros(),
+        nanos = self:toNanos(),
+    }
 end
 
 --- Creates a new `Duration` from the specified start time.
@@ -422,6 +503,15 @@ end
 --- @return Duration -- The new `Duration`
 function Duration.between(start: number, stop: number): Duration
     return Duration.new(stop - start, 0)
+end
+
+--- Returns whether this `Duration` is negative.
+---
+--- @method isNegative
+--- @within Duration
+--- @return boolean -- Whether this `Duration` is negative
+function Duration.isNegative(self: Duration): boolean
+    return self._secs < 0
 end
 
 --- Creates a new `Duration` from an ISO 8601 duration string.
