@@ -979,6 +979,79 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     return Core.Result.ok(duration)
 end
 
+--- Returns whether the given value is a `Duration`.
+---
+--- @param value any -- The value to check
+--- @return boolean -- Whether the value is a `Duration`
+function Duration.is(value: any): boolean
+    return getmetatable(value) == Duration
+end
+
+--- Returns `true` if both `Duration`s represent the same span of time.
+---
+--- @method equals
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return boolean -- Whether the two `Duration`s are equal
+function Duration.equals(self: Duration, other: Duration): boolean
+    return Duration.is(other)
+        and self._secs == other._secs
+        and self._nanos == other._nanos
+end
+
+--- Compares two `Duration`s with total ordering, returning -1 if `self` is
+--- "less than" `other`, 0 if they are equal, and 1 if `self` is "greater than"
+--- `other`.
+---
+--- @method compareTo
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return number -- The result of the comparison
+function Duration.compareTo(self: Duration, other: Duration): number
+    local diff = self:toNanos() - other:toNanos()
+    return if diff < 0 then -1 elseif diff > 0 then 1 else 0
+end
+
+--- Returns the smaller of `self` and `other`.
+---
+--- @method min
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The smaller of `self` and `other`
+function Duration.min(self: Duration, other: Duration): Duration
+    return if self:compareTo(other) <= 0 then self else other
+end
+
+--- Returns the larger of `self` and `other`.
+---
+--- @method max
+--- @within Duration
+--- @param other Duration -- The other `Duration`
+--- @return Duration -- The larger of `self` and `other`
+function Duration.max(self: Duration, other: Duration): Duration
+    return if self:compareTo(other) >= 0 then self else other
+end
+
+--- Returns the result of clamping `self` between `min` and `max`.
+---
+--- @method clamp
+--- @within Duration
+--- @param min Duration -- The minimum `Duration`
+--- @param max Duration -- The maximum `Duration`
+--- @return Duration -- The clamped `Duration`
+function Duration.clamp(self: Duration, min: Duration, max: Duration): Duration
+    return self:min(max):max(min)
+end
+
+--- Serializes this `Duration` into a `DataStore`-safe data table.
+---
+--- @method serialize
+--- @within Duration
+--- @return { secs: number, nanos: number } -- The serialized data
+function Duration.serialize(self: Duration): { secs: number, nanos: number }
+    return { secs = self._secs, nanos = self._nanos }
+end
+
 --- Creates a new `Duration` from a serialized data table.
 ---
 --- This function guarantees to always deserialize valid `Duration`s serialized
@@ -1057,70 +1130,6 @@ function Duration.tryDeserialize(
     end
 
     return Core.Result.ok(Duration.new(secs, nanos))
-end
-
---- Returns whether the given value is a `Duration`.
----
---- @param value any -- The value to check
---- @return boolean -- Whether the value is a `Duration`
-function Duration.is(value: any): boolean
-    return getmetatable(value) == Duration
-end
-
---- Returns `true` if both `Duration`s represent the same span of time.
----
---- @method equals
---- @within Duration
---- @param other Duration -- The other `Duration`
---- @return boolean -- Whether the two `Duration`s are equal
-function Duration.equals(self: Duration, other: Duration): boolean
-    return Duration.is(other)
-        and self._secs == other._secs
-        and self._nanos == other._nanos
-end
-
---- Compares two `Duration`s with total ordering, returning -1 if `self` is
---- "less than" `other`, 0 if they are equal, and 1 if `self` is "greater than"
---- `other`.
----
---- @method compareTo
---- @within Duration
---- @param other Duration -- The other `Duration`
---- @return number -- The result of the comparison
-function Duration.compareTo(self: Duration, other: Duration): number
-    local diff = self:toNanos() - other:toNanos()
-    return if diff < 0 then -1 elseif diff > 0 then 1 else 0
-end
-
---- Returns the smaller of `self` and `other`.
----
---- @method min
---- @within Duration
---- @param other Duration -- The other `Duration`
---- @return Duration -- The smaller of `self` and `other`
-function Duration.min(self: Duration, other: Duration): Duration
-    return if self:compareTo(other) <= 0 then self else other
-end
-
---- Returns the larger of `self` and `other`.
----
---- @method max
---- @within Duration
---- @param other Duration -- The other `Duration`
---- @return Duration -- The larger of `self` and `other`
-function Duration.max(self: Duration, other: Duration): Duration
-    return if self:compareTo(other) >= 0 then self else other
-end
-
---- Returns the result of clamping `self` between `min` and `max`.
----
---- @method clamp
---- @within Duration
---- @param min Duration -- The minimum `Duration`
---- @param max Duration -- The maximum `Duration`
---- @return Duration -- The clamped `Duration`
-function Duration.clamp(self: Duration, min: Duration, max: Duration): Duration
-    return self:min(max):max(min)
 end
 
 return Duration
