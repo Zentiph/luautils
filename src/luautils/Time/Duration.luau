@@ -1172,6 +1172,18 @@ function Duration.toHumanString(self: Duration): string
     return self:format("%dd %02Hh %02Mm %02Ss %03fms")
 end
 
+--- Converts this `Duration` to a string that can be used as a key in a table.
+---
+--- An object can be used as a key in a table if instances of that object that
+--- are considered "equal" produce identical keys.
+---
+--- @method toKey
+--- @within Duration
+--- @return string -- The key
+function Duration.toKey(self: Duration): string
+    return self:toString()
+end
+
 --- Serializes this `Duration` into a `DataStore`-safe data table.
 ---
 --- @method serialize
