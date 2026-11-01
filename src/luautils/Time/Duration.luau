@@ -38,6 +38,9 @@ type DurationData = {
 --- @within Duration
 export type Duration = typeof(setmetatable({} :: DurationData, Duration))
 
+-- TODO: if possible add typing helpers like OptionalTable<> that turns a
+-- table with components like a: number, b: string into a: number?, b: string?
+
 --- An input set of parts in a `Duration`.
 ---
 --- All fields are optional, and will default to 0 (or false, in `negative`'s
@@ -70,6 +73,17 @@ export type TimePartsO = {
     micros: number,
     nanos: number,
 }
+
+--- A unit of time that can be used in human-readable string formatting.
+---
+--- @type HumanStringUnit
+--- @within Duration
+export type HumanStringUnit =
+    "days"
+    | "hours"
+    | "minutes"
+    | "seconds"
+    | "millis"
 
 local NANOS_MIN = 0
 local NANOS_MAX = 999_999_999
@@ -1296,9 +1310,39 @@ end
 ---
 --- @method toHumanString
 --- @within Duration
+--- @param includedUnits Core.Set<HumanStringUnit>? -- The units to include (defaults to all)
 --- @return string -- The human-readable string
-function Duration.toHumanString(self: Duration): string
-    return self:format("%dd %02Hh %02Mm %02Ss %03fms")
+function Duration.toHumanString(
+    self: Duration,
+    includedUnits: Core.Set<HumanStringUnit>?
+): string
+    includedUnits = includedUnits
+        or {
+            days = true,
+            hours = true,
+            minutes = true,
+            seconds = true,
+            millis = true,
+        }
+
+    local parts = self:toParts()
+    local result = ""
+    if includedUnits.days and parts.days > 0 then
+        result ..= string.format("%dd ", parts.days)
+    end
+    if includedUnits.hours and parts.hours > 0 then
+        result ..= string.format("%dh ", parts.hours)
+    end
+    if includedUnits.minutes and parts.minutes > 0 then
+        result ..= string.format("%dm ", parts.minutes)
+    end
+    if includedUnits.seconds and parts.seconds > 0 then
+        result ..= string.format("%ds ", parts.seconds)
+    end
+    if includedUnits.millis and parts.millis > 0 then
+        result ..= string.format("%dms", parts.millis)
+    end
+    return result
 end
 
 --- Converts this `Duration` to a string that can be used as a key in a table.
