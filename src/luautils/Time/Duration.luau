@@ -583,7 +583,7 @@ end
 --- @within Duration
 --- @return boolean -- Whether this `Duration` is positive
 function Duration.isPositive(self: Duration): boolean
-    return self._secs > 0
+    return self._secs > 0 or (self._secs == 0 and self._nanos > 0)
 end
 
 --- Returns the result of adding this `Duration` and another.
