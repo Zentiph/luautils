@@ -703,6 +703,7 @@ function Duration.mod(self: Duration, other: Duration): Duration
     end
     return Duration.new(0, self:toNanos() % other:toNanos())
 end
+Duration.__mod = Duration.mod
 
 --- Returns a `Duration` with the opposite sign of this one.
 ---
@@ -878,6 +879,7 @@ function Duration.equals(self: Duration, other: Duration): boolean
         and self._secs == other._secs
         and self._nanos == other._nanos
 end
+Duration.__eq = Duration.equals
 
 --- Compares two `Duration`s with total ordering, returning -1 if `self` is
 --- "less than" `other`, 0 if they are equal, and 1 if `self` is "greater than"
