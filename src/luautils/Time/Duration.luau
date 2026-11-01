@@ -818,14 +818,46 @@ function Duration.dividedBy(self: Duration, scalar: number): Duration
         fail("Attempted to divide by 0")
     end
 
+    local negateResult = self:isNegative() ~= (scalar < 0)
     local mag = self:abs()
-    local absScalar = math.abs(scalar)
-    local q = math.floor(mag._secs / absScalar)
-    local rem = (mag._secs - q * absScalar) * NANOS_PER_SECOND + mag._nanos
-    local result = Duration.new(q, rem / absScalar)
-    return if self:isNegative() ~= (scalar < 0)
-        then result:negated()
-        else result
+
+    -- fractional (or huge) scalars can't be exact, so round via normalize()
+    if scalar % 1 ~= 0 or math.abs(scalar) >= MAX_SAFE_INT then
+        local result = Duration.new(
+            mag._secs / math.abs(scalar),
+            mag._nanos / math.abs(scalar)
+        )
+        return if negateResult then result:negated() else result
+    end
+
+    local k = math.abs(scalar)
+    local kNanos = Duration.new(0, k) -- k nanoseconds, exact for k < 2^53
+
+    -- estimate whole seconds exactly, sub-second part with floats
+    local qSecs = mag._secs // k
+    local rSecs = mag._secs - qSecs * k -- 0 <= rSecs < k, exact
+    local estNanos = math.floor((rSecs * NANOS_PER_SECOND + mag._nanos) / k)
+    local q = Duration.new(qSecs, estNanos)
+
+    -- exact residual for the estimate
+    local r = mag:minus(q:times(k))
+
+    -- correct the estimate until 0 <= r < k nanoseconds
+    while r:isNegative() do
+        q = q:minus(Duration.NANOSECOND)
+        r = r:plus(kNanos)
+    end
+    while r:compareTo(kNanos) >= 0 do
+        q = q:plus(Duration.NANOSECOND)
+        r = r:minus(kNanos)
+    end
+
+    -- round half away from zero; the leftover is r / k of a nanosecond
+    if r:times(2):compareTo(kNanos) >= 0 then
+        q = q:plus(Duration.NANOSECOND)
+    end
+
+    return if negateResult then q:negated() else q
 end
 Duration.__div = Duration.dividedBy
 
