@@ -430,7 +430,7 @@ end
 --- @return number -- The nanoseconds
 function Duration.nanosPart(self: Duration): number
     local sign, _, nanos = toMagnitude(self)
-    return signedPart(sign, nanos % NANOS_PER_SECOND)
+    return signedPart(sign, nanos % NANOS_PER_MICRO)
 end
 
 --- Returns the microseconds component of this `Duration`.
