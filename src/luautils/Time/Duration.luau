@@ -691,11 +691,10 @@ Duration.__div = Duration.dividedBy
 --- @param other Duration -- The other `Duration`
 --- @return number -- The quotient
 function Duration.floorDividedBy(self: Duration, other: Duration): number
-    if not Duration.is(other) then
-        fail(
-            `Attempted to perform floor division on a non-Duration value: {other}`
-        )
-    end
+    -- type validation for metamethod error handling
+    assertDuration(self, "floor division")
+    assertDuration(other, "floor division")
+
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
