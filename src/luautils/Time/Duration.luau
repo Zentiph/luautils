@@ -124,6 +124,15 @@ local function signedPart(sign: number, part: number): number
     return sign * part + 0 -- + 0 to handle -0
 end
 
+local function assertDuration(value: any, operation: string): Duration
+    if not Duration.is(value) then
+        fail(
+            `Attempted to perform {operation} on a non-Duration value: {value}`
+        )
+    end
+    return value :: Duration
+end
+
 -- Helper for generating Duration.parse()/tryParse() error messages
 local function parseErrMsg(input: string, pos: number, reason: string): string
     return `Invalid ISO-8601 duration: "{input} ({reason} at position {pos})`
@@ -593,9 +602,10 @@ end
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The sum
 function Duration.plus(self: Duration, other: Duration): Duration
-    if not Duration.is(other) then
-        fail(`Attempted to perform addition on a non-Duration value: {other}`)
-    end
+    -- type validation for metamethod error handling
+    assertDuration(self, "addition")
+    assertDuration(other, "addition")
+
     return Duration.new(self._secs + other._secs, self._nanos + other._nanos)
 end
 Duration.__add = Duration.plus
@@ -607,11 +617,10 @@ Duration.__add = Duration.plus
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The difference
 function Duration.minus(self: Duration, other: Duration): Duration
-    if not Duration.is(other) then
-        fail(
-            `Attempted to perform subtraction on a non-Duration value: {other}`
-        )
-    end
+    -- type validation for metamethod error handling
+    assertDuration(self, "subtraction")
+    assertDuration(other, "subtraction")
+
     return Duration.new(self._secs - other._secs, self._nanos - other._nanos)
 end
 Duration.__sub = Duration.minus
@@ -623,11 +632,12 @@ Duration.__sub = Duration.minus
 --- @param scalar number -- The scalar
 --- @return Duration -- The product
 function Duration.times(self: Duration, scalar: number): Duration
+    -- type validation for metamethod error handling
+    assertDuration(self, "multiplication")
     if type(scalar) ~= "number" then
-        fail(
-            `Attempted to perform multiplication on a non-number value: {scalar}`
-        )
+        fail("Attempted to multiply a Duration by a non-number")
     end
+
     return Duration.new(self._secs * scalar, self._nanos * scalar)
 end
 Duration.__mul = function(
@@ -654,9 +664,15 @@ end
 --- @param scalar number -- The scalar
 --- @return Duration -- The quotient
 function Duration.dividedBy(self: Duration, scalar: number): Duration
+    -- type validation for metamethod error handling
+    assertDuration(self, "division")
+    if type(scalar) ~= "number" then
+        fail("Attempted to divide a Duration by a non-number")
+    end
     if scalar == 0 then
         fail("Attempted to divide by 0")
     end
+
     local mag = self:abs()
     local absScalar = math.abs(scalar)
     local q = math.floor(mag._secs / absScalar)
@@ -695,9 +711,10 @@ Duration.__idiv = Duration.floorDividedBy
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The remainder
 function Duration.mod(self: Duration, other: Duration): Duration
-    if not Duration.is(other) then
-        fail(`Attempted to perform modulus on a non-Duration value: {other}`)
-    end
+    -- type validation for metamethod error handling
+    assertDuration(self, "modulus")
+    assertDuration(other, "modulus")
+
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
@@ -890,9 +907,10 @@ Duration.__eq = Duration.equals
 --- @param other Duration -- The other `Duration`
 --- @return number -- The result of the comparison
 function Duration.compareTo(self: Duration, other: Duration): number
-    if not Duration.is(other) then
-        fail("Attempted to compare a Duration with a non-Duration value")
-    end
+    -- type validation for metamethod error handling
+    assertDuration(self, "comparison")
+    assertDuration(other, "comparison")
+
     local diff = self:toNanos() - other:toNanos()
     return if diff < 0 then -1 elseif diff > 0 then 1 else 0
 end
@@ -901,12 +919,6 @@ Duration.__lt = function(self: Duration, other: Duration): boolean
 end
 Duration.__le = function(self: Duration, other: Duration): boolean
     return self:compareTo(other) <= 0
-end
-Duration.__gt = function(self: Duration, other: Duration): boolean
-    return self:compareTo(other) > 0
-end
-Duration.__ge = function(self: Duration, other: Duration): boolean
-    return self:compareTo(other) >= 0
 end
 
 --- Returns the smaller of `self` and `other`.
