@@ -210,7 +210,8 @@ local function divModFloor(a: Duration, b: Duration): (number, Duration)
             r = r:minus(b)
         end
     end
-    return q, r
+    -- add 0 to handle -0
+    return q + 0, r
 end
 
 -- Exact truncated division returning (q, r) where a == b * q + r where r has
@@ -255,16 +256,14 @@ end
 --- @param nanos number -- The number of nanoseconds
 --- @return Duration -- The new `Duration`
 function Duration.new(secs: number, nanos: number): Duration
-    local s, n = normalize(secs, nanos)
-    if math.isnan(s) or math.isnan(n) then
+    if math.isnan(secs) or math.isnan(nanos) then
         fail("Cannot create a Duration from NaN values")
     end
-    if n > NANOS_MAX then
-        fail(
-            "Nanoseconds must be less than 1 billion "
-                .. `(got {n} after normalization)`
-        )
+    if math.isinf(secs) or math.isinf(nanos) then
+        fail("Infinite duration are not yet supported")
     end
+
+    local s, n = normalize(secs, nanos)
     return table.freeze(setmetatable({ _secs = s, _nanos = n }, Duration))
 end
 
@@ -390,6 +389,9 @@ end
 ---
 --- Missing parts will be treated as zero, and an empty table will return a
 --- `Duration` of zero time.
+---
+--- Providing negative = true with negative parts will
+--- doubly-negate those parts.
 ---
 --- @param parts TimePartsI -- The table of parts
 --- @return Duration -- The new `Duration`
