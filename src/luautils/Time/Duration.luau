@@ -20,8 +20,9 @@ local fail = require("../_internal").Errors.errorWithScope("Duration")
 --- precision beyond ~104 days. Splitting into seconds and nanoseconds gives
 --- exact time arithmetic at both scales without any practical upper limit.
 ---
---- Supports `+`, `-`, `//`, and `%` arithmetic with other `Duration`s, `*` and
---- `/` with a scalar, and `-` negation.
+--- Supports `==` and `~=` comparison, `tostring()`, `+`, `-`, `//`, and `%`
+--- arithmetic with other `Duration`s, `*` and `/` arithmetic with a scalar, and
+--- `-` negation.
 ---
 --- @class Duration
 local Duration = {}
@@ -160,7 +161,7 @@ local function signedPart(sign: number, part: number): number
 end
 
 -- Exactly computes `n * k` for integers 0 <= n < 1e9 and 0 <= k < 2^53.
--- Returns (carry, sum) such that n * k == carry * 1e9 + rem, 0 <= rem < 1e9.
+-- Returns (carry, rem) such that n * k == carry * 1e9 + rem, 0 <= rem < 1e9.
 -- The full product can reach ~2^83, so it's never formed directly.
 -- Every intermediate value below stays under 2^53.
 local function mulNanos(n: number, k: number): (number, number)
@@ -170,13 +171,13 @@ local function mulNanos(n: number, k: number): (number, number)
     -- n * kHi * 1e9 is exactly n * kHi whole seconds
     local carry = n * kHi -- < 1e9 * 9.007e6 ~= 9.007e15 < 2^53
 
-    -- n * kLo can reach 1e18, so split kLo = a * ae5 + b
+    -- n * kLo can reach 1e18, so split kLo = a * 1e5 + b
     local a = kLo // 100_000 -- < 1e4
     local b = kLo - a * 100_000 -- < 1e5
     local x = n * a -- < 1e13
     local y = n * b -- < 1e14
 
-    -- n * kLo = x 1e5 + y, and x * 1e5 = (x // 1e4) * 1e9 + (x % 1e4) * 1e5
+    -- n * kLo = x * 1e5 + y, and x * 1e5 = (x // 1e4) * 1e9 + (x % 1e4) * 1e5
     carry += x // 10_000
     local rest = (x % 10_000) * 100_000 + y -- < 1e9 + 1e14
     carry += rest // NANOS_PER_SECOND
@@ -199,11 +200,15 @@ end
 
 -- Exact floored division returning (q, r) where a == b * q + r where r has the
 -- sign of b, and |r| < |b|. Assumes b is non-zero.
-local function divModFloor(a: Duration, b: Duration): (number, Duration)
+local function divModFloor(
+    a: Duration,
+    b: Duration,
+    functionName: string
+): (number, Duration)
     -- float estimate; only off by a few for any representable quotient
     local q = math.floor(a:toSeconds() / b:toSeconds())
     if math.abs(q) >= MAX_SAFE_INT then
-        fail("Quotient is too large to be represented exactly", 3)
+        fail("Quotient is too large to be represented exactly", 3, functionName)
     end
 
     -- exact remainder for the estimate, then step q until r is in range
@@ -235,8 +240,12 @@ end
 
 -- Exact truncated division returning (q, r) where a == b * q + r where r has
 -- the sign of a, and |r| < |b|. Assumes b is non-zero.
-local function divModTruncated(a: Duration, b: Duration): (number, Duration)
-    local q, r = divModFloor(a, b)
+local function divModTruncated(
+    a: Duration,
+    b: Duration,
+    functionName: string
+): (number, Duration)
+    local q, r = divModFloor(a, b, functionName)
     -- floor and truncation only differ when the exact quotient is negative and
     -- not whole; there's a remainder, and a and b have opposite signs
     if not r:isZero() and a:isNegative() ~= b:isNegative() then
@@ -246,10 +255,16 @@ local function divModTruncated(a: Duration, b: Duration): (number, Duration)
     return q, r
 end
 
-local function assertDuration(value: any, operation: string): Duration
+local function assertDuration(
+    value: any,
+    operation: string,
+    functionName: string
+): Duration
     if not Duration.is(value) then
         fail(
-            `Attempted to perform {operation} on a non-Duration value: {value}`
+            `Attempted to perform {operation} on a non-Duration value: {value}`,
+            3,
+            functionName
         )
     end
     return value :: Duration
@@ -279,7 +294,7 @@ function Duration.new(secs: number, nanos: number): Duration
         fail("Cannot create a Duration from NaN values")
     end
     if math.isinf(secs) or math.isinf(nanos) then
-        fail("Infinite duration are not yet supported")
+        fail("Infinite durations are not yet supported")
     end
 
     local s, n = normalize(secs, nanos)
@@ -729,8 +744,8 @@ end
 --- @return Duration -- The sum
 function Duration.plus(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
-    assertDuration(self, "addition")
-    assertDuration(other, "addition")
+    assertDuration(self, "addition", "plus")
+    assertDuration(other, "addition", "plus")
 
     return Duration.new(self._secs + other._secs, self._nanos + other._nanos)
 end
@@ -744,8 +759,8 @@ Duration.__add = Duration.plus
 --- @return Duration -- The difference
 function Duration.minus(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
-    assertDuration(self, "subtraction")
-    assertDuration(other, "subtraction")
+    assertDuration(self, "subtraction", "minus")
+    assertDuration(other, "subtraction", "minus")
 
     return Duration.new(self._secs - other._secs, self._nanos - other._nanos)
 end
@@ -759,7 +774,7 @@ Duration.__sub = Duration.minus
 --- @return Duration -- The product
 function Duration.times(self: Duration, scalar: number): Duration
     -- type validation for metamethod error handling
-    assertDuration(self, "multiplication")
+    assertDuration(self, "multiplication", "times")
     if type(scalar) ~= "number" then
         fail("Attempted to multiply a Duration by a non-number")
     end
@@ -795,7 +810,7 @@ end
 --- @return Duration -- The quotient
 function Duration.dividedBy(self: Duration, scalar: number): Duration
     -- type validation for metamethod error handling
-    assertDuration(self, "division")
+    assertDuration(self, "division", "dividedBy")
     if type(scalar) ~= "number" then
         fail("Attempted to divide a Duration by a non-number")
     end
@@ -822,13 +837,13 @@ Duration.__div = Duration.dividedBy
 --- @return number -- The quotient
 function Duration.floorDividedBy(self: Duration, other: Duration): number
     -- type validation for metamethod error handling
-    assertDuration(self, "floor division")
-    assertDuration(other, "floor division")
+    assertDuration(self, "floor division", "floorDividedBy")
+    assertDuration(other, "floor division", "floorDividedBy")
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
 
-    local q = divModFloor(self, other)
+    local q = divModFloor(self, other, "floorDividedBy")
     return q
 end
 Duration.__idiv = Duration.floorDividedBy
@@ -842,13 +857,13 @@ Duration.__idiv = Duration.floorDividedBy
 --- @return Duration -- The remainder
 function Duration.mod(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
-    assertDuration(self, "modulus")
-    assertDuration(other, "modulus")
+    assertDuration(self, "modulus", "mod")
+    assertDuration(other, "modulus", "mod")
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
 
-    local _, r = divModFloor(self, other)
+    local _, r = divModFloor(self, other, "mod")
     return r
 end
 Duration.__mod = Duration.mod
@@ -874,7 +889,7 @@ function Duration.truncatedDividedBy(self: Duration, other: Duration): number
         fail("Attempted to divide by 0")
     end
 
-    local q = divModTruncated(self, other)
+    local q = divModTruncated(self, other, "truncatedDividedBy")
     return q
 end
 
@@ -890,7 +905,7 @@ function Duration.remainder(self: Duration, other: Duration): Duration
         fail("Attempted to divide by 0")
     end
 
-    local _, r = divModTruncated(self, other)
+    local _, r = divModTruncated(self, other, "remainder")
     return r
 end
 
@@ -1043,8 +1058,8 @@ Duration.__eq = Duration.equals
 --- @return number -- The result of the comparison
 function Duration.compareTo(self: Duration, other: Duration): number
     -- type validation for metamethod error handling
-    assertDuration(self, "comparison")
-    assertDuration(other, "comparison")
+    assertDuration(self, "comparison", "compareTo")
+    assertDuration(other, "comparison", "compareTo")
 
     return if self._secs < other._secs
         then -1
@@ -1310,7 +1325,7 @@ function Duration.format(self: Duration, pattern: string): string
             end
             local value = values[spec]
             if value == nil then
-                fail(`Unknown specifier '%{spec}'`, 3)
+                fail(`Unknown specifier '%{spec}'`, 4, "format")
             end
             return string.format(`%0{width}.0f`, value)
         end
@@ -1320,7 +1335,9 @@ function Duration.format(self: Duration, pattern: string): string
 end
 
 --- Converts this `Duration` to a human-readable string, like
---- '2d 12h 18m 05s 123ms'.
+--- '2d 12h 18m 5s 123ms'.
+---
+--- Units smaller than `options.smallestUnit` are omitted, not rounded.
 ---
 --- Zero-valued components are not included.
 ---
@@ -1334,6 +1351,10 @@ function Duration.toHumanString(
 ): string
     local maxUnits = options and options.maxUnits or math.huge
     local smallestUnit = options and options.smallestUnit or "millis"
+
+    if maxUnits <= 0 or maxUnits % 1 ~= 0 then
+        fail("Max units should be a positive integer")
+    end
 
     local parts = self:toParts() :: any -- indexed by unit name
     local pieces = {}
