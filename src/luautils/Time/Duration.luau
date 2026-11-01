@@ -237,7 +237,7 @@ end
 
 -- Helper for generating Duration.parse()/tryParse() error messages
 local function parseErrMsg(input: string, pos: number, reason: string): string
-    return `Invalid ISO-8601 duration: "{input} ({reason} at position {pos})`
+    return `Invalid ISO-8601 duration: "{input}" ({reason} at position {pos})`
 end
 
 -- TODO: handling for NaN or +/- infinity passed to constructors or
@@ -1106,7 +1106,7 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
         pos += 1
     end
     if string.sub(str, pos, pos) ~= "P" then
-        return Core.Result.err(parseErrMsg(str, pos, "missing 'P' prefix"))
+        return Core.Result.err(parseErrMsg(s, pos, "missing 'P' prefix"))
     end
     pos += 1
 
@@ -1119,7 +1119,7 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
         if string.sub(str, pos, pos) == "T" then
             if inTime then
                 return Core.Result.err(
-                    parseErrMsg(str, pos, "repeated 'T' prefix")
+                    parseErrMsg(s, pos, "repeated 'T' prefix")
                 )
             end
             inTime = true
@@ -1133,7 +1133,7 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
             string.match(str, "^(%d+)([%.,]?)(%d*)(%a)()", pos)
         if not whole or not sep or not frac or not unit or not nextPos then
             return Core.Result.err(
-                parseErrMsg(str, pos, "expected a number and unit")
+                parseErrMsg(s, pos, "expected a number and unit")
             )
         end
 
@@ -1150,19 +1150,19 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
             end
             local where = if inTime then "after" else "before"
             return Core.Result.err(
-                parseErrMsg(str, pos, `'{unit}' is not valid {where} 'T'`)
+                parseErrMsg(s, pos, `'{unit}' is not valid {where} 'T'`)
             )
         end
 
         if info.rank <= lastRank then
             return Core.Result.err(
-                parseErrMsg(str, pos, `{unit} is repeated or out of order`)
+                parseErrMsg(s, pos, `{unit} is repeated or out of order`)
             )
         end
         if sep ~= "" then
             if unit ~= "S" then
                 return Core.Result.err(
-                    parseErrMsg(str, pos, "only seconds may be fractional")
+                    parseErrMsg(s, pos, "only seconds may be fractional")
                 )
             elseif frac == "" then
                 return Core.Result.err(
@@ -1187,11 +1187,11 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     end
 
     if lastRank == 0 then
-        return Core.Result.err(parseErrMsg(str, pos, "no components"))
+        return Core.Result.err(parseErrMsg(s, pos, "no components"))
     end
     if inTime and lastRank < TIME_UNITS.H.rank then
         return Core.Result.err(
-            parseErrMsg(str, pos, "'T' must be followed by a time component")
+            parseErrMsg(s, pos, "'T' must be followed by a time component")
         )
     end
 
