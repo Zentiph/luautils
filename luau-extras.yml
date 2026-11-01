@@ -1,0 +1,14 @@
+name: luau-extras
+globals:
+  math.isnan:
+    must_use: true
+    args:
+      - type: number
+  math.isinf:
+    must_use: true
+    args:
+      - type: number
+  math.isfinite:
+    must_use: true
+    args:
+      - type: number
