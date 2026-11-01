@@ -16,7 +16,7 @@ local fail = require("../_internal").Errors.errorWithScope("Duration")
 --- represents whole seconds with any sign, unbounded. The second represents a
 --- nanosecond adjustment in [0, 999_999_999], which is always non-negative,
 --- since the sign of the `Duration` lives in the seconds field. This avoids
---- float64 mantissa loss, as a single `number` storing nanoseconds closes
+--- float64 mantissa loss, as a single `number` storing nanoseconds loses
 --- precision beyond ~104 days. Splitting into seconds and nanoseconds gives
 --- exact time arithmetic at both scales without any practical upper limit.
 ---
@@ -96,6 +96,8 @@ local TIME_UNITS: { [string]: { rank: number, secs: number } } = {
     S = { rank = 5, secs = 1 },
 }
 
+local MAX_SAFE_INT = 2 ^ 53
+
 -- Helper for normalizing seconds and nanoseconds to their expected ranges
 local function normalize(secs: number, nanos: number): (number, number)
     local fracSecs = secs % 1
@@ -122,6 +124,92 @@ end
 
 local function signedPart(sign: number, part: number): number
     return sign * part + 0 -- + 0 to handle -0
+end
+
+-- Exactly computes `n * k` for integers 0 <= n < 1e9 and 0 <= k < 2^53.
+-- Returns (carry, sum) such that n * k == carry * 1e9 + rem, 0 <= rem < 1e9.
+-- The full product can reach ~2^83, so it's never formed directly.
+-- Every intermediate value below stays under 2^53.
+local function mulNanos(n: number, k: number): (number, number)
+    local kHi = k // NANOS_PER_SECOND -- < 2^53 / 1e9 ~= 9.007e6
+    local kLo = k - kHi * NANOS_PER_SECOND -- < 1e9
+
+    -- n * kHi * 1e9 is exactly n * kHi whole seconds
+    local carry = n * kHi -- < 1e9 * 9.007e6 ~= 9.007e15 < 2^53
+
+    -- n * kLo can reach 1e18, so split kLo = a * ae5 + b
+    local a = kLo // 100_000 -- < 1e4
+    local b = kLo - a * 100_000 -- < 1e5
+    local x = n * a -- < 1e13
+    local y = n * b -- < 1e14
+
+    -- n * kLo = x 1e5 + y, and x * 1e5 = (x // 1e4) * 1e9 + (x % 1e4) * 1e5
+    carry += x // 10_000
+    local rest = (x % 10_000) * 100_000 + y -- < 1e9 + 1e14
+    carry += rest // NANOS_PER_SECOND
+    return carry, rest % NANOS_PER_SECOND
+end
+
+-- Exactly computes (secs, nanos) * k for an integer k with |k| < 2^53.
+-- Returns unnormalized (secs, nanos), meant to be passed to Duration.new().
+-- Exact as long as the resulting seconds stay below 2^53.
+local function mulExact(
+    secs: number,
+    nanos: number,
+    k: number
+): (number, number)
+    local sign = if k < 0 then -1 else 1
+    local carry, rem = mulNanos(nanos, math.abs(k))
+    -- nanos * k == sign * (carry seconds + rem nanoseconds)
+    return secs * k + sign * carry, sign * rem
+end
+
+-- Exact floored division returning (q, r) where a == b * q + r where r has the
+-- sign of b, and |r| < |b|. Assumes b is non-zero.
+local function divModFloor(a: Duration, b: Duration): (number, Duration)
+    -- float estimate; only off by a few for any representable quotient
+    local q = math.floor(a:toSeconds() / b:toSeconds())
+    if math.abs(q) >= MAX_SAFE_INT then
+        fail("Quotient is too large to be represented exactly", 3)
+    end
+
+    -- exact remainder for the estimate, then step q until r is in range
+    local r = a:minus(b:times(q))
+    if b:isPositive() then
+        -- want 0 <= r < b
+        while r:isNegative() do
+            q -= 1
+            r = r:plus(b)
+        end
+        while r:compareTo(b) >= 0 do
+            q += 1
+            r = r:minus(b)
+        end
+    else
+        -- want b < r <= 0
+        while r:isPositive() do
+            q -= 1
+            r = r:plus(b)
+        end
+        while r:compareTo(b) <= 0 do
+            q += 1
+            r = r:minus(b)
+        end
+    end
+    return q, r
+end
+
+-- Exact truncated division returning (q, r) where a == b * q + r where r has
+-- the sign of a, and |r| < |b|. Assumes b is non-zero.
+local function divModTruncated(a: Duration, b: Duration): (number, Duration)
+    local q, r = divModFloor(a, b)
+    -- floor and truncation only differ when the exact quotient is negative and
+    -- not whole; there's a remainder, and a and b have opposite signs
+    if not r:isZero() and a:isNegative() ~= b:isNegative() then
+        q += 1
+        r = r:minus(b)
+    end
+    return q, r
 end
 
 local function assertDuration(value: any, operation: string): Duration
@@ -638,7 +726,11 @@ function Duration.times(self: Duration, scalar: number): Duration
         fail("Attempted to multiply a Duration by a non-number")
     end
 
-    return Duration.new(self._secs * scalar, self._nanos * scalar)
+    -- integer scalars take the exact path, while fractional scalars can't be
+    -- exact anyway, so they round to the nearest nanosecond through normalize()
+    return if scalar % 1 == 0 and math.abs(scalar) < MAX_SAFE_INT
+        then Duration.new(mulExact(self._secs, self._nanos, scalar))
+        else Duration.new(self._secs * scalar, self._nanos * scalar)
 end
 Duration.__mul = function(
     durationOrScalar1: Duration | number,
@@ -694,11 +786,12 @@ function Duration.floorDividedBy(self: Duration, other: Duration): number
     -- type validation for metamethod error handling
     assertDuration(self, "floor division")
     assertDuration(other, "floor division")
-
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
-    return self:toNanos() // other:toNanos()
+
+    local q = divModFloor(self, other)
+    return q
 end
 Duration.__idiv = Duration.floorDividedBy
 
@@ -713,11 +806,12 @@ function Duration.mod(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
     assertDuration(self, "modulus")
     assertDuration(other, "modulus")
-
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
-    return Duration.new(0, self:toNanos() % other:toNanos())
+
+    local _, r = divModFloor(self, other)
+    return r
 end
 Duration.__mod = Duration.mod
 
@@ -738,10 +832,14 @@ Duration.__unm = Duration.negated
 --- @param other Duration -- The other `Duration`
 --- @return number -- The quotient
 function Duration.truncatedDividedBy(self: Duration, other: Duration): number
+    assertDuration(self, "truncated division")
+    assertDuration(other, "truncated division")
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
-    return truncateTowardZero(self:toNanos() / other:toNanos())
+
+    local q = divModTruncated(self, other)
+    return q
 end
 
 --- Returns the truncated remainder of dividing this `Duration` by another, with
@@ -752,10 +850,14 @@ end
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The remainder
 function Duration.remainder(self: Duration, other: Duration): Duration
+    assertDuration(self, "remainder")
+    assertDuration(other, "remainder")
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
-    return Duration.new(0, self:toNanos() % other:toNanos())
+
+    local _, r = divModTruncated(self, other)
+    return r
 end
 
 --- Returns the ratio between this `Duration` and another.
