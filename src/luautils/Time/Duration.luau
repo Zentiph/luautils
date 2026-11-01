@@ -759,10 +759,9 @@ end
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The difference
 function Duration.saturatingMinus(self: Duration, other: Duration): Duration
-    return Duration.new(
-        math.max(0, self._secs - other._secs),
-        math.max(0, self._nanos - other._nanos)
-    )
+    return if self:compareTo(other) <= 0
+        then Duration.ZERO
+        else self:minus(other)
 end
 
 --- Returns the absolute value of this `Duration`.
