@@ -256,6 +256,9 @@ end
 --- @return Duration -- The new `Duration`
 function Duration.new(secs: number, nanos: number): Duration
     local s, n = normalize(secs, nanos)
+    if math.isnan(s) or math.isnan(n) then
+        fail("Cannot create a Duration from NaN values")
+    end
     if n > NANOS_MAX then
         fail(
             "Nanoseconds must be less than 1 billion "
