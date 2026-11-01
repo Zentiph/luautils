@@ -735,7 +735,10 @@ end
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The remainder
 function Duration.remainder(self: Duration, other: Duration): Duration
-    return Duration.new(0, self:truncatedDividedBy(other))
+    if other:isZero() then
+        fail("Attempted to divide by 0")
+    end
+    return Duration.new(0, self:toNanos() % other:toNanos())
 end
 
 --- Returns the ratio between this `Duration` and another.
