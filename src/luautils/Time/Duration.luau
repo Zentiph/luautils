@@ -1146,11 +1146,7 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
         if not info then
             if not inTime and (unit == "Y" or unit == "M") then
                 return Core.Result.err(
-                    parseErrMsg(
-                        str,
-                        pos,
-                        "years and months have no fixed length"
-                    )
+                    parseErrMsg(s, pos, "years and months have no fixed length")
                 )
             end
             local where = if inTime then "after" else "before"
@@ -1172,7 +1168,7 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
             elseif frac == "" then
                 return Core.Result.err(
                     parseErrMsg(
-                        str,
+                        s,
                         pos,
                         "missing digits after decimal separator"
                     )
