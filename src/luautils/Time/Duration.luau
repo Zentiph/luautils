@@ -85,6 +85,17 @@ export type HumanStringUnit =
     | "seconds"
     | "millis"
 
+--- Options for `Duration:toHumanString()`.
+---
+--- @interface HumanStringOptions
+--- @within Duration
+--- @field maxUnits number? -- How many units to show, from the largest non-zero one (defaults to all)
+--- @field smallestUnit HumanStringUnit? -- The smallest unit to show (defaults to "millis")
+export type HumanStringOptions = {
+    maxUnits: number?,
+    smallestUnit: HumanStringUnit?,
+}
+
 local NANOS_MIN = 0
 local NANOS_MAX = 999_999_999
 
@@ -108,6 +119,14 @@ local TIME_UNITS: { [string]: { rank: number, secs: number } } = {
     H = { rank = 3, secs = SECONDS_PER_HOUR },
     M = { rank = 4, secs = SECONDS_PER_MINUTE },
     S = { rank = 5, secs = 1 },
+}
+
+local HUMAN_UNITS: { { name: HumanStringUnit, suffix: string } } = {
+    { name = "days", suffix = "d" },
+    { name = "hours", suffix = "h" },
+    { name = "minutes", suffix = "m" },
+    { name = "seconds", suffix = "s" },
+    { name = "millis", suffix = "ms" },
 }
 
 local MAX_SAFE_INT = 2 ^ 53
@@ -851,8 +870,6 @@ Duration.__unm = Duration.negated
 --- @param other Duration -- The other `Duration`
 --- @return number -- The quotient
 function Duration.truncatedDividedBy(self: Duration, other: Duration): number
-    assertDuration(self, "truncated division")
-    assertDuration(other, "truncated division")
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
@@ -869,8 +886,6 @@ end
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The remainder
 function Duration.remainder(self: Duration, other: Duration): Duration
-    assertDuration(self, "remainder")
-    assertDuration(other, "remainder")
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
@@ -1311,39 +1326,43 @@ end
 ---
 --- @method toHumanString
 --- @within Duration
---- @param includedUnits Core.Set<HumanStringUnit>? -- The units to include (defaults to all)
+--- @param options HumanStringOptions? -- The options to apply (defaults to `{ maxUnits = math.huge, smallestUnit = "millis" }`)
 --- @return string -- The human-readable string
 function Duration.toHumanString(
     self: Duration,
-    includedUnits: Core.Set<HumanStringUnit>?
+    options: HumanStringOptions?
 ): string
-    includedUnits = includedUnits
-        or {
-            days = true,
-            hours = true,
-            minutes = true,
-            seconds = true,
-            millis = true,
-        }
+    local maxUnits = options and options.maxUnits or math.huge
+    local smallestUnit = options and options.smallestUnit or "millis"
 
-    local parts = self:toParts()
-    local result = ""
-    if includedUnits.days and parts.days > 0 then
-        result ..= string.format("%dd ", parts.days)
+    local parts = self:toParts() :: any -- indexed by unit name
+    local pieces = {}
+    local windowUsed = 0
+    local smallestSuffix = "ms"
+
+    for _, unit in HUMAN_UNITS do
+        local value = parts[unit.name]
+        -- the window starts at the first non-zero unit
+        if windowUsed > 0 or value > 0 then
+            windowUsed += 1
+            if value > 0 then
+                table.insert(pieces, `{value}{unit.suffix}`)
+            end
+        end
+        if unit.name == smallestUnit then
+            smallestSuffix = unit.suffix
+            break
+        end
+        if windowUsed >= maxUnits then
+            break
+        end
     end
-    if includedUnits.hours and parts.hours > 0 then
-        result ..= string.format("%dh ", parts.hours)
+
+    if #pieces == 0 then
+        return `0{smallestSuffix}`
     end
-    if includedUnits.minutes and parts.minutes > 0 then
-        result ..= string.format("%dm ", parts.minutes)
-    end
-    if includedUnits.seconds and parts.seconds > 0 then
-        result ..= string.format("%ds ", parts.seconds)
-    end
-    if includedUnits.millis and parts.millis > 0 then
-        result ..= string.format("%dms", parts.millis)
-    end
-    return result
+    local result = table.concat(pieces, " ")
+    return if parts.negative then "-" .. result else result
 end
 
 --- Converts this `Duration` to a string that can be used as a key in a table.
