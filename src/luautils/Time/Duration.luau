@@ -1398,6 +1398,10 @@ end
 function Duration.tryDeserialize(
     data: Core.Map<any, any>
 ): Core.Result<Duration, string>
+    if type(data) ~= "table" then
+        return Core.Result.err("Expected data to be a table")
+    end
+
     local secs = data.secs
     local nanos = data.nanos
 
