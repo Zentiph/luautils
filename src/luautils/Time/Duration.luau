@@ -910,8 +910,12 @@ function Duration.compareTo(self: Duration, other: Duration): number
     assertDuration(self, "comparison")
     assertDuration(other, "comparison")
 
-    local diff = self:toNanos() - other:toNanos()
-    return if diff < 0 then -1 elseif diff > 0 then 1 else 0
+    return if self._secs < other._secs
+        then -1
+        elseif self._secs > other._secs then 1
+        elseif self._nanos < other._nanos then -1
+        elseif self._nanos > other._nanos then 1
+        else 0
 end
 Duration.__lt = function(self: Duration, other: Duration): boolean
     return self:compareTo(other) < 0
