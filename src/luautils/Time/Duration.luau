@@ -79,14 +79,14 @@ export type Duration = typeof(setmetatable({} :: DurationData, Duration))
 --- @field micros number? -- The number of microseconds (defaults to 0)
 --- @field nanos number? -- The number of nanoseconds (defaults to 0)
 export type TimePartsI = {
-    negative: boolean?,
-    days: number?,
-    hours: number?,
-    minutes: number?,
-    seconds: number?,
-    millis: number?,
-    micros: number?,
-    nanos: number?,
+    read negative: boolean?,
+    read days: number?,
+    read hours: number?,
+    read minutes: number?,
+    read seconds: number?,
+    read millis: number?,
+    read micros: number?,
+    read nanos: number?,
 }
 
 --- An output set of parts in a `Duration`, returned by [Duration:toParts].
@@ -200,7 +200,7 @@ local function normalize(secs: number, nanos: number): (number, number)
 end
 
 local function truncateTowardZero(x: number): number
-    return if x >= 0 then math.floor(x) else math.ceil(x)
+    return if x >= 0 then math.floor(x) else math.ceil(x) + 0
 end
 
 -- Splits a Duration into its sign and non-negative seconds/nanoseconds
@@ -1441,7 +1441,7 @@ function Duration.ratio(self: Duration, other: Duration): number
         return 0
     end
 
-    return self:toNanos() / other:toNanos()
+    return self:toNanos() / other:toNanos() + 0
 end
 
 --- Returns the result of subtracting another `Duration` from this one, clamped
