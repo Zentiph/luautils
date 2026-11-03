@@ -8,3 +8,7 @@ sidebarPosition = 1
 [[classOrder]]
 section = "Core"
 classes = ["Option", "Result"]
+
+[[classOrder]]
+section = "Time"
+classes = ["Duration"]

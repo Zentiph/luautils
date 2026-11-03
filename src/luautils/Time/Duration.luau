@@ -9,6 +9,7 @@ local fail = require("../_internal").Errors.errorWithScope("Duration")
 
 -- TODO: add enum creators with type support
 -- TODO: other oop tools like "final class" metatable locking, easy interface checking, etc
+-- TODO: BigNumber class (data type able to represent bigger number values with exact precision)
 
 --- A fixed-length span of time with nanosecond precision and no upper bound.
 ---
@@ -19,10 +20,28 @@ local fail = require("../_internal").Errors.errorWithScope("Duration")
 --- float64 mantissa loss, as a single `number` storing nanoseconds loses
 --- precision beyond ~104 days. Splitting into seconds and nanoseconds gives
 --- exact time arithmetic at both scales without any practical upper limit.
+--- Arithmetic is exact as long as the whole seconds stay below 2^53, and
+--- conversions to a single `number`, such as [Duration:toNanos], are subject
+--- to the usual float64 precision limits.
 ---
---- Supports `==` and `~=` comparison, `tostring()`, `+`, `-`, `//`, and `%`
---- arithmetic with other `Duration`s, `*` and `/` arithmetic with a scalar, and
---- `-` negation.
+--- A `Duration` may also be positive or negative infinity (see
+--- [Duration.INFINITE]). Infinite `Duration`s have no sub-second component,
+--- and operations whose result would be undefined, such as adding infinities
+--- with different signs or multiplying infinity by zero, throw. `NaN` is never
+--- a valid input.
+---
+--- `Duration`s are frozen and cannot be modified.
+---
+--- Supports `==`, `~=`, `<`, `<=`, `>`, and `>=` comparison, `tostring()`,
+--- `+`, `-`, `//`, and `%` arithmetic with other `Duration`s, `*` and `/`
+--- arithmetic with a scalar, and `-` negation.
+---
+--- Error messages thrown by `Duration` functions are prefixed with the
+--- function that threw them, such as `[Duration.plus()]: `, after the usual
+--- position prefix added by `error()`. Operators report the method that backs
+--- them, so `a + b` reports `[Duration.plus()]`. Errors thrown by internal
+--- calls report the function that threw them, so [Duration.fromMillis] with
+--- `NaN` reports `[Duration.new()]`.
 ---
 --- @class Duration
 local Duration = {}
@@ -42,13 +61,23 @@ export type Duration = typeof(setmetatable({} :: DurationData, Duration))
 -- TODO: if possible add typing helpers like OptionalTable<> that turns a
 -- table with components like a: number, b: string into a: number?, b: string?
 
---- An input set of parts in a `Duration`.
+--- An input set of parts in a `Duration`, used by [Duration.fromParts].
 ---
 --- All fields are optional, and will default to 0 (or false, in `negative`'s
---- case).
+--- case). Parts are not limited to their usual ranges, so `{ hours = 36 }` is
+--- the same as `{ days = 1, hours = 12 }`, and they may be fractional or
+--- negative.
 ---
---- @type TimePartsI
+--- @interface TimePartsI
 --- @within Duration
+--- @field negative boolean? -- Whether to negate the whole `Duration` (defaults to `false`)
+--- @field days number? -- The number of days (defaults to 0)
+--- @field hours number? -- The number of hours (defaults to 0)
+--- @field minutes number? -- The number of minutes (defaults to 0)
+--- @field seconds number? -- The number of seconds (defaults to 0)
+--- @field millis number? -- The number of milliseconds (defaults to 0)
+--- @field micros number? -- The number of microseconds (defaults to 0)
+--- @field nanos number? -- The number of nanoseconds (defaults to 0)
 export type TimePartsI = {
     negative: boolean?,
     days: number?,
@@ -60,10 +89,23 @@ export type TimePartsI = {
     nanos: number?,
 }
 
---- An output set of parts in a `Duration`.
+--- An output set of parts in a `Duration`, returned by [Duration:toParts].
 ---
---- @type TimePartsO
+--- All parts are non-negative and within their usual ranges (such as 0-23 for
+--- `hours`), except `days`, which is unbounded. The sign of the `Duration` is
+--- stored in `negative`. For infinite `Duration`s, `days` is `math.huge` and
+--- every other part is 0.
+---
+--- @interface TimePartsO
 --- @within Duration
+--- @field negative boolean -- Whether the `Duration` is negative
+--- @field days number -- The whole days
+--- @field hours number -- The hours (0-23)
+--- @field minutes number -- The minutes (0-59)
+--- @field seconds number -- The seconds (0-59)
+--- @field millis number -- The milliseconds (0-999)
+--- @field micros number -- The microseconds (0-999)
+--- @field nanos number -- The nanoseconds (0-999)
 export type TimePartsO = {
     negative: boolean,
     days: number,
@@ -75,9 +117,10 @@ export type TimePartsO = {
     nanos: number,
 }
 
---- A unit of time that can be used in human-readable string formatting.
+--- A unit of time that can be used in human-readable string formatting with
+--- [Duration:toHumanString].
 ---
---- @type HumanStringUnit
+--- @type HumanStringUnit "days" | "hours" | "minutes" | "seconds" | "millis"
 --- @within Duration
 export type HumanStringUnit =
     "days"
@@ -86,11 +129,11 @@ export type HumanStringUnit =
     | "seconds"
     | "millis"
 
---- Options for `Duration:toHumanString()`.
+--- Options for [Duration:toHumanString].
 ---
 --- @interface HumanStringOptions
 --- @within Duration
---- @field maxUnits number? -- How many units to show, from the largest non-zero one (defaults to all)
+--- @field maxUnits number? -- How many units to show, counting from the largest non-zero one; must be a positive integer or `math.huge` (defaults to all)
 --- @field smallestUnit HumanStringUnit? -- The smallest unit to show (defaults to "millis")
 export type HumanStringOptions = {
     maxUnits: number?,
@@ -289,20 +332,22 @@ local function parseErrMsg(input: string, pos: number, reason: string): string
     return `Invalid ISO-8601 duration: "{input}" ({reason} at position {pos})`
 end
 
--- TODO: handling for NaN or +/- infinity passed to constructors or
--- times or dividedBy
-
 --- Creates a new `Duration` from the specified number of seconds and
 --- additional nanoseconds.
 ---
 --- Fractional seconds will be split into seconds and nanoseconds. Fractional
---- nanoseconds will be rounded. If the number of nanoseconds is greater than 1
---- billion (the number of nanoseconds in a second), then it will carry over
---- into the seconds provided.
+--- nanoseconds will be rounded to the nearest nanosecond, with halves rounded
+--- away from zero. Nanoseconds outside of [0, 999_999_999] carry into (or
+--- borrow from) the seconds provided, so both arguments may have any sign.
+---
+--- If either argument is infinite, the result is an infinite `Duration` with
+--- that sign.
 ---
 --- @param secs number -- The number of seconds
 --- @param nanos number -- The number of nanoseconds
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `secs` or `nanos` is `NaN`
+--- @error "[Duration.new()]: Cannot build a Duration from infinities with different signs" -- Thrown if `secs` and `nanos` are infinities with different signs
 function Duration.new(secs: number, nanos: number): Duration
     if math.isnan(secs) or math.isnan(nanos) then
         fail("Cannot create a Duration from NaN values")
@@ -316,124 +361,167 @@ end
 ---
 --- @prop ZERO Duration
 --- @within Duration
+--- @readonly
 Duration.ZERO = Duration.new(0, 0)
 
 --- A duration of one nanosecond.
 ---
 --- @prop NANOSECOND Duration
 --- @within Duration
+--- @readonly
 Duration.NANOSECOND = Duration.new(0, 1)
 
 --- A duration of one microsecond.
 ---
 --- @prop MICROSECOND Duration
 --- @within Duration
+--- @readonly
 Duration.MICROSECOND = Duration.new(0, NANOS_PER_MICRO)
 
 --- A duration of one millisecond.
 ---
 --- @prop MILLISECOND Duration
 --- @within Duration
+--- @readonly
 Duration.MILLISECOND = Duration.new(0, NANOS_PER_MILLI)
 
 --- A duration of one second.
 ---
 --- @prop SECOND Duration
 --- @within Duration
+--- @readonly
 Duration.SECOND = Duration.new(1, 0)
 
 --- A duration of one minute.
 ---
 --- @prop MINUTE Duration
 --- @within Duration
+--- @readonly
 Duration.MINUTE = Duration.new(SECONDS_PER_MINUTE, 0)
 
 --- A duration of one hour.
 ---
 --- @prop HOUR Duration
 --- @within Duration
+--- @readonly
 Duration.HOUR = Duration.new(SECONDS_PER_HOUR, 0)
 
 --- A duration of one day.
 ---
 --- @prop DAY Duration
 --- @within Duration
+--- @readonly
 Duration.DAY = Duration.new(SECONDS_PER_DAY, 0)
 
 --- A duration of one week.
 ---
 --- @prop WEEK Duration
 --- @within Duration
+--- @readonly
 Duration.WEEK = Duration.new(SECONDS_PER_WEEK, 0)
 
---- An infinite duration.
+--- A positive infinite duration.
 ---
---- For a negative infinite duration, use `-Duration.INFINITY`.
+--- For a negative infinite duration, use `-Duration.INFINITE`. Can also be
+--- checked for with [Duration:isInf].
 ---
 --- @prop INFINITE Duration
 --- @within Duration
+--- @readonly
 Duration.INFINITE = Duration.new(math.huge, 0)
 
 --- Creates a new `Duration` from the specified number of nanoseconds.
 ---
+--- Fractional nanoseconds are rounded to the nearest nanosecond. Infinite
+--- values create an infinite `Duration`.
+---
 --- @param nanos number -- The number of nanoseconds
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `nanos` is `NaN`
 function Duration.fromNanos(nanos: number): Duration
     return Duration.new(0, nanos)
 end
 
 --- Creates a new `Duration` from the specified number of microseconds.
 ---
+--- Fractional microseconds are rounded to the nearest nanosecond. Infinite
+--- values create an infinite `Duration`.
+---
 --- @param micros number -- The number of microseconds
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `micros` is `NaN`
 function Duration.fromMicros(micros: number): Duration
     return Duration.new(0, micros * NANOS_PER_MICRO)
 end
 
 --- Creates a new `Duration` from the specified number of milliseconds.
 ---
+--- Fractional milliseconds are rounded to the nearest nanosecond. Infinite
+--- values create an infinite `Duration`.
+---
 --- @param millis number -- The number of milliseconds
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `millis` is `NaN`
 function Duration.fromMillis(millis: number): Duration
     return Duration.new(0, millis * NANOS_PER_MILLI)
 end
 
 --- Creates a new `Duration` from the specified number of seconds.
 ---
+--- Fractional seconds are rounded to the nearest nanosecond. Infinite values
+--- create an infinite `Duration`.
+---
 --- @param secs number -- The number of seconds
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `secs` is `NaN`
 function Duration.fromSeconds(secs: number): Duration
     return Duration.new(secs, 0)
 end
 
 --- Creates a new `Duration` from the specified number of minutes.
 ---
+--- Fractional minutes are rounded to the nearest nanosecond. Infinite values
+--- create an infinite `Duration`.
+---
 --- @param minutes number -- The number of minutes
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `minutes` is `NaN`
 function Duration.fromMinutes(minutes: number): Duration
     return Duration.new(minutes * SECONDS_PER_MINUTE, 0)
 end
 
 --- Creates a new `Duration` from the specified number of hours.
 ---
+--- Fractional hours are rounded to the nearest nanosecond. Infinite values
+--- create an infinite `Duration`.
+---
 --- @param hours number -- The number of hours
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `hours` is `NaN`
 function Duration.fromHours(hours: number): Duration
     return Duration.new(hours * SECONDS_PER_HOUR, 0)
 end
 
 --- Creates a new `Duration` from the specified number of days.
 ---
+--- Fractional days are rounded to the nearest nanosecond. Infinite values
+--- create an infinite `Duration`.
+---
 --- @param days number -- The number of days
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `days` is `NaN`
 function Duration.fromDays(days: number): Duration
     return Duration.new(days * SECONDS_PER_DAY, 0)
 end
 
 --- Creates a new `Duration` from the specified number of weeks.
 ---
+--- Fractional weeks are rounded to the nearest nanosecond. Infinite values
+--- create an infinite `Duration`.
+---
 --- @param weeks number -- The number of weeks
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `weeks` is `NaN`
 function Duration.fromWeeks(weeks: number): Duration
     return Duration.new(weeks * SECONDS_PER_WEEK, 0)
 end
@@ -441,13 +529,16 @@ end
 --- Creates a new `Duration` from the specified table of parts.
 ---
 --- Missing parts will be treated as zero, and an empty table will return a
---- `Duration` of zero time.
+--- `Duration` of zero time. Parts may exceed their usual ranges and will carry
+--- over, so `{ minutes = 90 }` is the same as `{ hours = 1, minutes = 30 }`.
+--- Fractional parts are rounded to the nearest nanosecond.
 ---
---- Providing negative = true with negative parts will
---- doubly-negate those parts.
+--- `negative = true` negates the sum of all parts, so negative parts with
+--- `negative = true` are doubly-negated and become positive.
 ---
 --- @param parts TimePartsI -- The table of parts
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if any part is `NaN`, or if infinite parts with different signs are combined
 function Duration.fromParts(parts: TimePartsI): Duration
     local sign = parts.negative and -1 or 1
     local secs = sign
@@ -468,6 +559,11 @@ end
 
 --- Returns the total number of nanoseconds contained by this `Duration`.
 ---
+--- The result is a single `number`, so it is subject to float64 precision
+--- loss beyond ~104 days. Use [Duration:toSecondsAndNanos]
+--- for exact values. Returns `math.huge` or `-math.huge` for infinite
+--- `Duration`s.
+---
 --- @method toNanos
 --- @within Duration
 --- @return number -- The total number of nanoseconds
@@ -476,6 +572,11 @@ function Duration.toNanos(self: Duration): number
 end
 
 --- Returns the total number of microseconds contained by this `Duration`.
+---
+--- The result may be fractional and is a single `number`, so it is subject to
+--- float64 precision loss for very large `Duration`s. Use
+--- [Duration:toSecondsAndNanos] for exact values. Returns `math.huge` or
+--- `-math.huge` for infinite `Duration`s.
 ---
 --- @method toMicros
 --- @within Duration
@@ -486,6 +587,11 @@ end
 
 --- Returns the total number of milliseconds contained by this `Duration`.
 ---
+--- The result may be fractional and is a single `number`, so it is subject to
+--- float64 precision loss for very large `Duration`s. Use
+--- [Duration:toSecondsAndNanos] for exact values. Returns `math.huge` or
+--- `-math.huge` for infinite `Duration`s.
+---
 --- @method toMillis
 --- @within Duration
 --- @return number -- The total number of milliseconds
@@ -494,6 +600,11 @@ function Duration.toMillis(self: Duration): number
 end
 
 --- Returns the total number of seconds contained by this `Duration`.
+---
+--- The result may be fractional and is a single `number`, so it is subject to
+--- float64 precision loss for very large `Duration`s. Use
+--- [Duration:toSecondsAndNanos] for exact values. Returns `math.huge` or
+--- `-math.huge` for infinite `Duration`s.
 ---
 --- @method toSeconds
 --- @within Duration
@@ -504,6 +615,11 @@ end
 
 --- Returns the total number of minutes contained by this `Duration`.
 ---
+--- The result may be fractional and is a single `number`, so it is subject to
+--- float64 precision loss for very large `Duration`s. Use
+--- [Duration:toSecondsAndNanos] for exact values. Returns `math.huge` or
+--- `-math.huge` for infinite `Duration`s.
+---
 --- @method toMinutes
 --- @within Duration
 --- @return number -- The total number of minutes
@@ -512,6 +628,11 @@ function Duration.toMinutes(self: Duration): number
 end
 
 --- Returns the total number of hours contained by this `Duration`.
+---
+--- The result may be fractional and is a single `number`, so it is subject to
+--- float64 precision loss for very large `Duration`s. Use
+--- [Duration:toSecondsAndNanos] for exact values. Returns `math.huge` or
+--- `-math.huge` for infinite `Duration`s.
 ---
 --- @method toHours
 --- @within Duration
@@ -522,6 +643,11 @@ end
 
 --- Returns the total number of days contained by this `Duration`.
 ---
+--- The result may be fractional and is a single `number`, so it is subject to
+--- float64 precision loss for very large `Duration`s. Use
+--- [Duration:toSecondsAndNanos] for exact values. Returns `math.huge` or
+--- `-math.huge` for infinite `Duration`s.
+---
 --- @method toDays
 --- @within Duration
 --- @return number -- The total number of days
@@ -530,6 +656,9 @@ function Duration.toDays(self: Duration): number
 end
 
 --- Returns the total number of whole nanoseconds contained by this `Duration`.
+---
+--- Like [Duration:toNanos], but truncated toward zero, so `-1.5` becomes `-1`.
+--- Returns `math.huge` or `-math.huge` for infinite `Duration`s.
 ---
 --- @method wholeNanos
 --- @within Duration
@@ -540,6 +669,9 @@ end
 
 --- Returns the total number of whole microseconds contained by this `Duration`.
 ---
+--- Like [Duration:toMicros], but truncated toward zero, so `-1.5` becomes `-1`.
+--- Returns `math.huge` or `-math.huge` for infinite `Duration`s.
+---
 --- @method wholeMicros
 --- @within Duration
 --- @return number -- The total number of whole microseconds
@@ -548,6 +680,9 @@ function Duration.wholeMicros(self: Duration): number
 end
 
 --- Returns the total number of whole milliseconds contained by this `Duration`.
+---
+--- Like [Duration:toMillis], but truncated toward zero, so `-1.5` becomes `-1`.
+--- Returns `math.huge` or `-math.huge` for infinite `Duration`s.
 ---
 --- @method wholeMillis
 --- @within Duration
@@ -558,6 +693,9 @@ end
 
 --- Returns the total number of whole seconds contained by this `Duration`.
 ---
+--- Like [Duration:toSeconds], but truncated toward zero, so `-1.5` becomes
+--- `-1`. Returns `math.huge` or `-math.huge` for infinite `Duration`s.
+---
 --- @method wholeSeconds
 --- @within Duration
 --- @return number -- The total number of whole seconds
@@ -566,6 +704,9 @@ function Duration.wholeSeconds(self: Duration): number
 end
 
 --- Returns the total number of whole minutes contained by this `Duration`.
+---
+--- Like [Duration:toMinutes], but truncated toward zero, so `-1.5` becomes
+--- `-1`. Returns `math.huge` or `-math.huge` for infinite `Duration`s.
 ---
 --- @method wholeMinutes
 --- @within Duration
@@ -576,6 +717,9 @@ end
 
 --- Returns the total number of whole hours contained by this `Duration`.
 ---
+--- Like [Duration:toHours], but truncated toward zero, so `-1.5` becomes `-1`.
+--- Returns `math.huge` or `-math.huge` for infinite `Duration`s.
+---
 --- @method wholeHours
 --- @within Duration
 --- @return number -- The total number of whole hours
@@ -585,6 +729,9 @@ end
 
 --- Returns the total number of whole days contained by this `Duration`.
 ---
+--- Like [Duration:toDays], but truncated toward zero, so `-1.5` becomes `-1`.
+--- Returns `math.huge` or `-math.huge` for infinite `Duration`s.
+---
 --- @method wholeDays
 --- @within Duration
 --- @return number -- The total number of whole days
@@ -593,6 +740,10 @@ function Duration.wholeDays(self: Duration): number
 end
 
 --- Returns the nanoseconds component of this `Duration`.
+---
+--- The magnitude is in the range 0-999, and the result has the same sign as the
+--- `Duration`, so `-1_500` nanoseconds has a nanoseconds component of `-500`.
+--- Returns 0 for infinite `Duration`s.
 ---
 --- @method nanosPart
 --- @within Duration
@@ -607,6 +758,10 @@ function Duration.nanosPart(self: Duration): number
 end
 
 --- Returns the microseconds component of this `Duration`.
+---
+--- The magnitude is in the range 0-999, and the result has the same sign as the
+--- `Duration`, so `-1_500` microseconds has a microseconds component of `-500`.
+--- Returns 0 for infinite `Duration`s.
 ---
 --- @method microsPart
 --- @within Duration
@@ -625,6 +780,10 @@ end
 
 --- Returns the milliseconds component of this `Duration`.
 ---
+--- The magnitude is in the range 0-999, and the result has the same sign as the
+--- `Duration`, so `-1_500` milliseconds has a milliseconds component of `-500`.
+--- Returns 0 for infinite `Duration`s.
+---
 --- @method millisPart
 --- @within Duration
 --- @return number -- The milliseconds
@@ -639,6 +798,10 @@ end
 
 --- Returns the seconds component of this `Duration`.
 ---
+--- The magnitude is in the range 0-59, and the result has the same sign as the
+--- `Duration`, so `-90` seconds has a seconds component of `-30`. Returns 0 for
+--- infinite `Duration`s.
+---
 --- @method secondsPart
 --- @within Duration
 --- @return number -- The seconds
@@ -652,6 +815,10 @@ function Duration.secondsPart(self: Duration): number
 end
 
 --- Returns the minutes component of this `Duration`.
+---
+--- The magnitude is in the range 0-59, and the result has the same sign as the
+--- `Duration`, so `-90` minutes has a minutes component of `-30`. Returns 0 for
+--- infinite `Duration`s.
 ---
 --- @method minutesPart
 --- @within Duration
@@ -670,6 +837,10 @@ end
 
 --- Returns the hours component of this `Duration`.
 ---
+--- The magnitude is in the range 0-23, and the result has the same sign as the
+--- `Duration`, so `-36` hours has an hours component of `-12`. Returns 0 for
+--- infinite `Duration`s.
+---
 --- @method hoursPart
 --- @within Duration
 --- @return number -- The hours
@@ -684,6 +855,10 @@ end
 
 --- Returns the days component of this `Duration`.
 ---
+--- Days are the largest component, so the magnitude is unbounded. The result
+--- has the same sign as the `Duration`. Returns `math.huge` or `-math.huge`
+--- for infinite `Duration`s.
+---
 --- @method daysPart
 --- @within Duration
 --- @return number -- The days
@@ -697,6 +872,10 @@ function Duration.daysPart(self: Duration): number
 end
 
 --- Returns each component of this `Duration` as a table.
+---
+--- Unlike the `*Part` methods, such as [Duration:hoursPart], every part is
+--- non-negative and the sign is stored in `negative`. Passing the result to
+--- [Duration.fromParts] recreates the same `Duration`.
 ---
 --- @method toParts
 --- @within Duration
@@ -725,16 +904,24 @@ function Duration.toParts(self: Duration): TimePartsO
         }
 end
 
---- Returns the seconds and nanoseconds components of this `Duration`.
+--- Returns the exact internal seconds and nanoseconds of this `Duration`.
+---
+--- The nanoseconds are always in [0, 999_999_999], since the sign is stored in
+--- the seconds, so `-1.5` seconds returns `-2, 500_000_000`. Infinite
+--- `Duration`s return `math.huge` or `-math.huge`, and 0. Passing the results
+--- to [Duration.new] recreates the same `Duration`.
 ---
 --- @method toSecondsAndNanos
 --- @within Duration
---- @return number, number -- The seconds and nanoseconds
+--- @return number -- The whole seconds
+--- @return number -- The nanosecond adjustment
 function Duration.toSecondsAndNanos(self: Duration): (number, number)
     return self._secs, self._nanos
 end
 
---- Creates a new `Duration` from the specified start time.
+--- Creates a new `Duration` spanning from the specified start time to now.
+---
+--- The result is negative if `start` is after `now`.
 ---
 --- Both parameters passed should use the same clock source:
 --- * `os.clock()` for local elapsed time (the default)
@@ -745,11 +932,15 @@ end
 --- @param start number -- The start time
 --- @param now number? -- The end time (defaults to `os.clock()`)
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if the difference is `NaN`
 function Duration.since(start: number, now: number?): Duration
     return Duration.new((now or os.clock()) - start, 0)
 end
 
---- Creates a new `Duration` from the specified start time and end time.
+--- Creates a new `Duration` spanning from the specified start time to the
+--- specified end time.
+---
+--- The result is negative if `start` is after `stop`.
 ---
 --- Both parameters passed should use the same clock source:
 --- * `os.clock()` for local elapsed time (the default)
@@ -760,6 +951,7 @@ end
 --- @param start number -- The start time
 --- @param stop number -- The end time
 --- @return Duration -- The new `Duration`
+--- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if the difference is `NaN`
 function Duration.between(start: number, stop: number): Duration
     return Duration.new(stop - start, 0)
 end
@@ -775,6 +967,9 @@ end
 
 --- Returns whether this `Duration` is negative.
 ---
+--- A `Duration` is not negative if it is zero. Use [Duration:isZero] to check
+--- for zero.
+---
 --- @method isNegative
 --- @within Duration
 --- @return boolean -- Whether this `Duration` is negative
@@ -784,7 +979,7 @@ end
 
 --- Returns whether this `Duration` is positive.
 ---
---- A `Duration` is not positive if it is zero. Use `Duration.isZero` to check
+--- A `Duration` is not positive if it is zero. Use [Duration:isZero] to check
 --- for zero.
 ---
 --- @method isPositive
@@ -794,7 +989,9 @@ function Duration.isPositive(self: Duration): boolean
     return self._secs > 0 or (self._secs == 0 and self._nanos > 0)
 end
 
---- Returns whether this `Duration` is infinite.
+--- Returns whether this `Duration` is infinite, either positive or negative.
+---
+--- Use [Duration:isPositive] or [Duration:isNegative] to check the sign.
 ---
 --- @method isInf
 --- @within Duration
@@ -805,6 +1002,8 @@ end
 
 --- Returns whether this `Duration` is finite.
 ---
+--- This is always the opposite of [Duration:isInf].
+---
 --- @method isFinite
 --- @within Duration
 --- @return boolean -- Whether this `Duration` is finite
@@ -814,10 +1013,17 @@ end
 
 --- Returns the result of adding this `Duration` and another.
 ---
+--- The result is exact. Adding an infinite `Duration` to a finite one returns
+--- the infinite one.
+---
+--- Also used for the `+` operator.
+---
 --- @method plus
 --- @within Duration
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The sum
+--- @error "[Duration.plus()]: Attempted to perform addition on a non-Duration value: {value}" -- Thrown if `self` or `other` is not a `Duration`
+--- @error "[Duration.plus()]: Adding infinities with different signs is undefined" -- Thrown if `self` and `other` are infinities with different signs
 function Duration.plus(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
     assertDuration(self, "addition", "plus")
@@ -833,17 +1039,24 @@ Duration.__add = Duration.plus
 
 --- Returns the result of subtracting another `Duration` from this one.
 ---
+--- The result is exact. Use [Duration:saturatingMinus] to clamp the result at
+--- zero.
+---
+--- Also used for the `-` operator.
+---
 --- @method minus
 --- @within Duration
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The difference
+--- @error "[Duration.minus()]: Attempted to perform subtraction on a non-Duration value: {value}" -- Thrown if `self` or `other` is not a `Duration`
+--- @error "[Duration.minus()]: Subtracting infinities with the same sign is undefined" -- Thrown if `self` and `other` are infinities with the same sign
 function Duration.minus(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
     assertDuration(self, "subtraction", "minus")
     assertDuration(other, "subtraction", "minus")
 
     if self:isInf() and other:isInf() and self._secs == other._secs then
-        fail("Subtracting infinities with different signs is undefined")
+        fail("Subtracting infinities with the same sign is undefined")
     end
 
     return Duration.new(self._secs - other._secs, self._nanos - other._nanos)
@@ -852,10 +1065,22 @@ Duration.__sub = Duration.minus
 
 --- Returns the result of multiplying this `Duration` and a scalar.
 ---
+--- The result is exact for integer scalars. Fractional scalars are rounded to
+--- the nearest nanosecond. Multiplying an infinite `Duration`, or multiplying
+--- by an infinite scalar, returns an infinite `Duration` with the sign of the
+--- product.
+---
+--- Also used for the `*` operator, in either order (`duration * 2` or
+--- `2 * duration`).
+---
 --- @method times
 --- @within Duration
 --- @param scalar number -- The scalar
 --- @return Duration -- The product
+--- @error "[Duration.times()]: Attempted to perform multiplication on a non-Duration value: {value}" -- Thrown if `self` is not a `Duration`
+--- @error "[Duration.times()]: Attempted to multiply a Duration by a non-number" -- Thrown if `scalar` is not a `number`
+--- @error "[Duration.times()]: Multiplication by NaN is undefined" -- Thrown if `scalar` is `NaN`
+--- @error "[Duration.times()]: Infinity multiplied by 0 is undefined" -- Thrown if an infinite `Duration` is multiplied by 0, or a zero `Duration` is multiplied by an infinity
 function Duration.times(self: Duration, scalar: number): Duration
     -- type validation for metamethod error handling
     assertDuration(self, "multiplication", "times")
@@ -903,10 +1128,26 @@ end
 --- Returns the result of dividing this `Duration` by a scalar, rounded to the
 --- nearest nanosecond.
 ---
+--- For integer scalars, the division is exact before rounding, and halves are
+--- rounded away from zero. Fractional scalars are rounded through float
+--- arithmetic. Dividing an infinite `Duration` returns an infinite `Duration`
+--- with the sign of the quotient, and dividing a finite `Duration` by an
+--- infinity returns [Duration.ZERO].
+---
+--- To divide by another `Duration`, use [Duration:floorDividedBy],
+--- [Duration:truncatedDividedBy], or [Duration:ratio].
+---
+--- Also used for the `/` operator.
+---
 --- @method dividedBy
 --- @within Duration
 --- @param scalar number -- The scalar
 --- @return Duration -- The quotient
+--- @error "[Duration.dividedBy()]: Attempted to perform division on a non-Duration value: {value}" -- Thrown if `self` is not a `Duration`
+--- @error "[Duration.dividedBy()]: Attempted to divide a Duration by a non-number" -- Thrown if `scalar` is not a `number`
+--- @error "[Duration.dividedBy()]: Attempted to divide by 0" -- Thrown if `scalar` is 0
+--- @error "[Duration.dividedBy()]: Division by NaN is undefined" -- Thrown if `scalar` is `NaN`
+--- @error "[Duration.dividedBy()]: Dividing two infinities is undefined" -- Thrown if `self` is infinite and `scalar` is an infinity
 function Duration.dividedBy(self: Duration, scalar: number): Duration
     -- type validation for metamethod error handling
     assertDuration(self, "division", "dividedBy")
@@ -975,10 +1216,21 @@ Duration.__div = Duration.dividedBy
 
 --- Returns how many times another whole `Duration` can fit into this one.
 ---
+--- The quotient is exact and floored toward negative infinity, so
+--- `-3s // 2s` is `-2`. Pairs with [Duration:mod], such that
+--- `self == other * q + r`. Use [Duration:truncatedDividedBy] to truncate
+--- toward zero instead.
+---
+--- Also used for the `//` operator.
+---
 --- @method floorDividedBy
 --- @within Duration
 --- @param other Duration -- The other `Duration`
 --- @return number -- The quotient
+--- @error "[Duration.floorDividedBy()]: Attempted to perform floor division on a non-Duration value: {value}" -- Thrown if `self` or `other` is not a `Duration`
+--- @error "[Duration.floorDividedBy()]: Attempted to divide by 0" -- Thrown if `other` is zero
+--- @error "[Duration.floorDividedBy()]: Floor division with an infinity is undefined" -- Thrown if `self` or `other` is infinite
+--- @error "[Duration.floorDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if the quotient is at least 2^53 in magnitude
 function Duration.floorDividedBy(self: Duration, other: Duration): number
     -- type validation for metamethod error handling
     assertDuration(self, "floor division", "floorDividedBy")
@@ -999,10 +1251,20 @@ Duration.__idiv = Duration.floorDividedBy
 --- Returns the floored remainder of dividing this `Duration` by another, with
 --- the sign of `other`.
 ---
+--- The remainder is exact and pairs with [Duration:floorDividedBy], so
+--- `-3s % 2s` is `1s`. Use [Duration:remainder] for a remainder with the sign
+--- of `self` instead.
+---
+--- Also used for the `%` operator.
+---
 --- @method mod
 --- @within Duration
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The remainder
+--- @error "[Duration.mod()]: Attempted to perform modulus on a non-Duration value: {value}" -- Thrown if `self` or `other` is not a `Duration`
+--- @error "[Duration.mod()]: Attempted to divide by 0" -- Thrown if `other` is zero
+--- @error "[Duration.mod()]: Modulus with an infinity is undefined" -- Thrown if `self` or `other` is infinite
+--- @error "[Duration.mod()]: Quotient is too large to be represented exactly" -- Thrown if the quotient is at least 2^53 in magnitude
 function Duration.mod(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
     assertDuration(self, "modulus", "mod")
@@ -1022,10 +1284,17 @@ Duration.__mod = Duration.mod
 
 --- Returns the truncated quotient of dividing this `Duration` by another.
 ---
+--- The quotient is exact and truncated toward zero, so `-3s / 2s` is `-1`.
+--- Pairs with [Duration:remainder], such that `self == other * q + r`. Use
+--- [Duration:floorDividedBy] to floor toward negative infinity instead.
+---
 --- @method truncatedDividedBy
 --- @within Duration
 --- @param other Duration -- The other `Duration`
 --- @return number -- The quotient
+--- @error "[Duration.truncatedDividedBy()]: Attempted to divide by 0" -- Thrown if `other` is zero
+--- @error "[Duration.truncatedDividedBy()]: Truncated division with an infinity is undefined" -- Thrown if `self` or `other` is infinite
+--- @error "[Duration.truncatedDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if the quotient is at least 2^53 in magnitude
 function Duration.truncatedDividedBy(self: Duration, other: Duration): number
     if other:isZero() then
         fail("Attempted to divide by 0")
@@ -1042,10 +1311,17 @@ end
 --- Returns the truncated remainder of dividing this `Duration` by another, with
 --- the sign of `self`.
 ---
+--- The remainder is exact and pairs with [Duration:truncatedDividedBy], so the
+--- remainder of `-3s` and `2s` is `-1s`. Use [Duration:mod] for a remainder
+--- with the sign of `other` instead.
+---
 --- @method remainder
 --- @within Duration
 --- @param other Duration -- The other `Duration`
 --- @return Duration -- The remainder
+--- @error "[Duration.remainder()]: Attempted to divide by 0" -- Thrown if `other` is zero
+--- @error "[Duration.remainder()]: Remainder with an infinity is undefined" -- Thrown if `self` or `other` is infinite
+--- @error "[Duration.remainder()]: Quotient is too large to be represented exactly" -- Thrown if the quotient is at least 2^53 in magnitude
 function Duration.remainder(self: Duration, other: Duration): Duration
     if other:isZero() then
         fail("Attempted to divide by 0")
@@ -1059,12 +1335,18 @@ function Duration.remainder(self: Duration, other: Duration): Duration
     return r
 end
 
---- Returns the ratio between this `Duration` and another.
+--- Returns the ratio between this `Duration` and another, as `self / other`.
+---
+--- The ratio is computed with float arithmetic, so it may be inexact. Returns
+--- `math.huge` or `-math.huge` if only `self` is infinite, and 0 if only
+--- `other` is infinite.
 ---
 --- @method ratio
 --- @within Duration
 --- @param other Duration -- The other `Duration`
 --- @return number -- The ratio
+--- @error "[Duration.ratio()]: Attempted to calculate a ratio with a zero Duration" -- Thrown if `other` is zero
+--- @error "[Duration.ratio()]: Dividing two infinities is undefined" -- Thrown if `self` and `other` are both infinite
 function Duration.ratio(self: Duration, other: Duration): number
     if other:isZero() then
         fail("Attempted to calculate a ratio with a zero Duration")
@@ -1088,6 +1370,9 @@ end
 --- Returns the result of subtracting another `Duration` from this one, clamped
 --- at zero.
 ---
+--- Returns [Duration.ZERO] if `other` is greater than or equal to `self`, so
+--- this never throws for infinite `Duration`s.
+---
 --- @method saturatingMinus
 --- @within Duration
 --- @param other Duration -- The other `Duration`
@@ -1100,6 +1385,10 @@ end
 
 --- Returns a `Duration` with the opposite sign of this one.
 ---
+--- Negating [Duration.ZERO] returns a zero `Duration`.
+---
+--- Also used for the unary `-` operator.
+---
 --- @method negated
 --- @within Duration
 --- @return Duration -- The negated `Duration`
@@ -1109,6 +1398,8 @@ end
 Duration.__unm = Duration.negated
 
 --- Returns the absolute value of this `Duration`.
+---
+--- Returns `self` if it is not negative.
 ---
 --- @method abs
 --- @within Duration
@@ -1122,12 +1413,17 @@ end
 --- toward zero.
 ---
 --- It is generally expected to pass a `Duration` unit constant to `unit`, such
---- as `Duration.SECOND`, but any `Duration` is valid.
+--- as [Duration.SECOND], but any positive, finite `Duration` is valid.
+---
+--- Infinite `Duration`s are returned unchanged.
 ---
 --- @method truncatedTo
 --- @within Duration
 --- @param unit Duration -- The unit to truncate to
 --- @return Duration -- The truncated `Duration`
+--- @error "[Duration.truncatedTo()]: Cannot truncate using a non-positive unit" -- Thrown if `unit` is zero or negative
+--- @error "[Duration.truncatedTo()]: Truncating to infinity is undefined" -- Thrown if `unit` is infinite
+--- @error "[Duration.truncatedDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
 function Duration.truncatedTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot truncate using a non-positive unit")
@@ -1148,12 +1444,17 @@ end
 --- toward negative infinity.
 ---
 --- It is generally expected to pass a `Duration` unit constant to `unit`, such
---- as `Duration.SECOND`, but any `Duration` is valid.
+--- as [Duration.SECOND], but any positive, finite `Duration` is valid.
+---
+--- Infinite `Duration`s are returned unchanged.
 ---
 --- @method flooredTo
 --- @within Duration
 --- @param unit Duration -- The unit to floor to
 --- @return Duration -- The floored `Duration`
+--- @error "[Duration.flooredTo()]: Cannot floor using a non-positive unit" -- Thrown if `unit` is zero or negative
+--- @error "[Duration.flooredTo()]: Flooring to infinity is undefined" -- Thrown if `unit` is infinite
+--- @error "[Duration.floorDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
 function Duration.flooredTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot floor using a non-positive unit")
@@ -1174,12 +1475,17 @@ end
 --- toward positive infinity.
 ---
 --- It is generally expected to pass a `Duration` unit constant to `unit`, such
---- as `Duration.SECOND`, but any `Duration` is valid.
+--- as [Duration.SECOND], but any positive, finite `Duration` is valid.
+---
+--- Infinite `Duration`s are returned unchanged.
 ---
 --- @method ceiledTo
 --- @within Duration
 --- @param unit Duration -- The unit to ceil to
 --- @return Duration -- The ceiled `Duration`
+--- @error "[Duration.ceiledTo()]: Cannot ceil using a non-positive unit" -- Thrown if `unit` is zero or negative
+--- @error "[Duration.ceiledTo()]: Ceiling to infinity is undefined" -- Thrown if `unit` is infinite
+--- @error "[Duration.floorDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
 function Duration.ceiledTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot ceil using a non-positive unit")
@@ -1205,12 +1511,17 @@ end
 --- halfway or closer to the next multiple of `unit`.
 ---
 --- It is generally expected to pass a `Duration` unit constant to `unit`, such
---- as `Duration.SECOND`, but any `Duration` is valid.
+--- as [Duration.SECOND], but any positive, finite `Duration` is valid.
+---
+--- Infinite `Duration`s are returned unchanged.
 ---
 --- @method roundedTo
 --- @within Duration
 --- @param unit Duration -- The unit to round to
 --- @return Duration -- The rounded `Duration`
+--- @error "[Duration.roundedTo()]: Cannot round using a non-positive unit" -- Thrown if `unit` is zero or negative
+--- @error "[Duration.roundedTo()]: Rounding to infinity is undefined" -- Thrown if `unit` is infinite
+--- @error "[Duration.truncatedDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
 function Duration.roundedTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot round using a non-positive unit")
@@ -1238,6 +1549,9 @@ end
 
 --- Returns whether the given value is a `Duration`.
 ---
+--- Only values created by `Duration` functions are considered `Duration`s;
+--- tables with the same fields are not.
+---
 --- @param value any -- The value to check
 --- @return boolean -- Whether the value is a `Duration`
 function Duration.is(value: any): boolean
@@ -1245,6 +1559,11 @@ function Duration.is(value: any): boolean
 end
 
 --- Returns `true` if both `Duration`s represent the same span of time.
+---
+--- Returns `false` if `other` is not a `Duration`. Infinities are only equal
+--- to infinities with the same sign.
+---
+--- Also used for the `==` and `~=` operators.
 ---
 --- @method equals
 --- @within Duration
@@ -1261,10 +1580,16 @@ Duration.__eq = Duration.equals
 --- "less than" `other`, 0 if they are equal, and 1 if `self` is "greater than"
 --- `other`.
 ---
+--- Negative infinity is less than every finite `Duration`, and positive
+--- infinity is greater than every finite `Duration`.
+---
+--- Also used for the `<`, `<=`, `>`, and `>=` operators.
+---
 --- @method compareTo
 --- @within Duration
 --- @param other Duration -- The other `Duration`
 --- @return number -- The result of the comparison
+--- @error "[Duration.compareTo()]: Attempted to perform comparison on a non-Duration value: {value}" -- Thrown if `self` or `other` is not a `Duration`
 function Duration.compareTo(self: Duration, other: Duration): number
     -- type validation for metamethod error handling
     assertDuration(self, "comparison", "compareTo")
@@ -1286,6 +1611,8 @@ end
 
 --- Returns the smaller of `self` and `other`.
 ---
+--- Returns `self` if they are equal.
+---
 --- @method min
 --- @within Duration
 --- @param other Duration -- The other `Duration`
@@ -1296,6 +1623,8 @@ end
 
 --- Returns the larger of `self` and `other`.
 ---
+--- Returns `self` if they are equal.
+---
 --- @method max
 --- @within Duration
 --- @param other Duration -- The other `Duration`
@@ -1304,13 +1633,14 @@ function Duration.max(self: Duration, other: Duration): Duration
     return if self:compareTo(other) >= 0 then self else other
 end
 
---- Returns the result of clamping `self` between `min` and `max`.
+--- Returns the result of clamping `self` between `min` and `max`, inclusive.
 ---
 --- @method clamp
 --- @within Duration
 --- @param min Duration -- The minimum `Duration`
 --- @param max Duration -- The maximum `Duration`
 --- @return Duration -- The clamped `Duration`
+--- @error "[Duration.clamp()]: Clamp value min must be less than or equal to max" -- Thrown if `min` is greater than `max`
 function Duration.clamp(self: Duration, min: Duration, max: Duration): Duration
     if min:compareTo(max) > 0 then
         fail("Clamp value min must be less than or equal to max")
@@ -1318,11 +1648,29 @@ function Duration.clamp(self: Duration, min: Duration, max: Duration): Duration
     return self:min(max):max(min)
 end
 
---- Creates a new `Duration` from an ISO 8601 duration string.
+--- Creates a new `Duration` from an ISO 8601 duration string, such as
+--- `"PT1H30M"`.
+---
+--- The accepted format is `PnWnDTnHnMnS`, where every component is optional
+--- but at least one must be present, and components must appear in that
+--- order:
+--- * An optional leading `-` or `+` sign applies to the whole `Duration`
+--- * `W` (weeks) and `D` (days) must come before the `T` separator
+--- * `H` (hours), `M` (minutes), and `S` (seconds) must come after it
+--- * Only seconds may be fractional, using either `.` or `,` as the decimal
+---   separator; digits past nanosecond precision are truncated
+--- * Letters are case-insensitive
+---
+--- Years and months are rejected, since they have no fixed length. The
+--- strings `Infinity` and `-Infinity` (also case-insensitive) are accepted for
+--- infinite `Duration`s. Every string produced by [Duration:toString] can be
+--- parsed back into an equal `Duration`.
+---
+--- Use [Duration.tryParse] for strings that may be malformed.
 ---
 --- @param s string -- The ISO 8601 duration string
 --- @return Duration -- The new `Duration`
---- @error "Failed to parse duration" -- If the string could not be parsed
+--- @error "[Duration.parse()]: Failed to parse duration: {reason}" -- Thrown if the string could not be parsed; `{reason}` is the error from [Duration.tryParse]
 function Duration.parse(s: string): Duration
     local res = Duration.tryParse(s)
     if res:isErr() then
@@ -1335,7 +1683,28 @@ function Duration.parse(s: string): Duration
     return res:unwrap()
 end
 
---- Tries to create a new `Duration` from an ISO 8601 duration string.
+--- Tries to create a new `Duration` from an ISO 8601 duration string, such as
+--- `"PT1H30M"`.
+---
+--- The accepted format is `PnWnDTnHnMnS`, where every component is optional
+--- but at least one must be present, and components must appear in that
+--- order:
+--- * An optional leading `-` or `+` sign applies to the whole `Duration`
+--- * `W` (weeks) and `D` (days) must come before the `T` separator
+--- * `H` (hours), `M` (minutes), and `S` (seconds) must come after it
+--- * Only seconds may be fractional, using either `.` or `,` as the decimal
+---   separator; digits past nanosecond precision are truncated
+--- * Letters are case-insensitive
+---
+--- Years and months are rejected, since they have no fixed length. The
+--- strings `Infinity` and `-Infinity` (also case-insensitive) are accepted for
+--- infinite `Duration`s. Every string produced by [Duration:toString] can be
+--- parsed back into an equal `Duration`.
+---
+--- Returns an "ok" [Result] holding the `Duration`, or an "err" [Result]
+--- holding a message in the form
+--- `Invalid ISO-8601 duration: "{input}" ({reason} at position {pos})`.
+--- Never throws.
 ---
 --- @param s string -- The ISO 8601 duration string
 --- @return Core.Result<Duration, string> -- The result of parsing the string
@@ -1448,7 +1817,18 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     return Core.Result.ok(duration)
 end
 
---- Converts this `Duration` to an ISO 8601 duration string.
+--- Converts this `Duration` to an ISO 8601 duration string, such as
+--- `"P1DT2H3M4.5S"`.
+---
+--- Days are the largest unit used, so weeks are never output. Zero-valued
+--- components are omitted, fractional seconds have trailing zeros removed, and
+--- a zero `Duration` is `"PT0S"`. Negative `Duration`s are prefixed with `-`.
+--- Infinite `Duration`s are `"Infinity"` or `"-Infinity"`.
+---
+--- The result can be parsed back into an equal `Duration` with
+--- [Duration.parse].
+---
+--- Also used by `tostring()`.
 ---
 --- @method toString
 --- @within Duration
@@ -1516,13 +1896,22 @@ Duration.__tostring = Duration.toString
 --- * %f - milliseconds (0-999)
 --- * %% - literal '%'
 ---
---- An optional zero-pad width may follow the '%' (e.g. '%02H'). Negative
---- `Duration`s are prefixed with a single '-'.
+--- An optional zero-pad width may follow the '%' (e.g. '%02H'). Values are
+--- truncated, not rounded, and are always non-negative; negative `Duration`s
+--- are prefixed with a single '-' instead. A trailing '%' with no specifier
+--- is kept as-is.
+---
+--- Infinite `Duration`s ignore `pattern` and return `"∞"` or `"-∞"`.
+---
+--- ```lua
+--- Duration.fromSeconds(3725):format("%H:%02M:%02S") -- "1:02:05"
+--- ```
 ---
 --- @method format
 --- @within Duration
 --- @param pattern string -- The pattern
 --- @return string -- The formatted string
+--- @error "[Duration.format()]: Unknown specifier '%{spec}'" -- Thrown if `pattern` contains an unknown specifier
 function Duration.format(self: Duration, pattern: string): string
     if self:isInf() then
         return (if self:isNegative() then "-" else "") .. "∞"
@@ -1563,12 +1952,18 @@ end
 ---
 --- Units smaller than `options.smallestUnit` are omitted, not rounded.
 ---
---- Zero-valued components are not included.
+--- Zero-valued components are not included, but still count toward
+--- `options.maxUnits` once the largest non-zero unit is reached, so
+--- `1d 0h 5m` with `maxUnits = 2` becomes `"1d"`. A `Duration` with no
+--- components to show returns zero of the smallest unit, such as `"0ms"`.
+--- Negative `Duration`s are prefixed with `-`, and infinite `Duration`s return
+--- `"∞"` or `"-∞"`.
 ---
 --- @method toHumanString
 --- @within Duration
 --- @param options HumanStringOptions? -- The options to apply (defaults to `{ maxUnits = math.huge, smallestUnit = "millis" }`)
 --- @return string -- The human-readable string
+--- @error "[Duration.toHumanString()]: Max units should be a positive integer" -- Thrown if `options.maxUnits` is not a positive integer or `math.huge`
 function Duration.toHumanString(
     self: Duration,
     options: HumanStringOptions?
@@ -1620,7 +2015,9 @@ end
 --- Converts this `Duration` to a string that can be used as a key in a table.
 ---
 --- An object can be used as a key in a table if instances of that object that
---- are considered "equal" produce identical keys.
+--- are considered "equal" produce identical keys. Equal `Duration`s always
+--- produce identical keys, since this returns the same string as
+--- [Duration:toString].
 ---
 --- @method toKey
 --- @within Duration
@@ -1630,6 +2027,11 @@ function Duration.toKey(self: Duration): string
 end
 
 --- Serializes this `Duration` into a `DataStore`-safe data table.
+---
+--- Finite `Duration`s serialize to `{ secs = number, nanos = number }`, and
+--- infinite `Duration`s serialize to `{ inf = 1 }` or `{ inf = -1 }`, since
+--- infinities are not `DataStore`-safe. Use [Duration.deserialize] to convert
+--- the data back into a `Duration`.
 ---
 --- @method serialize
 --- @within Duration
@@ -1643,12 +2045,14 @@ end
 --- Creates a new `Duration` from a serialized data table.
 ---
 --- This function guarantees to always deserialize valid `Duration`s serialized
---- using Duration:serialize(). Any other method of serialization is not
+--- using [Duration:serialize]. Any other method of serialization is not
 --- guaranteed to work with deserialization.
+---
+--- Use [Duration.tryDeserialize] for data that may be malformed.
 ---
 --- @param data Core.Map<any, any> -- The data table
 --- @return Duration -- The new `Duration`
---- @error "Failed to deserialize duration" -- If the data could not be deserialized
+--- @error "[Duration.deserialize()]: Failed to deserialize duration: {reason}" -- Thrown if the data could not be deserialized; `{reason}` is the error from [Duration.tryDeserialize]
 function Duration.deserialize(data: Core.Map<any, any>): Duration
     local res = Duration.tryDeserialize(data)
     if res:isErr() then
@@ -1664,8 +2068,13 @@ end
 --- Tries to create a new `Duration` from a serialized data table.
 ---
 --- This function guarantees to always deserialize valid `Duration`s serialized
---- using Duration:serialize(). Any other method of serialization is not
+--- using [Duration:serialize]. Any other method of serialization is not
 --- guaranteed to work with deserialization.
+---
+--- Returns an "ok" [Result] holding the `Duration`, or an "err" [Result]
+--- holding a message describing the first problem found, such as a missing
+--- key, a non-integer value, or `nanos` outside of [0, 999_999_999]. Never
+--- throws.
 ---
 --- @param data Core.Map<any, any> -- The data table
 --- @return Core.Result<Duration, string> -- The result of parsing the data
