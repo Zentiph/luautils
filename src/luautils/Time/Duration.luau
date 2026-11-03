@@ -134,6 +134,20 @@ local MAX_SAFE_INT = 2 ^ 53
 
 -- Helper for normalizing seconds and nanoseconds to their expected ranges
 local function normalize(secs: number, nanos: number): (number, number)
+    if math.isinf(secs) or math.isinf(nanos) then
+        if math.isinf(secs) and math.isinf(nanos) and secs ~= nanos then
+            fail(
+                "Cannot build a Duration from infinities with different signs",
+                3,
+                "new"
+            )
+        end
+        local sign = if math.isinf(secs)
+            then math.sign(secs)
+            else math.sign(nanos)
+        return sign * math.huge, 0
+    end
+
     local fracSecs = secs % 1
     secs -= fracSecs
     nanos = math.round(nanos + fracSecs * NANOS_PER_SECOND)
@@ -293,9 +307,6 @@ function Duration.new(secs: number, nanos: number): Duration
     if math.isnan(secs) or math.isnan(nanos) then
         fail("Cannot create a Duration from NaN values")
     end
-    if math.isinf(secs) or math.isinf(nanos) then
-        fail("Infinite durations are not yet supported")
-    end
 
     local s, n = normalize(secs, nanos)
     return table.freeze(setmetatable({ _secs = s, _nanos = n }, Duration))
@@ -354,6 +365,14 @@ Duration.DAY = Duration.new(SECONDS_PER_DAY, 0)
 --- @prop WEEK Duration
 --- @within Duration
 Duration.WEEK = Duration.new(SECONDS_PER_WEEK, 0)
+
+--- An infinite duration.
+---
+--- For a negative infinite duration, use `-Duration.INFINITY`.
+---
+--- @prop INFINITE Duration
+--- @within Duration
+Duration.INFINITE = Duration.new(math.huge, 0)
 
 --- Creates a new `Duration` from the specified number of nanoseconds.
 ---
@@ -579,6 +598,10 @@ end
 --- @within Duration
 --- @return number -- The nanoseconds
 function Duration.nanosPart(self: Duration): number
+    if self:isInf() then
+        return 0
+    end
+
     local sign, _, nanos = toMagnitude(self)
     return signedPart(sign, nanos % NANOS_PER_MICRO)
 end
@@ -589,6 +612,10 @@ end
 --- @within Duration
 --- @return number -- The microseconds
 function Duration.microsPart(self: Duration): number
+    if self:isInf() then
+        return 0
+    end
+
     local sign, _, nanos = toMagnitude(self)
     return signedPart(
         sign,
@@ -602,6 +629,10 @@ end
 --- @within Duration
 --- @return number -- The milliseconds
 function Duration.millisPart(self: Duration): number
+    if self:isInf() then
+        return 0
+    end
+
     local sign, _, nanos = toMagnitude(self)
     return signedPart(sign, math.floor(nanos / NANOS_PER_MILLI))
 end
@@ -612,6 +643,10 @@ end
 --- @within Duration
 --- @return number -- The seconds
 function Duration.secondsPart(self: Duration): number
+    if self:isInf() then
+        return 0
+    end
+
     local sign, secs = toMagnitude(self)
     return signedPart(sign, secs % SECONDS_PER_MINUTE)
 end
@@ -622,6 +657,10 @@ end
 --- @within Duration
 --- @return number -- The minutes
 function Duration.minutesPart(self: Duration): number
+    if self:isInf() then
+        return 0
+    end
+
     local sign, secs = toMagnitude(self)
     return signedPart(
         sign,
@@ -635,6 +674,10 @@ end
 --- @within Duration
 --- @return number -- The hours
 function Duration.hoursPart(self: Duration): number
+    if self:isInf() then
+        return 0
+    end
+
     local sign, secs = toMagnitude(self)
     return signedPart(sign, math.floor(secs / SECONDS_PER_HOUR) % HOURS_PER_DAY)
 end
@@ -645,6 +688,10 @@ end
 --- @within Duration
 --- @return number -- The days
 function Duration.daysPart(self: Duration): number
+    if self:isInf() then
+        return self._secs
+    end
+
     local sign, secs = toMagnitude(self)
     return signedPart(sign, math.floor(secs / SECONDS_PER_DAY))
 end
@@ -655,16 +702,27 @@ end
 --- @within Duration
 --- @return TimePartsO -- The parts
 function Duration.toParts(self: Duration): TimePartsO
-    return {
-        negative = self:isNegative(),
-        days = math.abs(self:daysPart()),
-        hours = math.abs(self:hoursPart()),
-        minutes = math.abs(self:minutesPart()),
-        seconds = math.abs(self:secondsPart()),
-        millis = math.abs(self:millisPart()),
-        micros = math.abs(self:microsPart()),
-        nanos = math.abs(self:nanosPart()),
-    }
+    return if self:isInf()
+        then {
+            negative = self:isNegative(),
+            days = math.huge,
+            hours = 0,
+            minutes = 0,
+            seconds = 0,
+            millis = 0,
+            micros = 0,
+            nanos = 0,
+        }
+        else {
+            negative = self:isNegative(),
+            days = math.abs(self:daysPart()),
+            hours = math.abs(self:hoursPart()),
+            minutes = math.abs(self:minutesPart()),
+            seconds = math.abs(self:secondsPart()),
+            millis = math.abs(self:millisPart()),
+            micros = math.abs(self:microsPart()),
+            nanos = math.abs(self:nanosPart()),
+        }
 end
 
 --- Returns the seconds and nanoseconds components of this `Duration`.
@@ -736,6 +794,24 @@ function Duration.isPositive(self: Duration): boolean
     return self._secs > 0 or (self._secs == 0 and self._nanos > 0)
 end
 
+--- Returns whether this `Duration` is infinite.
+---
+--- @method isInf
+--- @within Duration
+--- @return boolean -- Whether this `Duration` is infinite
+function Duration.isInf(self: Duration): boolean
+    return math.isinf(self._secs)
+end
+
+--- Returns whether this `Duration` is finite.
+---
+--- @method isFinite
+--- @within Duration
+--- @return boolean -- Whether this `Duration` is finite
+function Duration.isFinite(self: Duration): boolean
+    return math.isfinite(self._secs)
+end
+
 --- Returns the result of adding this `Duration` and another.
 ---
 --- @method plus
@@ -746,6 +822,10 @@ function Duration.plus(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
     assertDuration(self, "addition", "plus")
     assertDuration(other, "addition", "plus")
+
+    if self:isInf() and other:isInf() and self._secs ~= other._secs then
+        fail("Adding infinities with different signs is undefined")
+    end
 
     return Duration.new(self._secs + other._secs, self._nanos + other._nanos)
 end
@@ -762,6 +842,10 @@ function Duration.minus(self: Duration, other: Duration): Duration
     assertDuration(self, "subtraction", "minus")
     assertDuration(other, "subtraction", "minus")
 
+    if self:isInf() and other:isInf() and self._secs == other._secs then
+        fail("Subtracting infinities with different signs is undefined")
+    end
+
     return Duration.new(self._secs - other._secs, self._nanos - other._nanos)
 end
 Duration.__sub = Duration.minus
@@ -777,6 +861,21 @@ function Duration.times(self: Duration, scalar: number): Duration
     assertDuration(self, "multiplication", "times")
     if type(scalar) ~= "number" then
         fail("Attempted to multiply a Duration by a non-number")
+    end
+
+    if math.isnan(scalar) then
+        fail("Multiplication by NaN is undefined")
+    end
+    if
+        (self:isInf() and scalar == 0) or (self:isZero() and math.isinf(scalar))
+    then
+        fail("Infinity multiplied by 0 is undefined")
+    end
+
+    if self:isInf() then
+        return if scalar > 0 then self else self:negated()
+    elseif math.isinf(scalar) then
+        return Duration.new(scalar * if self:isNegative() then -1 else 1, 0)
     end
 
     -- integer scalars take the exact path, while fractional scalars can't be
@@ -816,6 +915,19 @@ function Duration.dividedBy(self: Duration, scalar: number): Duration
     end
     if scalar == 0 then
         fail("Attempted to divide by 0")
+    end
+
+    if math.isnan(scalar) then
+        fail("Division by NaN is undefined")
+    end
+    if self:isInf() and math.isinf(scalar) then
+        fail("Dividing two infinities is undefined")
+    end
+
+    if self:isInf() then
+        return if scalar > 0 then self else self:negated()
+    elseif math.isinf(scalar) then
+        return Duration.ZERO
     end
 
     local negateResult = self:isNegative() ~= (scalar < 0)
@@ -875,6 +987,10 @@ function Duration.floorDividedBy(self: Duration, other: Duration): number
         fail("Attempted to divide by 0")
     end
 
+    if self:isInf() or other:isInf() then
+        fail("Floor division with an infinity is undefined")
+    end
+
     local q = divModFloor(self, other, "floorDividedBy")
     return q
 end
@@ -895,20 +1011,14 @@ function Duration.mod(self: Duration, other: Duration): Duration
         fail("Attempted to divide by 0")
     end
 
+    if self:isInf() or other:isInf() then
+        fail("Modulus with an infinity is undefined")
+    end
+
     local _, r = divModFloor(self, other, "mod")
     return r
 end
 Duration.__mod = Duration.mod
-
---- Returns a `Duration` with the opposite sign of this one.
----
---- @method negated
---- @within Duration
---- @return Duration -- The negated `Duration`
-function Duration.negated(self: Duration): Duration
-    return Duration.new(-self._secs, -self._nanos)
-end
-Duration.__unm = Duration.negated
 
 --- Returns the truncated quotient of dividing this `Duration` by another.
 ---
@@ -919,6 +1029,10 @@ Duration.__unm = Duration.negated
 function Duration.truncatedDividedBy(self: Duration, other: Duration): number
     if other:isZero() then
         fail("Attempted to divide by 0")
+    end
+
+    if self:isInf() or other:isInf() then
+        fail("Truncated division with an infinity is undefined")
     end
 
     local q = divModTruncated(self, other, "truncatedDividedBy")
@@ -937,6 +1051,10 @@ function Duration.remainder(self: Duration, other: Duration): Duration
         fail("Attempted to divide by 0")
     end
 
+    if self:isInf() or other:isInf() then
+        fail("Remainder with an infinity is undefined")
+    end
+
     local _, r = divModTruncated(self, other, "remainder")
     return r
 end
@@ -951,6 +1069,19 @@ function Duration.ratio(self: Duration, other: Duration): number
     if other:isZero() then
         fail("Attempted to calculate a ratio with a zero Duration")
     end
+
+    if self:isInf() and other:isInf() then
+        fail("Dividing two infinities is undefined")
+    end
+
+    if self:isInf() then
+        return if self:isPositive() == other:isPositive()
+            then math.huge
+            else -math.huge
+    elseif other:isInf() then
+        return 0
+    end
+
     return self:toNanos() / other:toNanos()
 end
 
@@ -966,6 +1097,16 @@ function Duration.saturatingMinus(self: Duration, other: Duration): Duration
         then Duration.ZERO
         else self:minus(other)
 end
+
+--- Returns a `Duration` with the opposite sign of this one.
+---
+--- @method negated
+--- @within Duration
+--- @return Duration -- The negated `Duration`
+function Duration.negated(self: Duration): Duration
+    return Duration.new(-self._secs, -self._nanos)
+end
+Duration.__unm = Duration.negated
 
 --- Returns the absolute value of this `Duration`.
 ---
@@ -991,6 +1132,15 @@ function Duration.truncatedTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot truncate using a non-positive unit")
     end
+
+    if unit:isInf() then
+        fail("Truncating to infinity is undefined")
+    end
+
+    if self:isInf() then
+        return self
+    end
+
     return unit:times(self:truncatedDividedBy(unit))
 end
 
@@ -1008,6 +1158,15 @@ function Duration.flooredTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot floor using a non-positive unit")
     end
+
+    if unit:isInf() then
+        fail("Flooring to infinity is undefined")
+    end
+
+    if self:isInf() then
+        return self
+    end
+
     return unit:times(self:floorDividedBy(unit))
 end
 
@@ -1025,6 +1184,15 @@ function Duration.ceiledTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot ceil using a non-positive unit")
     end
+
+    if unit:isInf() then
+        fail("Ceiling to infinity is undefined")
+    end
+
+    if self:isInf() then
+        return self
+    end
+
     -- computes floor(-(x / unit)), which equals -ceil(x / unit)
     -- which is then multiplied by -unit, equalling ceil(x / unit) * unit
     return unit:times(self:floorDividedBy(unit:negated())):negated()
@@ -1047,6 +1215,15 @@ function Duration.roundedTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot round using a non-positive unit")
     end
+
+    if unit:isInf() then
+        fail("Rounding to infinity is undefined")
+    end
+
+    if self:isInf() then
+        return self
+    end
+
     local q = self:truncatedDividedBy(unit)
     local r = self:minus(unit:times(q))
     -- if the remainder's magnitude is at least half the unit,
@@ -1173,6 +1350,13 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
         pos += 1
     end
     if string.sub(str, pos, pos) ~= "P" then
+        if string.sub(str, pos) == "INFINITY" then
+            return Core.Result.ok(
+                if negative
+                    then Duration.INFINITE:negated()
+                    else Duration.INFINITE
+            )
+        end
         return Core.Result.err(parseErrMsg(s, pos, "missing 'P' prefix"))
     end
     pos += 1
@@ -1270,6 +1454,10 @@ end
 --- @within Duration
 --- @return string -- The ISO 8601 duration string
 function Duration.toString(self: Duration): string
+    if self:isInf() then
+        return (if self:isNegative() then "-" else "") .. "Infinity"
+    end
+
     if self:isZero() then
         return "PT0S"
     end
@@ -1336,6 +1524,10 @@ Duration.__tostring = Duration.toString
 --- @param pattern string -- The pattern
 --- @return string -- The formatted string
 function Duration.format(self: Duration, pattern: string): string
+    if self:isInf() then
+        return (if self:isNegative() then "-" else "") .. "∞"
+    end
+
     local mag = self:abs()
     local values = {
         d = math.floor(mag._secs / SECONDS_PER_DAY),
@@ -1381,11 +1573,18 @@ function Duration.toHumanString(
     self: Duration,
     options: HumanStringOptions?
 ): string
-    local maxUnits = options and options.maxUnits or math.huge
+    local maxUnits = options and options.maxUnits
+    if
+        maxUnits ~= nil
+        and (maxUnits <= 0 or (maxUnits % 1 ~= 0 and not math.isinf(maxUnits)))
+    then
+        fail("Max units should be a positive integer")
+    end
+    maxUnits = maxUnits or math.huge
     local smallestUnit = options and options.smallestUnit or "millis"
 
-    if maxUnits <= 0 or maxUnits % 1 ~= 0 then
-        fail("Max units should be a positive integer")
+    if self:isInf() then
+        return (if self:isNegative() then "-" else "") .. "∞"
     end
 
     local parts = self:toParts() :: any -- indexed by unit name
@@ -1434,9 +1633,11 @@ end
 ---
 --- @method serialize
 --- @within Duration
---- @return { secs: number, nanos: number } -- The serialized data
-function Duration.serialize(self: Duration): { secs: number, nanos: number }
-    return { secs = self._secs, nanos = self._nanos }
+--- @return Core.Map<any, any> -- The serialized data
+function Duration.serialize(self: Duration): Core.Map<any, any>
+    return if self:isInf()
+        then { inf = if self:isNegative() then -1 else 1 }
+        else { secs = self._secs, nanos = self._nanos }
 end
 
 --- Creates a new `Duration` from a serialized data table.
@@ -1473,6 +1674,18 @@ function Duration.tryDeserialize(
 ): Core.Result<Duration, string>
     if type(data) ~= "table" then
         return Core.Result.err("Expected data to be a table")
+    end
+
+    local inf = data.inf
+    if inf ~= nil then
+        if inf ~= 1 and inf ~= -1 then
+            return Core.Result.err(
+                "Expected key 'inf' to be 1 or -1 in data table"
+            )
+        end
+        return Core.Result.ok(
+            if inf == 1 then Duration.INFINITE else Duration.INFINITE:negated()
+        )
     end
 
     local secs = data.secs
