@@ -71,6 +71,12 @@ end
 ---
 --- Creates a "some" for any non-nil value, and a "none" for `nil`.
 ---
+--- ```lua
+--- Option.fromNillable(5) -- Some(5)
+--- Option.fromNillable(false) -- Some(false), since only `nil` is "none"
+--- Option.fromNillable(nil) -- None
+--- ```
+---
 --- @param value T? -- The value to wrap
 --- @return Option<T> -- The new `Option`
 function Option.fromNillable<T>(value: T?): Option<T>
@@ -200,6 +206,12 @@ end
 --- is thrown as-is, so tables and other values keep their data. String errors
 --- are prefixed with the caller's position, as with `error()`.
 ---
+--- ```lua
+--- local value = Option.none():unwrapOrThrow(function()
+---     return { code = 404 } -- thrown as a table, so `code` is kept
+--- end)
+--- ```
+---
 --- @method unwrapOrThrow
 --- @within Option
 --- @param errorSupplier types.Supplier<any> -- The function that supplies the error
@@ -217,6 +229,11 @@ end
 ---
 --- Values are compared with `==`.
 ---
+--- ```lua
+--- Option.some(1):contains(1) -- true
+--- Option.some({}):contains({}) -- false, since the tables are different
+--- ```
+---
 --- @method contains
 --- @within Option
 --- @param value T -- The value to compare against
@@ -231,6 +248,11 @@ end
 --- `value` is evaluated even if `condition` is `false`; use [Option.whenThen]
 --- if the value is expensive to create.
 ---
+--- ```lua
+--- Option.when(true, 1) -- Some(1)
+--- Option.when(false, 1) -- None
+--- ```
+---
 --- @param condition boolean -- The condition to check
 --- @param value T -- The value to wrap if `condition` is `true`
 --- @return Option<T> -- A "some" holding `value`, or "none"
@@ -242,6 +264,11 @@ end
 --- Like [Option.when], but returns the result of calling `supplier` instead.
 ---
 --- `supplier` is only called if `condition` is `true`.
+---
+--- ```lua
+--- Option.whenThen(true, createValue) -- Some(createValue())
+--- Option.whenThen(false, createValue) -- None; `createValue` is never called
+--- ```
 ---
 --- @param condition boolean -- The condition to check
 --- @param supplier types.Supplier<T> -- The function to call if `condition` is `true`
@@ -259,6 +286,15 @@ end
 ---
 --- If `mapper` returns `nil`, the result is "none".
 ---
+--- ```lua
+--- Option.some(5):map(function(x)
+---     return x * 2
+--- end) -- Some(10)
+--- Option.some(5):map(function()
+---     return nil
+--- end) -- None
+--- ```
+---
 --- @method map
 --- @within Option
 --- @param mapper types.Mapper<T, U?> -- The function to apply to the contained value
@@ -275,6 +311,14 @@ end
 --- `default` is evaluated even if the `Option` is "some"; use
 --- [Option:mapOrElse] if the default is expensive to create.
 ---
+--- ```lua
+--- local function double(x: number): number
+---     return x * 2
+--- end
+--- Option.some(5):mapOr(0, double) -- 10
+--- Option.none():mapOr(0, double) -- 0
+--- ```
+---
 --- @method mapOr
 --- @within Option
 --- @param default U -- The default value to return if the `Option` is "none"
@@ -290,6 +334,17 @@ end
 
 --- Maps an `Option<T>` to `U` by applying `mapper` to a contained value, or
 --- calling the fallback function `supplier` if "none".
+---
+--- ```lua
+--- local function double(x: number): number
+---     return x * 2
+--- end
+--- local function fallback(): number
+---     return -1
+--- end
+--- Option.some(5):mapOrElse(fallback, double) -- 10
+--- Option.none():mapOrElse(fallback, double) -- -1
+--- ```
 ---
 --- @method mapOrElse
 --- @within Option
@@ -324,6 +379,12 @@ end
 --- `other` is evaluated even if the `Option` is "none"; use [Option:andThen] if
 --- it is expensive to create.
 ---
+--- ```lua
+--- Option.some(1):andOption(Option.some("a")) -- Some("a")
+--- Option.some(1):andOption(Option.none()) -- None
+--- Option.none():andOption(Option.some("a")) -- None
+--- ```
+---
 --- @method andOption
 --- @within Option
 --- @param other Option<U> -- The `Option` to return if the `Option` is "some"
@@ -336,6 +397,15 @@ end
 --- otherwise returns "none".
 ---
 --- This operation is also known as "flatmap".
+---
+--- ```lua
+--- local function parseNumber(s: string): Option<number>
+---     return Option.fromNillable(tonumber(s))
+--- end
+--- Option.some("42"):andThen(parseNumber) -- Some(42)
+--- Option.some("abc"):andThen(parseNumber) -- None
+--- Option.none():andThen(parseNumber) -- None
+--- ```
 ---
 --- @method andThen
 --- @within Option
@@ -352,6 +422,14 @@ end
 --- matches `predicate`, otherwise returns "none".
 ---
 --- `predicate` is only called if the `Option` is "some".
+---
+--- ```lua
+--- local function isEven(x: number): boolean
+---     return x % 2 == 0
+--- end
+--- Option.some(4):filter(isEven) -- Some(4)
+--- Option.some(3):filter(isEven) -- None
+--- ```
 ---
 --- @method filter
 --- @within Option
@@ -370,6 +448,11 @@ end
 ---
 --- `other` is evaluated even if the `Option` is "some"; use [Option:orElse] if
 --- it is expensive to create.
+---
+--- ```lua
+--- Option.some(1):orOption(Option.some(2)) -- Some(1)
+--- Option.none():orOption(Option.some(2)) -- Some(2)
+--- ```
 ---
 --- @method orOption
 --- @within Option
@@ -417,6 +500,13 @@ end
 --- Returns "some" if exactly one of `self` and `other` is "some", otherwise
 --- returns "none".
 ---
+--- ```lua
+--- Option.some(1):xor(Option.none()) -- Some(1)
+--- Option.none():xor(Option.some(2)) -- Some(2)
+--- Option.some(1):xor(Option.some(2)) -- None
+--- Option.none():xor(Option.none()) -- None
+--- ```
+---
 --- @method xor
 --- @within Option
 --- @param other Option<T> -- The `Option` to compare with the current `Option`
@@ -434,6 +524,14 @@ end
 --- `nil`. Otherwise, returns "none".
 ---
 --- `biMapper` is only called if both `Option`s are "some".
+---
+--- ```lua
+--- local function add(a: number, b: number): number
+---     return a + b
+--- end
+--- Option.some(2):zip(Option.some(3), add) -- Some(5)
+--- Option.some(2):zip(Option.none(), add) -- None
+--- ```
 ---
 --- @method zip
 --- @within Option
@@ -459,6 +557,12 @@ end
 ---
 --- `reducer` is only called if both `Option`s are "some".
 ---
+--- ```lua
+--- Option.some(2):reduce(Option.some(3), math.max) -- Some(3)
+--- Option.some(2):reduce(Option.none(), math.max) -- Some(2)
+--- Option.none():reduce(Option.none(), math.max) -- None
+--- ```
+---
 --- @method reduce
 --- @within Option
 --- @param other Option<T> -- The `Option` to reduce with the current `Option`
@@ -477,6 +581,12 @@ end
 --- Converts from `Option<Option<T>>` to `Option<T>`.
 ---
 --- Only one level of nesting is removed.
+---
+--- ```lua
+--- Option.some(Option.some(1)):flatten() -- Some(1)
+--- Option.some(Option.none()):flatten() -- None
+--- Option.some(Option.some(Option.some(1))):flatten() -- Some(Some(1))
+--- ```
 ---
 --- @method flatten
 --- @within Option
@@ -497,6 +607,12 @@ end
 ---
 --- Returns "some" if all values in the table are "some", otherwise returns
 --- "none". Keys are preserved.
+---
+--- ```lua
+--- local options = { x = Option.some(1), y = Option.some(2) }
+--- Option.all(options) -- Some({ x = 1, y = 2 })
+--- Option.all({ Option.some(1), Option.none() }) -- None
+--- ```
 ---
 --- @param options types.Map<K, Option<T>> -- The table of `Option`s
 --- @return Option<types.Map<K, T>> -- The converted `Option`
@@ -520,6 +636,12 @@ end
 ---
 --- Iteration uses `ipairs`, so it stops at the first `nil` in the array.
 ---
+--- ```lua
+--- local options = { Option.none(), Option.some(2), Option.some(3) }
+--- Option.firstSome(options) -- Some(2)
+--- Option.firstSome({ Option.none() }) -- None
+--- ```
+---
 --- @param options types.Array<Option<T>> -- The array of `Option`s
 --- @return Option<T> -- The first "some" `Option`, or "none"
 --- @error "[Option.firstSome()]: Called firstSome on a table containing a non-Option value" -- Thrown if a non-`Option` value is found before any "some"
@@ -539,6 +661,10 @@ end
 ---
 --- "none" values are skipped, so the result has no gaps. Iteration uses
 --- `ipairs`, so it stops at the first `nil` in the array.
+---
+--- ```lua
+--- Option.somes({ Option.some(1), Option.none(), Option.some(3) }) -- { 1, 3 }
+--- ```
 ---
 --- @param options types.Array<Option<T>> -- The array of `Option`s
 --- @return types.Array<T> -- The contained values
@@ -583,6 +709,12 @@ end
 ---
 --- Also used for the `==` and `~=` operators.
 ---
+--- ```lua
+--- Option.some(1) == Option.some(1) -- true
+--- Option.some({}) == Option.some({}) -- false, since the tables are different
+--- Option.none() == Option.none() -- true
+--- ```
+---
 --- @method equals
 --- @within Option
 --- @param other Option<T> -- The `Option` to compare with the current `Option`
@@ -596,6 +728,12 @@ Option.__eq = Option.equals
 --- or `None`.
 ---
 --- Also used by `tostring()`.
+---
+--- ```lua
+--- tostring(Option.some("hi")) -- 'Some("hi")'
+--- tostring(Option.some(1)) -- "Some(1)"
+--- tostring(Option.none()) -- "None"
+--- ```
 ---
 --- @method toString
 --- @within Option

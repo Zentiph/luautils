@@ -343,6 +343,13 @@ end
 --- If either argument is infinite, the result is an infinite `Duration` with
 --- that sign.
 ---
+--- ```lua
+--- Duration.new(1, 500_000_000) -- 1.5 seconds
+--- Duration.new(1, 1_500_000_000) -- 2.5 seconds, since nanoseconds carry
+--- Duration.new(2, -500_000_000) -- 1.5 seconds, since nanoseconds borrow
+--- Duration.new(1.5, 0) -- 1.5 seconds
+--- ```
+---
 --- @param secs number -- The number of seconds
 --- @param nanos number -- The number of nanoseconds
 --- @return Duration -- The new `Duration`
@@ -535,6 +542,12 @@ end
 ---
 --- `negative = true` negates the sum of all parts, so negative parts with
 --- `negative = true` are doubly-negated and become positive.
+---
+--- ```lua
+--- Duration.fromParts({ hours = 1, minutes = 90 }) -- 2 hours 30 minutes
+--- Duration.fromParts({ negative = true, minutes = 5 }) -- -5 minutes
+--- Duration.fromParts({ negative = true, minutes = -5 }) -- 5 minutes
+--- ```
 ---
 --- @param parts TimePartsI -- The table of parts
 --- @return Duration -- The new `Duration`
@@ -877,6 +890,12 @@ end
 --- non-negative and the sign is stored in `negative`. Passing the result to
 --- [Duration.fromParts] recreates the same `Duration`.
 ---
+--- ```lua
+--- Duration.fromSeconds(-90_061.5):toParts()
+--- -- { negative = true, days = 1, hours = 1, minutes = 1, seconds = 1,
+--- --   millis = 500, micros = 0, nanos = 0 }
+--- ```
+---
 --- @method toParts
 --- @within Duration
 --- @return TimePartsO -- The parts
@@ -911,6 +930,11 @@ end
 --- `Duration`s return `math.huge` or `-math.huge`, and 0. Passing the results
 --- to [Duration.new] recreates the same `Duration`.
 ---
+--- ```lua
+--- Duration.fromSeconds(1.5):toSecondsAndNanos() -- 1, 500_000_000
+--- Duration.fromSeconds(-1.5):toSecondsAndNanos() -- -2, 500_000_000
+--- ```
+---
 --- @method toSecondsAndNanos
 --- @within Duration
 --- @return number -- The whole seconds
@@ -928,6 +952,12 @@ end
 --- * `os.time()` for Unix seconds with whole-second precision
 --- * `Workspace:GetServerTimeNow()` for ensuring synchronized values between
 ---   client and server
+---
+--- ```lua
+--- local start = os.clock()
+--- doWork()
+--- print(Duration.since(start):toHumanString()) -- e.g. "1s 250ms"
+--- ```
 ---
 --- @param start number -- The start time
 --- @param now number? -- The end time (defaults to `os.clock()`)
@@ -947,6 +977,11 @@ end
 --- * `os.time()` for Unix seconds with whole-second precision
 --- * `Workspace:GetServerTimeNow()` for ensuring synchronized values between
 ---   client and server
+---
+--- ```lua
+--- Duration.between(10, 12.5) -- 2.5 seconds
+--- Duration.between(5, 3) -- -2 seconds
+--- ```
 ---
 --- @param start number -- The start time
 --- @param stop number -- The end time
@@ -1073,6 +1108,13 @@ Duration.__sub = Duration.minus
 --- Also used for the `*` operator, in either order (`duration * 2` or
 --- `2 * duration`).
 ---
+--- ```lua
+--- Duration.SECOND * 3 -- 3 seconds
+--- 2 * Duration.MINUTE -- 2 minutes
+--- Duration.SECOND:times(1.5) -- 1.5 seconds
+--- Duration.SECOND * math.huge -- Duration.INFINITE
+--- ```
+---
 --- @method times
 --- @within Duration
 --- @param scalar number -- The scalar
@@ -1138,6 +1180,12 @@ end
 --- [Duration:truncatedDividedBy], or [Duration:ratio].
 ---
 --- Also used for the `/` operator.
+---
+--- ```lua
+--- Duration.SECOND / 3 -- 333_333_333 nanoseconds
+--- Duration.NANOSECOND / 2 -- 1 nanosecond; halves round away from zero
+--- Duration.SECOND / math.huge -- Duration.ZERO
+--- ```
 ---
 --- @method dividedBy
 --- @within Duration
@@ -1223,6 +1271,12 @@ Duration.__div = Duration.dividedBy
 ---
 --- Also used for the `//` operator.
 ---
+--- ```lua
+--- local a, b = Duration.fromSeconds(-7), Duration.fromSeconds(2)
+--- a // b -- -4
+--- a % b -- 1 second, so a == b * -4 + 1 second
+--- ```
+---
 --- @method floorDividedBy
 --- @within Duration
 --- @param other Duration -- The other `Duration`
@@ -1257,6 +1311,12 @@ Duration.__idiv = Duration.floorDividedBy
 ---
 --- Also used for the `%` operator.
 ---
+--- ```lua
+--- local a, b = Duration.fromSeconds(-7), Duration.fromSeconds(2)
+--- a % b -- 1 second
+--- a // b -- -4, so a == b * -4 + 1 second
+--- ```
+---
 --- @method mod
 --- @within Duration
 --- @param other Duration -- The other `Duration`
@@ -1288,6 +1348,12 @@ Duration.__mod = Duration.mod
 --- Pairs with [Duration:remainder], such that `self == other * q + r`. Use
 --- [Duration:floorDividedBy] to floor toward negative infinity instead.
 ---
+--- ```lua
+--- local a, b = Duration.fromSeconds(-7), Duration.fromSeconds(2)
+--- a:truncatedDividedBy(b) -- -3
+--- a:remainder(b) -- -1 second, so a == b * -3 - 1 second
+--- ```
+---
 --- @method truncatedDividedBy
 --- @within Duration
 --- @param other Duration -- The other `Duration`
@@ -1315,6 +1381,12 @@ end
 --- remainder of `-3s` and `2s` is `-1s`. Use [Duration:mod] for a remainder
 --- with the sign of `other` instead.
 ---
+--- ```lua
+--- local a, b = Duration.fromSeconds(-7), Duration.fromSeconds(2)
+--- a:remainder(b) -- -1 second
+--- a:truncatedDividedBy(b) -- -3, so a == b * -3 - 1 second
+--- ```
+---
 --- @method remainder
 --- @within Duration
 --- @param other Duration -- The other `Duration`
@@ -1340,6 +1412,11 @@ end
 --- The ratio is computed with float arithmetic, so it may be inexact. Returns
 --- `math.huge` or `-math.huge` if only `self` is infinite, and 0 if only
 --- `other` is infinite.
+---
+--- ```lua
+--- Duration.MINUTE:ratio(Duration.SECOND) -- 60
+--- Duration.SECOND:ratio(Duration.MINUTE) -- 0.01666...
+--- ```
 ---
 --- @method ratio
 --- @within Duration
@@ -1372,6 +1449,11 @@ end
 ---
 --- Returns [Duration.ZERO] if `other` is greater than or equal to `self`, so
 --- this never throws for infinite `Duration`s.
+---
+--- ```lua
+--- Duration.MINUTE:saturatingMinus(Duration.SECOND) -- 59 seconds
+--- Duration.SECOND:saturatingMinus(Duration.MINUTE) -- Duration.ZERO
+--- ```
 ---
 --- @method saturatingMinus
 --- @within Duration
@@ -1417,6 +1499,13 @@ end
 ---
 --- Infinite `Duration`s are returned unchanged.
 ---
+--- ```lua
+--- Duration.fromMillis(1_500):truncatedTo(Duration.SECOND) -- 1 second
+--- Duration.fromMillis(-1_500):truncatedTo(Duration.SECOND) -- -1 second
+--- local quarterHour = Duration.fromMinutes(15)
+--- Duration.fromMinutes(37):truncatedTo(quarterHour) -- 30 minutes
+--- ```
+---
 --- @method truncatedTo
 --- @within Duration
 --- @param unit Duration -- The unit to truncate to
@@ -1448,6 +1537,11 @@ end
 ---
 --- Infinite `Duration`s are returned unchanged.
 ---
+--- ```lua
+--- Duration.fromMillis(1_500):flooredTo(Duration.SECOND) -- 1 second
+--- Duration.fromMillis(-1_500):flooredTo(Duration.SECOND) -- -2 seconds
+--- ```
+---
 --- @method flooredTo
 --- @within Duration
 --- @param unit Duration -- The unit to floor to
@@ -1478,6 +1572,11 @@ end
 --- as [Duration.SECOND], but any positive, finite `Duration` is valid.
 ---
 --- Infinite `Duration`s are returned unchanged.
+---
+--- ```lua
+--- Duration.fromMillis(1_500):ceiledTo(Duration.SECOND) -- 2 seconds
+--- Duration.fromMillis(-1_500):ceiledTo(Duration.SECOND) -- -1 second
+--- ```
 ---
 --- @method ceiledTo
 --- @within Duration
@@ -1514,6 +1613,14 @@ end
 --- as [Duration.SECOND], but any positive, finite `Duration` is valid.
 ---
 --- Infinite `Duration`s are returned unchanged.
+---
+--- ```lua
+--- Duration.fromMillis(1_500):roundedTo(Duration.SECOND) -- 2 seconds
+--- Duration.fromMillis(-1_500):roundedTo(Duration.SECOND) -- -2 seconds
+--- local quarterHour = Duration.fromMinutes(15)
+--- Duration.fromMinutes(37):roundedTo(quarterHour) -- 30 minutes
+--- Duration.fromMinutes(38):roundedTo(quarterHour) -- 45 minutes
+--- ```
 ---
 --- @method roundedTo
 --- @within Duration
@@ -1585,6 +1692,12 @@ Duration.__eq = Duration.equals
 ---
 --- Also used for the `<`, `<=`, `>`, and `>=` operators.
 ---
+--- ```lua
+--- Duration.SECOND:compareTo(Duration.MINUTE) -- -1
+--- Duration.SECOND < Duration.MINUTE -- true
+--- -Duration.INFINITE < Duration.ZERO -- true
+--- ```
+---
 --- @method compareTo
 --- @within Duration
 --- @param other Duration -- The other `Duration`
@@ -1635,6 +1748,12 @@ end
 
 --- Returns the result of clamping `self` between `min` and `max`, inclusive.
 ---
+--- ```lua
+--- local maxWait = Duration.MINUTE
+--- Duration.fromSeconds(90):clamp(Duration.ZERO, maxWait) -- 1 minute
+--- Duration.fromSeconds(-5):clamp(Duration.ZERO, maxWait) -- Duration.ZERO
+--- ```
+---
 --- @method clamp
 --- @within Duration
 --- @param min Duration -- The minimum `Duration`
@@ -1667,6 +1786,13 @@ end
 --- parsed back into an equal `Duration`.
 ---
 --- Use [Duration.tryParse] for strings that may be malformed.
+---
+--- ```lua
+--- Duration.parse("PT1H30M") -- 1 hour 30 minutes
+--- Duration.parse("p1w2dt3,5s") -- 9 days 3.5 seconds
+--- Duration.parse("-PT0.25S") -- -250 milliseconds
+--- Duration.parse("-Infinity") -- -Duration.INFINITE
+--- ```
 ---
 --- @param s string -- The ISO 8601 duration string
 --- @return Duration -- The new `Duration`
@@ -1705,6 +1831,13 @@ end
 --- holding a message in the form
 --- `Invalid ISO-8601 duration: "{input}" ({reason} at position {pos})`.
 --- Never throws.
+---
+--- ```lua
+--- Duration.tryParse("PT1H") -- Ok(PT1H)
+--- Duration.tryParse("PT1M1H")
+--- -- Err('Invalid ISO-8601 duration: "PT1M1H" (H is repeated or out of order
+--- -- at position 5)')
+--- ```
 ---
 --- @param s string -- The ISO 8601 duration string
 --- @return Core.Result<Duration, string> -- The result of parsing the string
@@ -1829,6 +1962,13 @@ end
 --- [Duration.parse].
 ---
 --- Also used by `tostring()`.
+---
+--- ```lua
+--- Duration.fromSeconds(93_784.5):toString() -- "P1DT2H3M4.5S"
+--- Duration.WEEK:toString() -- "P7D"
+--- Duration.fromMillis(-250):toString() -- "-PT0.25S"
+--- Duration.ZERO:toString() -- "PT0S"
+--- ```
 ---
 --- @method toString
 --- @within Duration
@@ -1959,6 +2099,17 @@ end
 --- Negative `Duration`s are prefixed with `-`, and infinite `Duration`s return
 --- `"∞"` or `"-∞"`.
 ---
+--- ```lua
+--- local d = Duration.fromSeconds(93_784.567)
+--- d:toHumanString() -- "1d 2h 3m 4s 567ms"
+--- d:toHumanString({ maxUnits = 2 }) -- "1d 2h"
+--- d:toHumanString({ smallestUnit = "minutes" }) -- "1d 2h 3m"
+--- -- the zero hours still count toward maxUnits
+--- Duration.fromSeconds(86_405):toHumanString({ maxUnits = 2 }) -- "1d"
+--- local options = { smallestUnit = "seconds" }
+--- Duration.fromMillis(5):toHumanString(options) -- "0s"
+--- ```
+---
 --- @method toHumanString
 --- @within Duration
 --- @param options HumanStringOptions? -- The options to apply (defaults to `{ maxUnits = math.huge, smallestUnit = "millis" }`)
@@ -2019,6 +2170,12 @@ end
 --- produce identical keys, since this returns the same string as
 --- [Duration:toString].
 ---
+--- ```lua
+--- local seen = {}
+--- seen[Duration.fromMillis(1_500):toKey()] = true
+--- print(seen[Duration.new(1, 500_000_000):toKey()]) -- true
+--- ```
+---
 --- @method toKey
 --- @within Duration
 --- @return string -- The key
@@ -2032,6 +2189,11 @@ end
 --- infinite `Duration`s serialize to `{ inf = 1 }` or `{ inf = -1 }`, since
 --- infinities are not `DataStore`-safe. Use [Duration.deserialize] to convert
 --- the data back into a `Duration`.
+---
+--- ```lua
+--- Duration.fromSeconds(-1.5):serialize() -- { secs = -2, nanos = 500_000_000 }
+--- Duration.INFINITE:serialize() -- { inf = 1 }
+--- ```
 ---
 --- @method serialize
 --- @within Duration
@@ -2075,6 +2237,12 @@ end
 --- holding a message describing the first problem found, such as a missing
 --- key, a non-integer value, or `nanos` outside of [0, 999_999_999]. Never
 --- throws.
+---
+--- ```lua
+--- Duration.tryDeserialize({ secs = 1, nanos = 0 }) -- Ok(PT1S)
+--- Duration.tryDeserialize({ secs = 1 })
+--- -- Err("Expected key 'nanos' in data table")
+--- ```
 ---
 --- @param data Core.Map<any, any> -- The data table
 --- @return Core.Result<Duration, string> -- The result of parsing the data

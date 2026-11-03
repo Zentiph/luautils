@@ -56,6 +56,11 @@ end
 --- by this function can still be used generically as a `Result<T, E>`. This is
 --- done to prevent false positives from the type checker.
 ---
+--- ```lua
+--- Result.ok(5) -- Ok(5)
+--- Result.ok(nil) -- Ok(nil), which is still "ok"
+--- ```
+---
 --- @param value T -- The value to wrap
 --- @return Result<T, E> -- The new `Result`
 function Result.ok<T, E>(value: T): Result<T, never>
@@ -86,6 +91,12 @@ end
 ---
 --- An "ok" holding `nil` also returns `nil`, so the result alone cannot tell it
 --- apart from an "err". Use [Result:isOk] if the difference matters.
+---
+--- ```lua
+--- Result.ok(1):toNillable() -- 1
+--- Result.ok(nil):toNillable() -- nil
+--- Result.err("x"):toNillable() -- nil
+--- ```
 ---
 --- @method toNillable
 --- @within Result
@@ -162,6 +173,11 @@ end
 --- `err` is evaluated even if the `Option` is "some"; use
 --- [Result.fromOptionElse] if the error is expensive to create.
 ---
+--- ```lua
+--- Result.fromOption(Option.some(1), "missing") -- Ok(1)
+--- Result.fromOption(Option.none(), "missing") -- Err("missing")
+--- ```
+---
 --- @param option Option.Option<T> -- The `Option` to convert
 --- @param err E -- The error to provide if the `Option` is "none"
 --- @return Result<T, E> -- The converted `Result`
@@ -201,6 +217,12 @@ end
 --- Converts from `Result<T, E>` to an [Option] of the "ok" value.
 ---
 --- An "err", or an "ok" holding `nil`, becomes a "none" `Option`.
+---
+--- ```lua
+--- Result.ok(1):asOk() -- Some(1)
+--- Result.ok(nil):asOk() -- None
+--- Result.err("x"):asOk() -- None
+--- ```
 ---
 --- @method asOk
 --- @within Result
@@ -258,6 +280,17 @@ end
 --- Maps a `Result<T, E>` to `U` by applying `mapper` to a contained "ok"
 --- value, or the fallback function `default` to a contained "err" value.
 ---
+--- ```lua
+--- local function double(x: number): number
+---     return x * 2
+--- end
+--- local function length(e: string): number
+---     return #e
+--- end
+--- Result.ok(2):mapOrElse(length, double) -- 4
+--- Result.err("abc"):mapOrElse(length, double) -- 3
+--- ```
+---
 --- @method mapOrElse
 --- @within Result
 --- @param default types.Mapper<E, U> -- The function to apply to the contained error
@@ -279,6 +312,15 @@ end
 --- As with [Result.try], a thrown `nil` is replaced with a descriptive string,
 --- and the error is typed as `unknown`, since it may be either the original
 --- error or a thrown value.
+---
+--- ```lua
+--- Result.ok(2):tryMap(function(x)
+---     return x + 1
+--- end) -- Ok(3)
+--- Result.ok(2):tryMap(function(x)
+---     error("boom", 0)
+--- end) -- Err("boom")
+--- ```
 ---
 --- @method tryMap
 --- @within Result
@@ -319,6 +361,18 @@ end
 ---
 --- If the `Result` is "err", returns the original `Result` without calling
 --- either function.
+---
+--- ```lua
+--- local function isPositive(x: number): boolean
+---     return x > 0
+--- end
+--- local function notPositive(x: number): string
+---     return `{x} is not positive`
+--- end
+--- Result.ok(5):filterOrElse(isPositive, notPositive) -- Ok(5)
+--- Result.ok(-5):filterOrElse(isPositive, notPositive)
+--- -- Err("-5 is not positive")
+--- ```
 ---
 --- @method filterOrElse
 --- @within Result
@@ -380,6 +434,12 @@ end
 --- Returns the contained "ok" value, or throws if the `Result` is "err", with
 --- an error message made of the provided message and the contained error.
 ---
+--- ```lua
+--- Result.ok(1):expect("Failed to load") -- 1
+--- Result.err("timeout"):expect("Failed to load")
+--- -- throws '[Result.expect()]: Failed to load: "timeout"'
+--- ```
+---
 --- @method expect
 --- @within Result
 --- @param message string -- The error message
@@ -398,6 +458,12 @@ end
 --- If the error is a table or userdata, it is thrown as-is, in order to
 --- preserve its data. Otherwise, it is converted with `tostring()` and thrown
 --- as a message, prefixed with `[Result.unwrap()]: `.
+---
+--- ```lua
+--- Result.ok(1):unwrap() -- 1
+--- Result.err("timeout"):unwrap() -- throws "[Result.unwrap()]: timeout"
+--- Result.err({ code = 1 }):unwrap() -- throws the table itself
+--- ```
 ---
 --- @method unwrap
 --- @within Result
@@ -451,6 +517,12 @@ end
 --- `other` is evaluated even if the `Result` is "err"; use [Result:andThen] if
 --- it is expensive to create.
 ---
+--- ```lua
+--- Result.ok(1):andResult(Result.ok(2)) -- Ok(2)
+--- Result.ok(1):andResult(Result.err("b")) -- Err("b")
+--- Result.err("a"):andResult(Result.ok(2)) -- Err("a")
+--- ```
+---
 --- @method andResult
 --- @within Result
 --- @param other Result<U, E> -- The `Result` to return if the `Result` is "ok"
@@ -461,6 +533,18 @@ end
 
 --- Calls `mapper` with the contained value if the `Result` is "ok", otherwise
 --- returns `self`.
+---
+--- ```lua
+--- local function safeDivide(x: number): Result<number, string>
+---     if x == 0 then
+---         return Result.err("divide by zero")
+---     end
+---     return Result.ok(10 / x)
+--- end
+--- Result.ok(2):andThen(safeDivide) -- Ok(5)
+--- Result.ok(0):andThen(safeDivide) -- Err("divide by zero")
+--- Result.err("e"):andThen(safeDivide) -- Err("e")
+--- ```
 ---
 --- @method andThen
 --- @within Result
@@ -478,6 +562,11 @@ end
 --- `other` is evaluated even if the `Result` is "ok"; use [Result:orElse] if it
 --- is expensive to create.
 ---
+--- ```lua
+--- Result.ok(1):orResult(Result.ok(2)) -- Ok(1)
+--- Result.err("a"):orResult(Result.ok(2)) -- Ok(2)
+--- ```
+---
 --- @method orResult
 --- @within Result
 --- @param other Result<T, F> -- The `Result` to return if the `Result` is "err"
@@ -488,6 +577,15 @@ end
 
 --- Calls `mapper` with the contained error if the `Result` is "err", otherwise
 --- returns `self`.
+---
+--- ```lua
+--- Result.ok(1):orElse(function(e)
+---     return Result.ok(#e)
+--- end) -- Ok(1)
+--- Result.err("abc"):orElse(function(e)
+---     return Result.ok(#e)
+--- end) -- Ok(3)
+--- ```
 ---
 --- @method orElse
 --- @within Result
@@ -560,6 +658,17 @@ end
 ---
 --- The traceback of the error is lost; use [Result.tryTrace] to capture it.
 ---
+--- ```lua
+--- Result.try(tonumber, "12") -- Ok(12)
+--- Result.try(error, "bad", 0) -- Err("bad")
+--- Result.try(function()
+---     return 1, 2
+--- end) -- Ok(1), since extra return values are discarded
+--- Result.try(function()
+---     error(nil)
+--- end) -- Err("error(nil) was called")
+--- ```
+---
 --- @param factory types.Factory<T, A...> -- The function to call in protected mode
 --- @param ... A... -- The arguments to pass to `factory`
 --- @return Result<T, unknown> -- The `Result` of running the function
@@ -591,6 +700,13 @@ end
 ---
 --- Note that `onErr` comes before the arguments to `factory`.
 ---
+--- ```lua
+--- -- `onErr` comes before the arguments to `factory`
+--- Result.tryTrace(loadData, function(err)
+---     return debug.traceback(tostring(err))
+--- end, "player123") -- Err(<the error with its traceback>) if `loadData` fails
+--- ```
+---
 --- @param factory types.Factory<T, A...> -- The function to call in extended protected mode
 --- @param onErr types.Mapper<unknown, E?> -- The error handler to call if the function fails
 --- @param ... A... -- The arguments to pass to `factory`
@@ -613,6 +729,14 @@ end
 --- Use `table.unpack(packed, 1, packed.n)` to get the values back.
 ---
 --- As with [Result.try], a thrown `nil` is replaced with a descriptive string.
+---
+--- ```lua
+--- local packed = Result.tryPack(function()
+---     return 1, nil, 3
+--- end):unwrap()
+--- print(packed.n) -- 3
+--- print(table.unpack(packed, 1, packed.n)) -- 1 nil 3
+--- ```
 ---
 --- @param factory types.TupleFactory<...any, A...> -- The function to call in protected mode
 --- @param ... A... -- The arguments to pass to `factory`
@@ -639,6 +763,15 @@ end
 --- and the error is typed as `unknown`, since it may be either the original
 --- error, an error returned by `mapper`, or a thrown value.
 ---
+--- ```lua
+--- Result.ok(2):tryAndThen(function(x)
+---     return Result.ok(x + 1)
+--- end) -- Ok(3)
+--- Result.ok(2):tryAndThen(function(x)
+---     error("boom", 0)
+--- end) -- Err("boom")
+--- ```
+---
 --- @method tryAndThen
 --- @within Result
 --- @param mapper types.Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
@@ -658,6 +791,15 @@ end
 --- The returned function passes its arguments to `factory` and behaves like
 --- [Result.try], so only the first return value is kept.
 ---
+--- ```lua
+--- local function parse(s: string): number
+---     return tonumber(s) or error(`not a number: {s}`, 0)
+--- end
+--- local tryParse = Result.wrap(parse)
+--- tryParse("5") -- Ok(5)
+--- tryParse("x") -- Err("not a number: x")
+--- ```
+---
 --- @param factory types.Factory<T, A...> -- The function to wrap
 --- @return types.Factory<Result<T, unknown>, A...> -- The wrapped function
 function Result.wrap<T, A...>(
@@ -672,6 +814,12 @@ end
 ---
 --- An "ok" with a "none" is mapped to "none". An "ok" with a "some" is mapped
 --- to a "some" with the "ok". An "err" is mapped to a "some" with the "err".
+---
+--- ```lua
+--- Result.ok(Option.some(1)):transpose() -- Some(Ok(1))
+--- Result.ok(Option.none()):transpose() -- None
+--- Result.err("e"):transpose() -- Some(Err("e"))
+--- ```
 ---
 --- @method transpose
 --- @within Result
@@ -698,6 +846,12 @@ end
 --- an "err" is mapped to an "err". A "none" is mapped to an "ok" with a
 --- "none".
 ---
+--- ```lua
+--- Result.transposeOption(Option.some(Result.ok(1))) -- Ok(Some(1))
+--- Result.transposeOption(Option.some(Result.err("e"))) -- Err("e")
+--- Result.transposeOption(Option.none()) -- Ok(None)
+--- ```
+---
 --- @param option Option.Option<Result<T, E>> -- The `Option` to transpose
 --- @return Result<Option.Option<T>, E> -- The transposed `Result`
 --- @error "[Result.transposeOption()]: Called transposeOption on an Option that does not contain a Result" -- Thrown if the `Option` is "some" and does not hold a `Result`
@@ -722,6 +876,12 @@ end
 ---
 --- Only one level of nesting is removed.
 ---
+--- ```lua
+--- Result.ok(Result.ok(1)):flatten() -- Ok(1)
+--- Result.ok(Result.err("e")):flatten() -- Err("e")
+--- Result.err("e"):flatten() -- Err("e")
+--- ```
+---
 --- @method flatten
 --- @within Result
 --- @return Result<T, E> -- The flattened `Result`
@@ -745,6 +905,11 @@ end
 ---
 --- "ok" values of `nil` are omitted, since tables cannot hold `nil`. Keys are
 --- preserved, so array input containing them produces arrays with gaps.
+---
+--- ```lua
+--- Result.all({ Result.ok(1), Result.ok(2) }) -- Ok({ 1, 2 })
+--- Result.all({ Result.ok(1), Result.err("a"), Result.err("b") }) -- Err("a")
+--- ```
 ---
 --- @param results types.Map<K, Result<T, E>> -- The table of `Result`s
 --- @return Result<types.Map<K, T>, E> -- The converted `Result`
@@ -773,6 +938,15 @@ end
 ---
 --- "ok" values of `nil` are omitted, since tables cannot hold `nil`. Keys are
 --- preserved, so array input produces arrays with gaps.
+---
+--- ```lua
+--- local oks, errs = Result.partition({
+---     Result.ok(1),
+---     Result.err("a"),
+---     Result.ok(3),
+--- })
+--- -- oks is { [1] = 1, [3] = 3 }, and errs is { [2] = "a" }
+--- ```
 ---
 --- @param results types.Map<K, Result<T, E>> -- The table of `Result`s
 --- @return types.Map<K, T> -- The unwrapped "ok" values
@@ -812,6 +986,12 @@ end
 ---
 --- Also used for the `==` and `~=` operators.
 ---
+--- ```lua
+--- Result.ok(1) == Result.ok(1) -- true
+--- Result.ok(1) == Result.err(1) -- false
+--- Result.ok({}) == Result.ok({}) -- false, since the tables are different
+--- ```
+---
 --- @method equals
 --- @within Result
 --- @param other Result<T, E> -- The `Result` to compare with the current `Result`
@@ -827,6 +1007,12 @@ Result.__eq = Result.equals
 --- `Err(error)`.
 ---
 --- Also used by `tostring()`.
+---
+--- ```lua
+--- tostring(Result.ok("hi")) -- 'Ok("hi")'
+--- tostring(Result.ok(nil)) -- "Ok(nil)"
+--- tostring(Result.err("bad")) -- 'Err("bad")'
+--- ```
 ---
 --- @method toString
 --- @within Result
