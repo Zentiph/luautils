@@ -41,7 +41,8 @@ local fail = require("../_internal").Errors.errorWithScope("Duration")
 --- position prefix added by `error()`. Operators report the method that backs
 --- them, so `a + b` reports `[Duration.plus()]`. Errors thrown by internal
 --- calls report the function that threw them, so [Duration.fromMillis] with
---- `NaN` reports `[Duration.new()]`.
+--- `NaN` reports `[Duration.new()]`. The position prefix always points at the
+--- line that called into `Duration`, not at a line inside this module.
 ---
 --- @class Duration
 local Duration = {}
@@ -175,13 +176,24 @@ local HUMAN_UNITS: { { name: HumanStringUnit, suffix: string } } = {
 
 local MAX_SAFE_INT = 2 ^ 53
 
--- Helper for normalizing seconds and nanoseconds to their expected ranges
-local function normalize(secs: number, nanos: number): (number, number)
+-- Helpers that take an error `level` live in this table instead of being
+-- locals: the compiler may inline local functions (at -O2), which removes
+-- their stack frame and makes the level point past the real caller. Calls
+-- through a table field are never inlined.
+local Internal = {}
+
+-- Helper for normalizing seconds and nanoseconds to their expected ranges.
+-- `level` is the error level to blame, counted from this function.
+function Internal.normalize(
+    secs: number,
+    nanos: number,
+    level: number
+): (number, number)
     if math.isinf(secs) or math.isinf(nanos) then
         if math.isinf(secs) and math.isinf(nanos) and secs ~= nanos then
             fail(
                 "Cannot build a Duration from infinities with different signs",
-                3,
+                level,
                 "new"
             )
         end
@@ -256,16 +268,22 @@ local function mulExact(
 end
 
 -- Exact floored division returning (q, r) where a == b * q + r where r has the
--- sign of b, and |r| < |b|. Assumes b is non-zero.
-local function divModFloor(
+-- sign of b, and |r| < |b|. Assumes b is non-zero. `level` is the error level
+-- to blame, counted from this function.
+function Internal.divModFloor(
     a: Duration,
     b: Duration,
-    functionName: string
+    functionName: string,
+    level: number
 ): (number, Duration)
     -- float estimate; only off by a few for any representable quotient
     local q = math.floor(a:toSeconds() / b:toSeconds())
     if math.abs(q) >= MAX_SAFE_INT then
-        fail("Quotient is too large to be represented exactly", 3, functionName)
+        fail(
+            "Quotient is too large to be represented exactly",
+            level,
+            functionName
+        )
     end
 
     -- exact remainder for the estimate, then step q until r is in range
@@ -296,13 +314,15 @@ local function divModFloor(
 end
 
 -- Exact truncated division returning (q, r) where a == b * q + r where r has
--- the sign of a, and |r| < |b|. Assumes b is non-zero.
-local function divModTruncated(
+-- the sign of a, and |r| < |b|. Assumes b is non-zero. `level` is the error
+-- level to blame, counted from this function.
+function Internal.divModTruncated(
     a: Duration,
     b: Duration,
-    functionName: string
+    functionName: string,
+    level: number
 ): (number, Duration)
-    local q, r = divModFloor(a, b, functionName)
+    local q, r = Internal.divModFloor(a, b, functionName, level + 1)
     -- floor and truncation only differ when the exact quotient is negative and
     -- not whole; there's a remainder, and a and b have opposite signs
     if not r:isZero() and a:isNegative() ~= b:isNegative() then
@@ -312,19 +332,37 @@ local function divModTruncated(
     return q, r
 end
 
-local function assertDuration(
+-- `level` is the error level to blame, counted from this function, and
+-- defaults to the caller's caller.
+function Internal.assertDuration(
     value: any,
     operation: string,
-    functionName: string
+    functionName: string,
+    level: number?
 ): Duration
     if not Duration.is(value) then
         fail(
             `Attempted to perform {operation} on a non-Duration value: {value}`,
-            3,
+            level or 3,
             functionName
         )
     end
     return value :: Duration
+end
+
+-- Implementation of Duration.new(). `level` is the error level to blame,
+-- counted from this function, so internal callers can blame their own caller.
+function Internal.newDuration(
+    secs: number,
+    nanos: number,
+    level: number
+): Duration
+    if math.isnan(secs) or math.isnan(nanos) then
+        fail("Cannot create a Duration from NaN values", level, "new")
+    end
+
+    local s, n = Internal.normalize(secs, nanos, level + 1)
+    return table.freeze(setmetatable({ _secs = s, _nanos = n }, Duration))
 end
 
 -- Helper for generating Duration.parse()/tryParse() error messages
@@ -357,12 +395,7 @@ end
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `secs` or `nanos` is `NaN`
 --- @error "[Duration.new()]: Cannot build a Duration from infinities with different signs" -- Thrown if `secs` and `nanos` are infinities with different signs
 function Duration.new(secs: number, nanos: number): Duration
-    if math.isnan(secs) or math.isnan(nanos) then
-        fail("Cannot create a Duration from NaN values")
-    end
-
-    local s, n = normalize(secs, nanos)
-    return table.freeze(setmetatable({ _secs = s, _nanos = n }, Duration))
+    return Internal.newDuration(secs, nanos, 3)
 end
 
 --- A duration of zero time.
@@ -447,7 +480,7 @@ Duration.INFINITE = Duration.new(math.huge, 0)
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `nanos` is `NaN`
 function Duration.fromNanos(nanos: number): Duration
-    return Duration.new(0, nanos)
+    return Internal.newDuration(0, nanos, 3)
 end
 
 --- Creates a new `Duration` from the specified number of microseconds.
@@ -459,7 +492,7 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `micros` is `NaN`
 function Duration.fromMicros(micros: number): Duration
-    return Duration.new(0, micros * NANOS_PER_MICRO)
+    return Internal.newDuration(0, micros * NANOS_PER_MICRO, 3)
 end
 
 --- Creates a new `Duration` from the specified number of milliseconds.
@@ -471,7 +504,7 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `millis` is `NaN`
 function Duration.fromMillis(millis: number): Duration
-    return Duration.new(0, millis * NANOS_PER_MILLI)
+    return Internal.newDuration(0, millis * NANOS_PER_MILLI, 3)
 end
 
 --- Creates a new `Duration` from the specified number of seconds.
@@ -483,7 +516,7 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `secs` is `NaN`
 function Duration.fromSeconds(secs: number): Duration
-    return Duration.new(secs, 0)
+    return Internal.newDuration(secs, 0, 3)
 end
 
 --- Creates a new `Duration` from the specified number of minutes.
@@ -495,7 +528,7 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `minutes` is `NaN`
 function Duration.fromMinutes(minutes: number): Duration
-    return Duration.new(minutes * SECONDS_PER_MINUTE, 0)
+    return Internal.newDuration(minutes * SECONDS_PER_MINUTE, 0, 3)
 end
 
 --- Creates a new `Duration` from the specified number of hours.
@@ -507,7 +540,7 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `hours` is `NaN`
 function Duration.fromHours(hours: number): Duration
-    return Duration.new(hours * SECONDS_PER_HOUR, 0)
+    return Internal.newDuration(hours * SECONDS_PER_HOUR, 0, 3)
 end
 
 --- Creates a new `Duration` from the specified number of days.
@@ -519,7 +552,7 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `days` is `NaN`
 function Duration.fromDays(days: number): Duration
-    return Duration.new(days * SECONDS_PER_DAY, 0)
+    return Internal.newDuration(days * SECONDS_PER_DAY, 0, 3)
 end
 
 --- Creates a new `Duration` from the specified number of weeks.
@@ -531,7 +564,7 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if `weeks` is `NaN`
 function Duration.fromWeeks(weeks: number): Duration
-    return Duration.new(weeks * SECONDS_PER_WEEK, 0)
+    return Internal.newDuration(weeks * SECONDS_PER_WEEK, 0, 3)
 end
 
 --- Creates a new `Duration` from the specified table of parts.
@@ -568,7 +601,7 @@ function Duration.fromParts(parts: TimePartsI): Duration
             + (parts.micros or 0) * NANOS_PER_MICRO
             + (parts.nanos or 0)
         )
-    return Duration.new(secs, nanos)
+    return Internal.newDuration(secs, nanos, 3)
 end
 
 --- Returns the total number of nanoseconds contained by this `Duration`.
@@ -965,7 +998,7 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if the difference is `NaN`
 function Duration.since(start: number, now: number?): Duration
-    return Duration.new((now or os.clock()) - start, 0)
+    return Internal.newDuration((now or os.clock()) - start, 0, 3)
 end
 
 --- Creates a new `Duration` spanning from the specified start time to the
@@ -989,7 +1022,7 @@ end
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if the difference is `NaN`
 function Duration.between(start: number, stop: number): Duration
-    return Duration.new(stop - start, 0)
+    return Internal.newDuration(stop - start, 0, 3)
 end
 
 --- Returns whether this `Duration` is zero.
@@ -1062,14 +1095,18 @@ end
 --- @error "[Duration.plus()]: Adding infinities with different signs is undefined" -- Thrown if `self` and `other` are infinities with different signs
 function Duration.plus(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
-    assertDuration(self, "addition", "plus")
-    assertDuration(other, "addition", "plus")
+    Internal.assertDuration(self, "addition", "plus")
+    Internal.assertDuration(other, "addition", "plus")
 
     if self:isInf() and other:isInf() and self._secs ~= other._secs then
         fail("Adding infinities with different signs is undefined")
     end
 
-    return Duration.new(self._secs + other._secs, self._nanos + other._nanos)
+    return Internal.newDuration(
+        self._secs + other._secs,
+        self._nanos + other._nanos,
+        3
+    )
 end
 Duration.__add = Duration.plus
 
@@ -1088,16 +1125,65 @@ Duration.__add = Duration.plus
 --- @error "[Duration.minus()]: Subtracting infinities with the same sign is undefined" -- Thrown if `self` and `other` are infinities with the same sign
 function Duration.minus(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
-    assertDuration(self, "subtraction", "minus")
-    assertDuration(other, "subtraction", "minus")
+    Internal.assertDuration(self, "subtraction", "minus")
+    Internal.assertDuration(other, "subtraction", "minus")
 
     if self:isInf() and other:isInf() and self._secs == other._secs then
         fail("Subtracting infinities with the same sign is undefined")
     end
 
-    return Duration.new(self._secs - other._secs, self._nanos - other._nanos)
+    return Internal.newDuration(
+        self._secs - other._secs,
+        self._nanos - other._nanos,
+        3
+    )
 end
 Duration.__sub = Duration.minus
+
+-- Implementation of Duration.times(). `level` is the error level to blame,
+-- counted from this function, so the `*` operator can skip its own frame.
+function Internal.timesImpl(
+    self: Duration,
+    scalar: number,
+    level: number
+): Duration
+    -- type validation for metamethod error handling
+    Internal.assertDuration(self, "multiplication", "times", level + 1)
+    if type(scalar) ~= "number" then
+        fail("Attempted to multiply a Duration by a non-number", level, "times")
+    end
+
+    if math.isnan(scalar) then
+        fail("Multiplication by NaN is undefined", level, "times")
+    end
+    if
+        (self:isInf() and scalar == 0) or (self:isZero() and math.isinf(scalar))
+    then
+        fail("Infinity multiplied by 0 is undefined", level, "times")
+    end
+
+    if self:isInf() then
+        return if scalar > 0 then self else self:negated()
+    elseif math.isinf(scalar) then
+        return Internal.newDuration(
+            scalar * if self:isNegative() then -1 else 1,
+            0,
+            level + 1
+        )
+    end
+
+    -- integer scalars take the exact path, while fractional scalars can't be
+    -- exact anyway, so they round to the nearest nanosecond through normalize()
+    if scalar % 1 == 0 and math.abs(scalar) < MAX_SAFE_INT then
+        local secs, nanos = mulExact(self._secs, self._nanos, scalar)
+        return Internal.newDuration(secs, nanos, level + 1)
+    end
+    return Internal.newDuration(
+        self._secs * scalar,
+        self._nanos * scalar,
+        level + 1
+    )
+end
 
 --- Returns the result of multiplying this `Duration` and a scalar.
 ---
@@ -1125,43 +1211,27 @@ Duration.__sub = Duration.minus
 --- @error "[Duration.times()]: Multiplication by NaN is undefined" -- Thrown if `scalar` is `NaN`
 --- @error "[Duration.times()]: Infinity multiplied by 0 is undefined" -- Thrown if an infinite `Duration` is multiplied by 0, or a zero `Duration` is multiplied by an infinity
 function Duration.times(self: Duration, scalar: number): Duration
-    -- type validation for metamethod error handling
-    assertDuration(self, "multiplication", "times")
-    if type(scalar) ~= "number" then
-        fail("Attempted to multiply a Duration by a non-number")
-    end
-
-    if math.isnan(scalar) then
-        fail("Multiplication by NaN is undefined")
-    end
-    if
-        (self:isInf() and scalar == 0) or (self:isZero() and math.isinf(scalar))
-    then
-        fail("Infinity multiplied by 0 is undefined")
-    end
-
-    if self:isInf() then
-        return if scalar > 0 then self else self:negated()
-    elseif math.isinf(scalar) then
-        return Duration.new(scalar * if self:isNegative() then -1 else 1, 0)
-    end
-
-    -- integer scalars take the exact path, while fractional scalars can't be
-    -- exact anyway, so they round to the nearest nanosecond through normalize()
-    return if scalar % 1 == 0 and math.abs(scalar) < MAX_SAFE_INT
-        then Duration.new(mulExact(self._secs, self._nanos, scalar))
-        else Duration.new(self._secs * scalar, self._nanos * scalar)
+    return Internal.timesImpl(self, scalar, 3)
 end
 Duration.__mul = function(
     durationOrScalar1: Duration | number,
     durationOrScalar2: Duration | number
 ): Duration
+    -- call timesImpl directly so errors blame the caller of the operator
     if Duration.is(durationOrScalar1) then
-        -- may fail, but times will handle it
-        return (durationOrScalar1 :: Duration):times(durationOrScalar2 :: any)
+        -- may fail, but timesImpl will handle it
+        return Internal.timesImpl(
+            durationOrScalar1 :: Duration,
+            durationOrScalar2 :: any,
+            3
+        )
     elseif Duration.is(durationOrScalar2) then
         -- same as above
-        return (durationOrScalar2 :: Duration):times(durationOrScalar1 :: any)
+        return Internal.timesImpl(
+            durationOrScalar2 :: Duration,
+            durationOrScalar1 :: any,
+            3
+        )
     else
         -- both are numbers, should be unreachable
         error("Unreachable", 2)
@@ -1199,7 +1269,7 @@ end
 --- @error "[Duration.dividedBy()]: Dividing two infinities is undefined" -- Thrown if `self` is infinite and `scalar` is an infinity
 function Duration.dividedBy(self: Duration, scalar: number): Duration
     -- type validation for metamethod error handling
-    assertDuration(self, "division", "dividedBy")
+    Internal.assertDuration(self, "division", "dividedBy")
     if type(scalar) ~= "number" then
         fail("Attempted to divide a Duration by a non-number")
     end
@@ -1225,21 +1295,23 @@ function Duration.dividedBy(self: Duration, scalar: number): Duration
 
     -- fractional (or huge) scalars can't be exact, so round via normalize()
     if scalar % 1 ~= 0 or math.abs(scalar) >= MAX_SAFE_INT then
-        local result = Duration.new(
+        local result = Internal.newDuration(
             mag._secs / math.abs(scalar),
-            mag._nanos / math.abs(scalar)
+            mag._nanos / math.abs(scalar),
+            3
         )
         return if negateResult then result:negated() else result
     end
 
     local k = math.abs(scalar)
-    local kNanos = Duration.new(0, k) -- k nanoseconds, exact for k < 2^53
+    -- k nanoseconds, exact for k < 2^53
+    local kNanos = Internal.newDuration(0, k, 3)
 
     -- estimate whole seconds exactly, sub-second part with floats
     local qSecs = mag._secs // k
     local rSecs = mag._secs - qSecs * k -- 0 <= rSecs < k, exact
     local estNanos = math.floor((rSecs * NANOS_PER_SECOND + mag._nanos) / k)
-    local q = Duration.new(qSecs, estNanos)
+    local q = Internal.newDuration(qSecs, estNanos, 3)
 
     -- exact residual for the estimate
     local r = mag:minus(q:times(k))
@@ -1288,8 +1360,8 @@ Duration.__div = Duration.dividedBy
 --- @error "[Duration.floorDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if the quotient is at least 2^53 in magnitude
 function Duration.floorDividedBy(self: Duration, other: Duration): number
     -- type validation for metamethod error handling
-    assertDuration(self, "floor division", "floorDividedBy")
-    assertDuration(other, "floor division", "floorDividedBy")
+    Internal.assertDuration(self, "floor division", "floorDividedBy")
+    Internal.assertDuration(other, "floor division", "floorDividedBy")
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
@@ -1298,7 +1370,7 @@ function Duration.floorDividedBy(self: Duration, other: Duration): number
         fail("Floor division with an infinity is undefined")
     end
 
-    local q = divModFloor(self, other, "floorDividedBy")
+    local q = Internal.divModFloor(self, other, "floorDividedBy", 3)
     return q
 end
 Duration.__idiv = Duration.floorDividedBy
@@ -1328,8 +1400,8 @@ Duration.__idiv = Duration.floorDividedBy
 --- @error "[Duration.mod()]: Quotient is too large to be represented exactly" -- Thrown if the quotient is at least 2^53 in magnitude
 function Duration.mod(self: Duration, other: Duration): Duration
     -- type validation for metamethod error handling
-    assertDuration(self, "modulus", "mod")
-    assertDuration(other, "modulus", "mod")
+    Internal.assertDuration(self, "modulus", "mod")
+    Internal.assertDuration(other, "modulus", "mod")
     if other:isZero() then
         fail("Attempted to divide by 0")
     end
@@ -1338,7 +1410,7 @@ function Duration.mod(self: Duration, other: Duration): Duration
         fail("Modulus with an infinity is undefined")
     end
 
-    local _, r = divModFloor(self, other, "mod")
+    local _, r = Internal.divModFloor(self, other, "mod", 3)
     return r
 end
 Duration.__mod = Duration.mod
@@ -1371,7 +1443,7 @@ function Duration.truncatedDividedBy(self: Duration, other: Duration): number
         fail("Truncated division with an infinity is undefined")
     end
 
-    local q = divModTruncated(self, other, "truncatedDividedBy")
+    local q = Internal.divModTruncated(self, other, "truncatedDividedBy", 3)
     return q
 end
 
@@ -1404,7 +1476,7 @@ function Duration.remainder(self: Duration, other: Duration): Duration
         fail("Remainder with an infinity is undefined")
     end
 
-    local _, r = divModTruncated(self, other, "remainder")
+    local _, r = Internal.divModTruncated(self, other, "remainder", 3)
     return r
 end
 
@@ -1476,7 +1548,7 @@ end
 --- @within Duration
 --- @return Duration -- The negated `Duration`
 function Duration.negated(self: Duration): Duration
-    return Duration.new(-self._secs, -self._nanos)
+    return Internal.newDuration(-self._secs, -self._nanos, 3)
 end
 Duration.__unm = Duration.negated
 
@@ -1513,7 +1585,7 @@ end
 --- @return Duration -- The truncated `Duration`
 --- @error "[Duration.truncatedTo()]: Cannot truncate using a non-positive unit" -- Thrown if `unit` is zero or negative
 --- @error "[Duration.truncatedTo()]: Truncating to infinity is undefined" -- Thrown if `unit` is infinite
---- @error "[Duration.truncatedDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
+--- @error "[Duration.truncatedTo()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
 function Duration.truncatedTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot truncate using a non-positive unit")
@@ -1527,7 +1599,8 @@ function Duration.truncatedTo(self: Duration, unit: Duration): Duration
         return self
     end
 
-    return unit:times(self:truncatedDividedBy(unit))
+    local q = Internal.divModTruncated(self, unit, "truncatedTo", 3)
+    return unit:times(q)
 end
 
 --- Returns the result of flooring this `Duration` to a multiple of `unit`,
@@ -1549,7 +1622,7 @@ end
 --- @return Duration -- The floored `Duration`
 --- @error "[Duration.flooredTo()]: Cannot floor using a non-positive unit" -- Thrown if `unit` is zero or negative
 --- @error "[Duration.flooredTo()]: Flooring to infinity is undefined" -- Thrown if `unit` is infinite
---- @error "[Duration.floorDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
+--- @error "[Duration.flooredTo()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
 function Duration.flooredTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot floor using a non-positive unit")
@@ -1563,7 +1636,8 @@ function Duration.flooredTo(self: Duration, unit: Duration): Duration
         return self
     end
 
-    return unit:times(self:floorDividedBy(unit))
+    local q = Internal.divModFloor(self, unit, "flooredTo", 3)
+    return unit:times(q)
 end
 
 --- Returns the result of ceiling this `Duration` to a multiple of `unit`,
@@ -1585,7 +1659,7 @@ end
 --- @return Duration -- The ceiled `Duration`
 --- @error "[Duration.ceiledTo()]: Cannot ceil using a non-positive unit" -- Thrown if `unit` is zero or negative
 --- @error "[Duration.ceiledTo()]: Ceiling to infinity is undefined" -- Thrown if `unit` is infinite
---- @error "[Duration.floorDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
+--- @error "[Duration.ceiledTo()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
 function Duration.ceiledTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot ceil using a non-positive unit")
@@ -1601,7 +1675,8 @@ function Duration.ceiledTo(self: Duration, unit: Duration): Duration
 
     -- computes floor(-(x / unit)), which equals -ceil(x / unit)
     -- which is then multiplied by -unit, equalling ceil(x / unit) * unit
-    return unit:times(self:floorDividedBy(unit:negated())):negated()
+    local q = Internal.divModFloor(self, unit:negated(), "ceiledTo", 3)
+    return unit:times(q):negated()
 end
 
 --- Returns the result of rounding this `Duration` to the nearest multiple of
@@ -1629,7 +1704,7 @@ end
 --- @return Duration -- The rounded `Duration`
 --- @error "[Duration.roundedTo()]: Cannot round using a non-positive unit" -- Thrown if `unit` is zero or negative
 --- @error "[Duration.roundedTo()]: Rounding to infinity is undefined" -- Thrown if `unit` is infinite
---- @error "[Duration.truncatedDividedBy()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
+--- @error "[Duration.roundedTo()]: Quotient is too large to be represented exactly" -- Thrown if `self` divided by `unit` is at least 2^53 in magnitude
 function Duration.roundedTo(self: Duration, unit: Duration): Duration
     if not unit:isPositive() then
         fail("Cannot round using a non-positive unit")
@@ -1643,7 +1718,7 @@ function Duration.roundedTo(self: Duration, unit: Duration): Duration
         return self
     end
 
-    local q = self:truncatedDividedBy(unit)
+    local q = Internal.divModTruncated(self, unit, "roundedTo", 3)
     local r = self:minus(unit:times(q))
     -- if the remainder's magnitude is at least half the unit,
     -- round away from zero
@@ -1706,8 +1781,8 @@ Duration.__eq = Duration.equals
 --- @error "[Duration.compareTo()]: Attempted to perform comparison on a non-Duration value: {value}" -- Thrown if `self` or `other` is not a `Duration`
 function Duration.compareTo(self: Duration, other: Duration): number
     -- type validation for metamethod error handling
-    assertDuration(self, "comparison", "compareTo")
-    assertDuration(other, "comparison", "compareTo")
+    Internal.assertDuration(self, "comparison", "compareTo")
+    Internal.assertDuration(other, "comparison", "compareTo")
 
     return if self._secs < other._secs
         then -1
@@ -1783,8 +1858,12 @@ end
 ---
 --- Years and months are rejected, since they have no fixed length. The
 --- strings `Infinity` and `-Infinity` (also case-insensitive) are accepted for
---- infinite `Duration`s. Every string produced by [Duration:toString] can be
---- parsed back into an equal `Duration`.
+--- infinite `Duration`s.
+---
+--- Strings totaling more than 2^53 seconds (about 285 million years) are
+--- rejected, since they cannot be represented exactly. Below that limit, every
+--- string produced by [Duration:toString] can be parsed back into an equal
+--- `Duration`.
 ---
 --- Use [Duration.tryParse] for strings that may be malformed.
 ---
@@ -1825,12 +1904,17 @@ end
 ---
 --- Years and months are rejected, since they have no fixed length. The
 --- strings `Infinity` and `-Infinity` (also case-insensitive) are accepted for
---- infinite `Duration`s. Every string produced by [Duration:toString] can be
---- parsed back into an equal `Duration`.
+--- infinite `Duration`s.
+---
+--- Strings totaling more than 2^53 seconds (about 285 million years) are
+--- rejected, since they cannot be represented exactly. Below that limit, every
+--- string produced by [Duration:toString] can be parsed back into an equal
+--- `Duration`.
 ---
 --- Returns an "ok" [Result] holding the `Duration`, or an "err" [Result]
 --- holding a message in the form
 --- `Invalid ISO-8601 duration: "{input}" ({reason} at position {pos})`.
+--- The too-large error has no position, since it applies to the whole string.
 --- Never throws.
 ---
 --- ```lua
@@ -1952,8 +2036,8 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     end
 
     local duration = if negative
-        then Duration.new(-secs, -nanos)
-        else Duration.new(secs, nanos)
+        then Internal.newDuration(-secs, -nanos, 3)
+        else Internal.newDuration(secs, nanos, 3)
     return Core.Result.ok(duration)
 end
 
@@ -1966,7 +2050,9 @@ end
 --- Infinite `Duration`s are `"Infinity"` or `"-Infinity"`.
 ---
 --- The result can be parsed back into an equal `Duration` with
---- [Duration.parse].
+--- [Duration.parse], as long as the `Duration` is below 2^53 seconds. Above
+--- that, the hours, minutes, and seconds are computed with inexact float
+--- arithmetic and may be wrong, and [Duration.parse] rejects the result.
 ---
 --- Also used by `tostring()`.
 ---
@@ -2043,10 +2129,14 @@ Duration.__tostring = Duration.toString
 --- * %f - milliseconds (0-999)
 --- * %% - literal '%'
 ---
---- An optional zero-pad width may follow the '%' (e.g. '%02H'). Values are
---- truncated, not rounded, and are always non-negative; negative `Duration`s
---- are prefixed with a single '-' instead. A trailing '%' with no specifier
---- is kept as-is.
+--- An optional zero-pad width of at most two digits may follow the '%'
+--- (e.g. '%02H'). Wider widths, such as '%100S', are rejected by
+--- `string.format` with a raw Luau error. Values are truncated, not rounded,
+--- and are always non-negative; negative `Duration`s are prefixed with a
+--- single '-' instead. A trailing '%' with no specifier is kept as-is.
+---
+--- Like [Duration:toString], the components are only exact for `Duration`s
+--- below 2^53 seconds.
 ---
 --- Infinite `Duration`s ignore `pattern` and return `"∞"` or `"-∞"`.
 ---
@@ -2059,6 +2149,7 @@ Duration.__tostring = Duration.toString
 --- @param pattern string -- The pattern
 --- @return string -- The formatted string
 --- @error "[Duration.format()]: Unknown specifier '%{spec}'" -- Thrown if `pattern` contains an unknown specifier
+--- @error "invalid format (width or precision too long)" -- Thrown by `string.format` if a width has more than two digits
 function Duration.format(self: Duration, pattern: string): string
     if self:isInf() then
         return (if self:isNegative() then "-" else "") .. "∞"
@@ -2317,7 +2408,7 @@ function Duration.tryDeserialize(
         )
     end
 
-    return Core.Result.ok(Duration.new(secs, nanos))
+    return Core.Result.ok(Internal.newDuration(secs, nanos, 3))
 end
 
 return Duration
