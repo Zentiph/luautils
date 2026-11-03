@@ -328,8 +328,9 @@ local function assertDuration(
 end
 
 -- Helper for generating Duration.parse()/tryParse() error messages
-local function parseErrMsg(input: string, pos: number, reason: string): string
-    return `Invalid ISO-8601 duration: "{input}" ({reason} at position {pos})`
+local function parseErrMsg(input: string, pos: number?, reason: string): string
+    return `Invalid ISO-8601 duration: "{input}" ({reason}`
+        .. if pos ~= nil then ` at position {pos})` else ")"
 end
 
 --- Creates a new `Duration` from the specified number of seconds and
@@ -1933,6 +1934,12 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
             nanos = tonumber(string.sub(frac .. "000000000", 1, 9)) :: number
         end
         pos = nextPos
+    end
+
+    if secs > MAX_SAFE_INT then
+        return Core.Result.err(
+            parseErrMsg(s, nil, "this Duration is too large to parse exactly")
+        )
     end
 
     if lastRank == 0 then
