@@ -11,4 +11,16 @@ local Luautils = {}
 
 Luautils.Core = require("@self/Core")
 
+Luautils.Collections = require("@self/Collections")
+Luautils.Math = require("@self/Math")
+Luautils.Strings = require("@self/Strings")
+Luautils.Tables = require("@self/Tables")
+Luautils.Time = require("@self/Time")
+Luautils.Validation = require("@self/Validation")
+
+Luautils.Async = require("@self/Async")
+Luautils.Events = require("@self/Events")
+
+Luautils.Roblox = require("@self/Roblox")
+
 return Luautils
