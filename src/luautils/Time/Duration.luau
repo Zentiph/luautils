@@ -4,8 +4,12 @@
 -- by @vuppyan
 
 local Core = require("../Core")
+type Map<K, V> = Core.Map<K, V>
 
-local fail = require("../_internal").Errors.errorWithScope("Duration")
+local Result = Core.Result
+type Result<T, E> = Core.Result<T, E>
+
+local fail = Core.Errors.errorWithScope("Duration")
 
 --- A fixed-length span of time with nanosecond precision and no upper bound.
 ---
@@ -1918,8 +1922,8 @@ end
 --- ```
 ---
 --- @param s string -- The ISO 8601 duration string
---- @return Core.Result<Duration, string> -- The result of parsing the string
-function Duration.tryParse(s: string): Core.Result<Duration, string>
+--- @return Result<Duration, string> -- The result of parsing the string
+function Duration.tryParse(s: string): Result<Duration, string>
     local str = string.upper(s)
     local pos = 1
     local negative = false
@@ -1931,13 +1935,13 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     end
     if string.sub(str, pos, pos) ~= "P" then
         if string.sub(str, pos) == "INFINITY" then
-            return Core.Result.ok(
+            return Result.ok(
                 if negative
                     then Duration.INFINITE:negated()
                     else Duration.INFINITE
             )
         end
-        return Core.Result.err(parseErrMsg(s, pos, "missing 'P' prefix"))
+        return Result.err(parseErrMsg(s, pos, "missing 'P' prefix"))
     end
     pos += 1
 
@@ -1949,9 +1953,7 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     while pos <= #str do
         if string.sub(str, pos, pos) == "T" then
             if inTime then
-                return Core.Result.err(
-                    parseErrMsg(s, pos, "repeated 'T' prefix")
-                )
+                return Result.err(parseErrMsg(s, pos, "repeated 'T' prefix"))
             end
             inTime = true
             pos += 1
@@ -1963,36 +1965,34 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
         local whole, sep, frac, unit, nextPos =
             string.match(str, "^(%d+)([%.,]?)(%d*)(%a)()", pos)
         if not whole or not sep or not frac or not unit or not nextPos then
-            return Core.Result.err(
-                parseErrMsg(s, pos, "expected a number and unit")
-            )
+            return Result.err(parseErrMsg(s, pos, "expected a number and unit"))
         end
 
         local info = (if inTime then TIME_UNITS else DATE_UNITS)[unit]
         if not info then
             if not inTime and (unit == "Y" or unit == "M") then
-                return Core.Result.err(
+                return Result.err(
                     parseErrMsg(s, pos, "years and months have no fixed length")
                 )
             end
             local where = if inTime then "after" else "before"
-            return Core.Result.err(
+            return Result.err(
                 parseErrMsg(s, pos, `'{unit}' is not valid {where} 'T'`)
             )
         end
 
         if info.rank <= lastRank then
-            return Core.Result.err(
+            return Result.err(
                 parseErrMsg(s, pos, `{unit} is repeated or out of order`)
             )
         end
         if sep ~= "" then
             if unit ~= "S" then
-                return Core.Result.err(
+                return Result.err(
                     parseErrMsg(s, pos, "only seconds may be fractional")
                 )
             elseif frac == "" then
-                return Core.Result.err(
+                return Result.err(
                     parseErrMsg(
                         s,
                         pos,
@@ -2014,16 +2014,16 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     end
 
     if secs > MAX_SAFE_INT then
-        return Core.Result.err(
+        return Result.err(
             parseErrMsg(s, nil, "this Duration is too large to parse exactly")
         )
     end
 
     if lastRank == 0 then
-        return Core.Result.err(parseErrMsg(s, pos, "no components"))
+        return Result.err(parseErrMsg(s, pos, "no components"))
     end
     if inTime and lastRank < TIME_UNITS.H.rank then
-        return Core.Result.err(
+        return Result.err(
             parseErrMsg(s, pos, "'T' must be followed by a time component")
         )
     end
@@ -2031,7 +2031,7 @@ function Duration.tryParse(s: string): Core.Result<Duration, string>
     local duration = if negative
         then Internal.newDuration(-secs, -nanos, 3)
         else Internal.newDuration(secs, nanos, 3)
-    return Core.Result.ok(duration)
+    return Result.ok(duration)
 end
 
 --- Converts this `Duration` to an ISO 8601 duration string, such as
@@ -2288,8 +2288,8 @@ end
 ---
 --- @method serialize
 --- @within Duration
---- @return Core.Map<any, any> -- The serialized data
-function Duration.serialize(self: Duration): Core.Map<any, any>
+--- @return Map<any, any> -- The serialized data
+function Duration.serialize(self: Duration): Map<any, any>
     return if self:isInf()
         then { inf = if self:isNegative() then -1 else 1 }
         else { secs = self._secs, nanos = self._nanos }
@@ -2303,10 +2303,10 @@ end
 ---
 --- Use [Duration.tryDeserialize] for data that may be malformed.
 ---
---- @param data Core.Map<any, any> -- The data table
+--- @param data Map<any, any> -- The data table
 --- @return Duration -- The new `Duration`
 --- @error "[Duration.deserialize()]: Failed to deserialize duration: {reason}" -- Thrown if the data could not be deserialized; `{reason}` is the error from [Duration.tryDeserialize]
-function Duration.deserialize(data: Core.Map<any, any>): Duration
+function Duration.deserialize(data: Map<any, any>): Duration
     local res = Duration.tryDeserialize(data)
     if res:isErr() then
         fail(
@@ -2335,23 +2335,19 @@ end
 --- -- Err("Expected key 'nanos' in data table")
 --- ```
 ---
---- @param data Core.Map<any, any> -- The data table
---- @return Core.Result<Duration, string> -- The result of parsing the data
-function Duration.tryDeserialize(
-    data: Core.Map<any, any>
-): Core.Result<Duration, string>
+--- @param data Map<any, any> -- The data table
+--- @return Result<Duration, string> -- The result of parsing the data
+function Duration.tryDeserialize(data: Map<any, any>): Result<Duration, string>
     if type(data) ~= "table" then
-        return Core.Result.err("Expected data to be a table")
+        return Result.err("Expected data to be a table")
     end
 
     local inf = data.inf
     if inf ~= nil then
         if inf ~= 1 and inf ~= -1 then
-            return Core.Result.err(
-                "Expected key 'inf' to be 1 or -1 in data table"
-            )
+            return Result.err("Expected key 'inf' to be 1 or -1 in data table")
         end
-        return Core.Result.ok(
+        return Result.ok(
             if inf == 1 then Duration.INFINITE else Duration.INFINITE:negated()
         )
     end
@@ -2360,48 +2356,40 @@ function Duration.tryDeserialize(
     local nanos = data.nanos
 
     if secs == nil then
-        return Core.Result.err("Expected key 'secs' in data table")
+        return Result.err("Expected key 'secs' in data table")
     end
     if nanos == nil then
-        return Core.Result.err("Expected key 'nanos' in data table")
+        return Result.err("Expected key 'nanos' in data table")
     end
 
     if type(secs) ~= "number" then
-        return Core.Result.err(
-            "Expected key 'secs' to be a number in data table"
-        )
+        return Result.err("Expected key 'secs' to be a number in data table")
     end
     if type(nanos) ~= "number" then
-        return Core.Result.err(
-            "Expected key 'nanos' to be a number in data table"
-        )
+        return Result.err("Expected key 'nanos' to be a number in data table")
     end
 
     if secs % 1 ~= 0 then
-        return Core.Result.err(
-            "Expected key 'secs' to be an integer in data table"
-        )
+        return Result.err("Expected key 'secs' to be an integer in data table")
     end
     if nanos % 1 ~= 0 then
-        return Core.Result.err(
-            "Expected key 'nanos' to be an integer in data table"
-        )
+        return Result.err("Expected key 'nanos' to be an integer in data table")
     end
 
     if nanos < NANOS_MIN then
-        return Core.Result.err(
+        return Result.err(
             "Expected key 'nanos' to be greater than or equal "
                 .. `to {NANOS_MIN}, got {nanos}`
         )
     end
     if nanos > NANOS_MAX then
-        return Core.Result.err(
+        return Result.err(
             "Expected key 'nanos' to be less than or equal "
                 .. `to {NANOS_MAX}, got {nanos}`
         )
     end
 
-    return Core.Result.ok(Internal.newDuration(secs, nanos, 3))
+    return Result.ok(Internal.newDuration(secs, nanos, 3))
 end
 
 return Duration
