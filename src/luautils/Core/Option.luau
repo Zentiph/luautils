@@ -3,10 +3,18 @@
 -- Option type
 -- by @vuppyan
 
-local repr = require("../_internal").repr
 local types = require("./types")
+type Action = types.Action
+type Array<T> = types.Array<T>
+type BiMapper<T, U, R> = types.BiMapper<T, U, R>
+type Consumer<T> = types.Consumer<T>
+type Map<K, V> = types.Map<K, V>
+type Mapper<T, U> = types.Mapper<T, U>
+type Predicate<T> = types.Predicate<T>
+type Supplier<T> = types.Supplier<T>
 
-local fail = require("../_internal").Errors.errorWithScope("Option")
+local repr = require("../_internal").repr
+local fail = require("./Errors").errorWithScope("Option")
 
 --- An optional value: an `Option` is either "some" and holds a value, or
 --- "none" and does not.
@@ -112,12 +120,9 @@ end
 ---
 --- @method isSomeAnd
 --- @within Option
---- @param predicate types.Predicate<T> -- The predicate to check the value against
+--- @param predicate Predicate<T> -- The predicate to check the value against
 --- @return boolean -- Whether the `Option` is "some" and the value matches the predicate
-function Option.isSomeAnd<T>(
-    self: Option<T>,
-    predicate: types.Predicate<T>
-): boolean
+function Option.isSomeAnd<T>(self: Option<T>, predicate: Predicate<T>): boolean
     return self:isSome() and predicate(self._value :: T)
 end
 
@@ -137,12 +142,9 @@ end
 ---
 --- @method isNoneOr
 --- @within Option
---- @param predicate types.Predicate<T> -- The predicate to check the value against
+--- @param predicate Predicate<T> -- The predicate to check the value against
 --- @return boolean -- Whether the `Option` is "none" or the value matches the predicate
-function Option.isNoneOr<T>(
-    self: Option<T>,
-    predicate: types.Predicate<T>
-): boolean
+function Option.isNoneOr<T>(self: Option<T>, predicate: Predicate<T>): boolean
     return not self:isSome() or predicate(self._value :: T)
 end
 
@@ -193,9 +195,9 @@ end
 ---
 --- @method unwrapOrElse
 --- @within Option
---- @param supplier types.Supplier<T> -- The function to call if the `Option` is "none"
+--- @param supplier Supplier<T> -- The function to call if the `Option` is "none"
 --- @return T -- The contained value, or the computed value
-function Option.unwrapOrElse<T>(self: Option<T>, supplier: types.Supplier<T>): T
+function Option.unwrapOrElse<T>(self: Option<T>, supplier: Supplier<T>): T
     return if self:isSome() then self._value :: T else supplier()
 end
 
@@ -214,13 +216,10 @@ end
 ---
 --- @method unwrapOrThrow
 --- @within Option
---- @param errorSupplier types.Supplier<any> -- The function that supplies the error
+--- @param errorSupplier Supplier<any> -- The function that supplies the error
 --- @return T -- The contained value
 --- @error any -- Thrown if the `Option` is "none"
-function Option.unwrapOrThrow<T>(
-    self: Option<T>,
-    errorSupplier: types.Supplier<any>
-): T
+function Option.unwrapOrThrow<T>(self: Option<T>, errorSupplier: Supplier<any>): T
     return if self:isSome() then self._value :: T else error(errorSupplier(), 2)
 end
 
@@ -271,13 +270,10 @@ end
 --- ```
 ---
 --- @param condition boolean -- The condition to check
---- @param supplier types.Supplier<T> -- The function to call if `condition` is `true`
+--- @param supplier Supplier<T> -- The function to call if `condition` is `true`
 --- @return Option<T> -- The result of calling `supplier`, or "none"
 --- @error "[Option.some()]: Value cannot be nil" -- Thrown if `condition` is `true` and `supplier` returns `nil`
-function Option.whenThen<T>(
-    condition: boolean,
-    supplier: types.Supplier<T>
-): Option<T>
+function Option.whenThen<T>(condition: boolean, supplier: Supplier<T>): Option<T>
     return if condition then Option.some(supplier()) else Option.none()
 end
 
@@ -297,9 +293,9 @@ end
 ---
 --- @method map
 --- @within Option
---- @param mapper types.Mapper<T, U?> -- The function to apply to the contained value
+--- @param mapper Mapper<T, U?> -- The function to apply to the contained value
 --- @return Option<U> -- The mapped `Option`
-function Option.map<T, U>(self: Option<T>, mapper: types.Mapper<T, U?>): Option<U>
+function Option.map<T, U>(self: Option<T>, mapper: Mapper<T, U?>): Option<U>
     return if self:isSome()
         then Option.fromNillable(mapper(self._value :: T))
         else Option.none()
@@ -322,13 +318,9 @@ end
 --- @method mapOr
 --- @within Option
 --- @param default U -- The default value to return if the `Option` is "none"
---- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
+--- @param mapper Mapper<T, U> -- The function to apply to the contained value
 --- @return U -- The provided default value, or the mapped value
-function Option.mapOr<T, U>(
-    self: Option<T>,
-    default: U,
-    mapper: types.Mapper<T, U>
-): U
+function Option.mapOr<T, U>(self: Option<T>, default: U, mapper: Mapper<T, U>): U
     return if self:isSome() then mapper(self._value :: T) else default
 end
 
@@ -348,13 +340,13 @@ end
 ---
 --- @method mapOrElse
 --- @within Option
---- @param supplier types.Supplier<U> -- The function to call if the `Option` is "none"
---- @param mapper types.Mapper<T, U> -- The function to apply to the contained value
+--- @param supplier Supplier<U> -- The function to call if the `Option` is "none"
+--- @param mapper Mapper<T, U> -- The function to apply to the contained value
 --- @return U -- The computed default value, or the mapped value
 function Option.mapOrElse<T, U>(
     self: Option<T>,
-    supplier: types.Supplier<U>,
-    mapper: types.Mapper<T, U>
+    supplier: Supplier<U>,
+    mapper: Mapper<T, U>
 ): U
     return if self:isSome() then mapper(self._value :: T) else supplier()
 end
@@ -365,9 +357,9 @@ end
 ---
 --- @method inspect
 --- @within Option
---- @param consumer types.Consumer<T> -- The function to call with the contained value
+--- @param consumer Consumer<T> -- The function to call with the contained value
 --- @return Option<T> -- The original `Option`
-function Option.inspect<T>(self: Option<T>, consumer: types.Consumer<T>): Option<T>
+function Option.inspect<T>(self: Option<T>, consumer: Consumer<T>): Option<T>
     if self:isSome() then
         consumer(self._value :: T)
     end
@@ -409,11 +401,11 @@ end
 ---
 --- @method andThen
 --- @within Option
---- @param mapper types.Mapper<T, Option<U>> -- The function to call if the `Option` is "some"
+--- @param mapper Mapper<T, Option<U>> -- The function to call if the `Option` is "some"
 --- @return Option<U> -- The `Option` returned by `mapper`, or "none"
 function Option.andThen<T, U>(
     self: Option<T>,
-    mapper: types.Mapper<T, Option<U>>
+    mapper: Mapper<T, Option<U>>
 ): Option<U>
     return if self:isSome() then mapper(self._value :: T) else Option.none()
 end
@@ -433,12 +425,9 @@ end
 ---
 --- @method filter
 --- @within Option
---- @param predicate types.Predicate<T> -- The predicate to check the value against
+--- @param predicate Predicate<T> -- The predicate to check the value against
 --- @return Option<T> -- The original `Option`, or "none"
-function Option.filter<T>(
-    self: Option<T>,
-    predicate: types.Predicate<T>
-): Option<T>
+function Option.filter<T>(self: Option<T>, predicate: Predicate<T>): Option<T>
     return if self:isSome() and predicate(self._value :: T)
         then self
         else Option.none()
@@ -466,11 +455,11 @@ end
 ---
 --- @method orElse
 --- @within Option
---- @param supplier types.Supplier<Option<T>> -- The function to call if the `Option` is "none"
+--- @param supplier Supplier<Option<T>> -- The function to call if the `Option` is "none"
 --- @return Option<T> -- The `Option` returned by `supplier`, or the original "some" `Option`
 function Option.orElse<T>(
     self: Option<T>,
-    supplier: types.Supplier<Option<T>>
+    supplier: Supplier<Option<T>>
 ): Option<T>
     return if self:isSome() then self else supplier()
 end
@@ -483,13 +472,9 @@ end
 ---
 --- @method match
 --- @within Option
---- @param ifSome types.Consumer<T> -- The function to call with the contained value
---- @param ifNone types.Action -- The function to call if the `Option` is "none"
-function Option.match<T>(
-    self: Option<T>,
-    ifSome: types.Consumer<T>,
-    ifNone: types.Action
-): ()
+--- @param ifSome Consumer<T> -- The function to call with the contained value
+--- @param ifNone Action -- The function to call if the `Option` is "none"
+function Option.match<T>(self: Option<T>, ifSome: Consumer<T>, ifNone: Action): ()
     if self:isSome() then
         ifSome(self._value :: T)
     else
@@ -536,12 +521,12 @@ end
 --- @method zip
 --- @within Option
 --- @param other Option<U> -- The `Option` to combine with the current `Option`
---- @param biMapper types.BiMapper<T, U, R?> -- The function to call with both contained values
+--- @param biMapper BiMapper<T, U, R?> -- The function to call with both contained values
 --- @return Option<R> -- The result of calling `biMapper`, or "none"
 function Option.zip<T, U, R>(
     self: Option<T>,
     other: Option<U>,
-    biMapper: types.BiMapper<T, U, R?>
+    biMapper: BiMapper<T, U, R?>
 ): Option<R>
     return if self:isSome() and other:isSome()
         then Option.fromNillable(biMapper(self._value :: T, other._value :: U))
@@ -566,12 +551,12 @@ end
 --- @method reduce
 --- @within Option
 --- @param other Option<T> -- The `Option` to reduce with the current `Option`
---- @param reducer types.BiMapper<T, T, T?> -- The function to call with both contained values
+--- @param reducer BiMapper<T, T, T?> -- The function to call with both contained values
 --- @return Option<T> -- The reduced `Option`
 function Option.reduce<T>(
     self: Option<T>,
     other: Option<T>,
-    reducer: types.BiMapper<T, T, T?>
+    reducer: BiMapper<T, T, T?>
 ): Option<T>
     return if self:isSome() and other:isSome()
         then Option.fromNillable(reducer(self._value :: T, other._value :: T))
@@ -614,17 +599,17 @@ end
 --- Option.all({ Option.some(1), Option.none() }) -- None
 --- ```
 ---
---- @param options types.Map<K, Option<T>> -- The table of `Option`s
---- @return Option<types.Map<K, T>> -- The converted `Option`
+--- @param options Map<K, Option<T>> -- The table of `Option`s
+--- @return Option<Map<K, T>> -- The converted `Option`
 --- @error "[Option.all()]: Called all on a table containing a non-Option value" -- Thrown if a non-`Option` value is found before any "none"
-function Option.all<T, K>(options: types.Map<K, Option<T>>): Option<types.Map<K, T>>
+function Option.all<T, K>(options: Map<K, Option<T>>): Option<Map<K, T>>
     local result = {}
     for key, value in options do
         if not Option.is(value) then
             fail("Called all on a table containing a non-Option value")
         end
         if value:isNone() then
-            return Option.none() :: Option<types.Map<K, T>>
+            return Option.none() :: Option<Map<K, T>>
         end
         result[key] = value._value
     end
@@ -642,10 +627,10 @@ end
 --- Option.firstSome({ Option.none() }) -- None
 --- ```
 ---
---- @param options types.Array<Option<T>> -- The array of `Option`s
+--- @param options Array<Option<T>> -- The array of `Option`s
 --- @return Option<T> -- The first "some" `Option`, or "none"
 --- @error "[Option.firstSome()]: Called firstSome on a table containing a non-Option value" -- Thrown if a non-`Option` value is found before any "some"
-function Option.firstSome<T>(options: types.Array<Option<T>>): Option<T>
+function Option.firstSome<T>(options: Array<Option<T>>): Option<T>
     for _, value in ipairs(options) do
         if not Option.is(value) then
             fail("Called firstSome on a table containing a non-Option value")
@@ -666,10 +651,10 @@ end
 --- Option.somes({ Option.some(1), Option.none(), Option.some(3) }) -- { 1, 3 }
 --- ```
 ---
---- @param options types.Array<Option<T>> -- The array of `Option`s
---- @return types.Array<T> -- The contained values
+--- @param options Array<Option<T>> -- The array of `Option`s
+--- @return Array<T> -- The contained values
 --- @error "[Option.somes()]: Called somes on a table containing a non-Option value" -- Thrown if any value is not an `Option`
-function Option.somes<T>(options: types.Array<Option<T>>): types.Array<T>
+function Option.somes<T>(options: Array<Option<T>>): Array<T>
     local result = {}
     for _, value in ipairs(options) do
         if not Option.is(value) then
@@ -687,8 +672,8 @@ end
 ---
 --- @method toArray
 --- @within Option
---- @return types.Array<T> -- The contained value as an array
-function Option.toArray<T>(self: Option<T>): types.Array<T>
+--- @return Array<T> -- The contained value as an array
+function Option.toArray<T>(self: Option<T>): Array<T>
     return if self:isSome() then { self._value } else {}
 end
 
