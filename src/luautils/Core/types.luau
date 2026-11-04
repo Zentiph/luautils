@@ -83,9 +83,9 @@ export type Comparable<Self> =
 --- A type that can be converted to a string.
 export type Stringable<Self> = { toString: (self: Self) -> string }
 
---- A type that can produce a stable hash/key, allowing for value-equal objects
+--- A type that can produce a stable key, allowing for value-equal objects
 --- to share a table slot.
-export type Hashable<Self> = { hash: (self: Self) -> string }
+export type Keyable<Self> = { toKey: (self: Self) -> string }
 
 --- A type that can make an independent copy of itself.
 export type Cloneable<Self> = { clone: (self: Self) -> Self }

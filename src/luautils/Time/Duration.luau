@@ -7,10 +7,6 @@ local Core = require("../Core")
 
 local fail = require("../_internal").Errors.errorWithScope("Duration")
 
--- TODO: add enum creators with type support
--- TODO: other oop tools like "final class" metatable locking, easy interface checking, etc
--- TODO: BigNumber class (data type able to represent bigger number values with exact precision)
-
 --- A fixed-length span of time with nanosecond precision and no upper bound.
 ---
 --- Internally, a `Duration` is represented by two `number` fields. The first
@@ -58,9 +54,6 @@ type DurationData = {
 --- @type Duration Duration
 --- @within Duration
 export type Duration = typeof(setmetatable({} :: DurationData, Duration))
-
--- TODO: if possible add typing helpers like OptionalTable<> that turns a
--- table with components like a: number, b: string into a: number?, b: string?
 
 --- An input set of parts in a `Duration`, used by [Duration.fromParts].
 ---
