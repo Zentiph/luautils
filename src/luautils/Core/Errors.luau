@@ -29,7 +29,8 @@ function Errors.errorWithScope(moduleName: string): (
             functionName = "?"
         end
         -- add 1 to level to account for this function's stack frame
-        error(`[{moduleName}.{functionName}()]: {message}`, (level or 2) + 1)
+        local errorLevel = if level == 0 then 0 else (level or 2) + 1
+        error(`[{moduleName}.{functionName}()]: {message}`, errorLevel)
     end
 end
 
