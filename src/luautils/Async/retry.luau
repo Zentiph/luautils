@@ -4,16 +4,8 @@
 -- by @vuppyan
 
 local Core = require("../Core")
+type Result<T, E> = Core.Result<T, E>
 
--- TODO: support packing/unpacking results
---[=[
-	Attempts to execute a callback function and retries if it fails.
-
-	@param callback () -> T -- The function to execute
-	@param retries number -- The number of retries
-	@param waitSeconds number? -- The delay between retries (defaults to 0)
-	@return Core.Result<T, string> -- The result of the retry
-]=]
 return function<T>(
     callback: () -> T,
     retries: number,
@@ -27,7 +19,7 @@ return function<T>(
         tried = true
         success, result = pcall(callback)
         if success then
-            return Core.Result.ok(result) -- TODO: see what can be done so people don't have to cast every "ok" construction
+            return Core.Result.ok(result)
         end
 
         if retry == retries then
@@ -38,13 +30,10 @@ return function<T>(
             task.wait(waitSeconds)
         end
     end
-    return Core.Result.err(
-        "Exceeded maximum number of retries "
-            .. if tried
-                -- check if the function was tried at all, rather than
-                -- assuming a nil result means it didn't.
-                -- callers may return nil as an error.
-                then `(retried function errored with {tostring(result)})`
-                else ""
-    )
+    return Core.Result.err("Exceeded maximum number of retries " .. if tried
+        -- check if the function was tried at all, rather than
+        -- assuming a nil result means it didn't.
+        -- callers may return nil as an error.
+        then `(retried function errored with {tostring(result)})`
+        else "")
 end

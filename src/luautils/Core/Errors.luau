@@ -1,8 +1,9 @@
 --!strict
 
--- error handling for the library
+-- Error handling utilities
 -- by @vuppyan
 
+--- A module of error handling utilities.
 local Errors = {}
 
 --- Builds an error thrower that prefixes "[Module.fn()]: " to an error message.

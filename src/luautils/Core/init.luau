@@ -4,10 +4,12 @@
 -- by @vuppyan
 
 local Option = require("@self/Option")
-local Result = require("@self/Result")
-local types = require("@self/types")
+export type Option<T> = Option.Option<T>
 
--- re-export the types here so users can grab them easier
+local Result = require("@self/Result")
+export type Result<T, E> = Result.Result<T, E>
+
+local types = require("@self/types")
 export type Action = types.Action
 export type Callback<A...> = types.Callback<A...>
 export type Supplier<T> = types.Supplier<T>
@@ -23,15 +25,12 @@ export type UnaryOperator<T> = types.UnaryOperator<T>
 export type BinaryOperator<T> = types.BinaryOperator<T>
 export type Reducer<T, A> = types.Reducer<T, A>
 export type Comparator<T> = types.Comparator<T>
-
 export type Array<T> = types.Array<T>
 export type Map<K, V> = types.Map<K, V>
 export type Set<T> = types.Set<T>
 export type PackedTable = types.PackedTable
-
 export type Generator<T> = types.Generator<T>
 export type Iterator<S, C, V...> = types.Iterator<S, C, V...>
-
 export type Equatable<Self> = types.Equatable<Self>
 export type Comparable<Self> = types.Comparable<Self>
 export type Stringable<Self> = types.Stringable<Self>
@@ -40,15 +39,11 @@ export type Cloneable<Self> = types.Cloneable<Self>
 export type Serializable<Self, D> = types.Serializable<Self, D>
 export type Deserializable<Self, D> = types.Deserializable<Self, D>
 export type Iterable<Self, C, V...> = types.Iterable<Self, C, V...>
-
 export type Disconnectable = types.Disconnectable
 export type Destroyable = types.Destroyable
 
--- same with the module types themselves
-export type Option<T> = Option.Option<T>
-export type Result<T, E> = Result.Result<T, E>
-
 return {
+    Errors = require("@self/Errors"),
     Option = Option,
     Result = Result,
 }

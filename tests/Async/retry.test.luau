@@ -43,24 +43,21 @@ test.suite("retry", function(suite)
         asserts.eq(5, count)
     end)
 
-    suite:case(
-        "does not attempt on less than 1 retries",
-        function(asserts)
-            local count = 0
-            local result = retry(
-                function()
-                    count += 1
-                    error("failed")
-                end :: () -> never,
-                0
-            )
+    suite:case("does not attempt on less than 1 retries", function(asserts)
+        local count = 0
+        local result = retry(
+            function()
+                count += 1
+                error("failed")
+            end :: () -> never,
+            0
+        )
 
-            asserts.eq(false, result:isOk())
-            asserts.strContains(
-                result:unwrapErr(),
-                "Exceeded maximum number of retries"
-            )
-            asserts.eq(0, count)
-        end
-    )
+        asserts.eq(false, result:isOk())
+        asserts.strContains(
+            result:unwrapErr(),
+            "Exceeded maximum number of retries"
+        )
+        asserts.eq(0, count)
+    end)
 end)
