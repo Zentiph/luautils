@@ -9,5 +9,6 @@
     This module is currently empty.
 
     @class Events
+    @since v0.1.0
 ]=]
 return nil

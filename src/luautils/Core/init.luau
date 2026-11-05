@@ -47,6 +47,7 @@ export type Destroyable = typing.Destroyable
     and failure, error handling utilities, and shared type aliases.
 
     @class Core
+    @since v0.1.0
 ]=]
 return table.freeze({
     Errors = require("@self/Errors"),
