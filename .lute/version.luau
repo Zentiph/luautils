@@ -1,6 +1,9 @@
 --!strict
 
 -- Checks that every file holding the library version agrees
+-- Usage (from repo root): lute run .lute/version.luau [expected version]
+-- With an expected version (for example 1.2.3), also checks that the files
+-- hold that version, which is run before tagging a release
 -- by @vuppyan
 
 local fs = require("@std/fs")
@@ -26,7 +29,13 @@ for _, source in SOURCES do
     table.insert(found, { path, version })
 end
 
-local expected = found[1][2]
+-- process.args[1] is this script's path
+local argument: string? = process.args[2]
+if argument ~= nil then
+    -- accept both 1.2.3 and v1.2.3
+    argument = string.gsub(argument, "^v", "")
+end
+local expected = argument or found[1][2]
 local ok = true
 for _, entry in found do
     print(`Found {entry[1]}: {entry[2]}`)
@@ -36,6 +45,10 @@ for _, entry in found do
 end
 
 if not ok then
-    print("Version mismatch: bump every file together")
+    if argument ~= nil then
+        print(`Version mismatch: expected {expected} in every file`)
+    else
+        print("Version mismatch: bump every file together")
+    end
     process.exit(1)
 end

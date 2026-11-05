@@ -1,9 +1,13 @@
 # Changelog for luautils
 
-<!--
-## [Unreleased] - 202X-XX-XX
-*
--->
+## [Unreleased]
+* CI
+  * `.lute/version.luau` takes an optional expected version, checked before
+    tagging a release
+* Documentation
+  * Documented feature branches and the `Unreleased` changelog section in
+    CONTRIBUTING
+  * Added merge and version-check commands to the release steps in CONTRIBUTING
 
 ## [v0.1.2] - 2026-11-05
 * Fixed `Luautils.VERSION` reporting `0.1.0` in the published 0.1.1 packages

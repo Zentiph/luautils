@@ -191,6 +191,11 @@ Lute.
   exported type.
 * Instances are created in one place (usually a private `new` helper) and frozen
   with `table.freeze` if immutable.
+* Stateful classes that can change over time should not be frozen.
+  Give these classes `__eq` and `__lt`/`__le` only if it makes sense to compare
+  them based on inner value.
+* All classes should be given a `__tostring`, for formatted string output, or,
+  at the very least, for debugging.
 * Classes provide `Class.is(value)`, which checks the metatable.
 * Named methods come alongside metamethods: `equals` with `__eq`, `compareTo`
   with `__lt`/`__le`, `toString` with `__tostring`.
@@ -279,6 +284,17 @@ Dependency direction).
 `default.project.json` is Wally's entry point, and pesde's `includes` leaves it
 out, since pesde rejects packages that contain it.
 
+## Feature branches
+
+Name branches after the change they make (for example `feat/stopwatch-class`
+or `fix/duration-parsing`), and open a pull request into `master` for each one.
+Add a line for the change under `## [Unreleased]` in
+[CHANGELOG.md](CHANGELOG.md) in the same pull request.
+
+Features are not released when they are merged.
+`master` collects them under `Unreleased` until a release branch bumps the
+version (see Releasing), so never bump the version in a feature branch.
+
 ## Releasing
 
 Versions follow semantic versioning.
@@ -302,9 +318,14 @@ git switch -c release/vX.Y.Z
 ```
 
 2. Bump the version in `src/luautils/init.luau` (`VERSION`), `wally.toml`, and
-   `pesde.toml`, then add a `## [vX.Y.Z] - YYYY-MM-DD` section to the top of
-   [CHANGELOG.md](CHANGELOG.md).
-   The `version` CI step fails if these differ.
+   `pesde.toml`.
+   In [CHANGELOG.md](CHANGELOG.md), rename `## [Unreleased]` to
+   `## [vX.Y.Z] - YYYY-MM-DD`, then add a new, empty `## [Unreleased]` above it.
+   Check the bump with:
+
+```bash
+lute run .lute/version.luau X.Y.Z
+```
 3. Commit, push the branch, and open a pull request:
 
 ```bash
@@ -313,16 +334,32 @@ git push -u origin release/vX.Y.Z
 gh pr create --title "Release vX.Y.Z" --fill
 ```
 
-4. Merge the pull request once CI passes, and wait for "Deploy docs" to finish
-   on `master` (`gh run watch`).
-5. Tag the merged commit and push only the tag:
+4. Wait for CI to pass on the pull request, merge it, and wait for
+   "Deploy docs" to finish on `master`:
 
 ```bash
-git switch master
+gh pr checks --watch
+gh pr merge --merge --delete-branch
+gh run list --branch master --event push --limit 1
+```
+
+   The last command must show the run as `completed` and `success` before you
+   tag, since the tag rule requires a Pages deployment for the commit.
+   A passing CI run on the pull request does not count: it never deploys.
+   `--delete-branch` also deletes the release branch and switches to `master`.
+
+5. Make sure `master` holds the release, then tag it and push only the tag:
+
+```bash
 git pull --ff-only
+lute run .lute/version.luau X.Y.Z
 git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
+
+   If the version check fails, the release pull request has not been merged.
+   Do not tag: the tag rule only checks for a deployment, so it would accept a
+   tag on the previous release's commit.
 
 6. Publish from the tagged commit (the first time, log in with `wally login`
    and `pesde auth login`):
