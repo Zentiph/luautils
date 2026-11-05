@@ -1,6 +1,12 @@
 # Changelog for luautils
 
+<!--
 ## [Unreleased] - 202X-XX-XX
+*
+-->
+
+## [v0.1.1] - 202X-XX-XX
+* Published to Wally
 * Made all tables returned from modules frozen to enforce read-only properties
 * Documentation fixes
   * Marked `Luautils.VERSION` as read-only
