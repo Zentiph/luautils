@@ -17,6 +17,7 @@ local Luautils = {}
 
     @prop VERSION string
     @within Luautils
+    @readonly
 ]=]
 Luautils.VERSION = "0.1.0"
 
