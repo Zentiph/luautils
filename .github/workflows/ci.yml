@@ -9,6 +9,20 @@ permissions:
   contents: read
 
 jobs:
+  branch-name:
+    name: Branch name
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          if [[ ! "$BRANCH" =~ ^(feat|fix|docs|ci|test|refactor|chore|release)/[a-z0-9._-]+$ ]]; then
+            echo "Branch '$BRANCH' must be <type>/<name>, for example feat/stopwatch-class"
+            exit 1
+          fi
+
   check:
     name: Format, lint, type check, test
     runs-on: ubuntu-latest
