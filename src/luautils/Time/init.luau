@@ -11,6 +11,6 @@ export type Duration = Duration.Duration
 
     @class Time
 ]=]
-return {
+return table.freeze({
     Duration = Duration,
-}
+})

@@ -8,6 +8,6 @@
 
     @class Async
 ]=]
-return {
+return table.freeze({
     retry = require("@self/retry"),
-}
+})

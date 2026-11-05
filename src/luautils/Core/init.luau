@@ -48,8 +48,8 @@ export type Destroyable = typing.Destroyable
 
     @class Core
 ]=]
-return {
+return table.freeze({
     Errors = require("@self/Errors"),
     Option = Option,
     Result = Result,
-}
+})

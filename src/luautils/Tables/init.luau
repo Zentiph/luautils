@@ -8,6 +8,6 @@
 
     @class Tables
 ]=]
-return {
+return table.freeze({
     deepCopy = require("@self/deepCopy"),
-}
+})

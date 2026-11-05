@@ -810,4 +810,4 @@ function Option.toString<T>(self: Option<T>): string
 end
 Option.__tostring = Option.toString
 
-return Option
+return table.freeze(Option)
