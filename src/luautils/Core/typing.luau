@@ -68,7 +68,7 @@ export type Generator<T> = () -> T?
 --- Iteration stops when the returned control value is `nil`.
 export type Iterator<S, C, V...> = (state: S, control: C?) -> (C?, V...)
 
---[[ protocols/"traits" ]]
+--[[ Protocols/"traits" ]]
 
 --- A type that supports value equality.
 export type Equatable<Self> = { equals: (self: Self, other: Self) -> boolean }
