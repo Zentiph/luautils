@@ -1,0 +1,11 @@
+{
+  "name": "luautils-dev",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Luautils": {
+        "$path": "src/luautils"
+      }
+    }
+  }
+}

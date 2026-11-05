@@ -1,13 +1,6 @@
 {
   "name": "luautils",
   "tree": {
-    "$path": "src",
-    "$className": "DataModel",
-
-    "ReplicatedStorage": {
-      "Luautils": {
-        "$path": "src/luautils"
-      }
-    }
+    "$path": "src/luautils"
   }
 }
