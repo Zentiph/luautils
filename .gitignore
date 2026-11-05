@@ -1,6 +1,9 @@
 # Local downloads
 .cache/
 
+# pesde dry-runs
+package.tar.gz
+
 # ROBLOX Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock

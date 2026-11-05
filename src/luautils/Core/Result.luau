@@ -1092,4 +1092,4 @@ function Result.toString<T, E>(self: Result<T, E>): string
 end
 Result.__tostring = Result.toString
 
-return Result
+return table.freeze(Result)

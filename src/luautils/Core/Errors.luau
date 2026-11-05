@@ -53,4 +53,4 @@ function Errors.errorWithScope(moduleName: string): (
     end
 end
 
-return Errors
+return table.freeze(Errors)

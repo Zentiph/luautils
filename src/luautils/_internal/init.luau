@@ -3,6 +3,6 @@
 -- internal exports
 -- by @vuppyan
 
-return {
+return table.freeze({
     repr = require("@self/repr"),
-}
+})
