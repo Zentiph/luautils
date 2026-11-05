@@ -55,6 +55,10 @@ local definitions = ensureDefinitions()
 -- script does not cover
 local STEPS: { Step } = {
     {
+        name = "version",
+        args = { "lute", "run", ".lute/version.luau" },
+    },
+    {
         name = "format",
         args = { "stylua", "--check", "src", "tests" },
     },
