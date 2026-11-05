@@ -255,8 +255,11 @@ end
 --- @param condition boolean -- The condition to check
 --- @param value T -- The value to wrap if `condition` is `true`
 --- @return Option<T> -- A "some" holding `value`, or "none"
---- @error "[Option.some()]: Value cannot be nil" -- Thrown if `condition` is `true` and `value` is `nil`
+--- @error "[Option.when()]: Value cannot be nil" -- Thrown if `condition` is `true` and `value` is `nil`
 function Option.when<T>(condition: boolean, value: T): Option<T>
+    if value == nil then
+        fail("Value cannot be nil")
+    end
     return if condition then Option.some(value) else Option.none()
 end
 
@@ -272,9 +275,16 @@ end
 --- @param condition boolean -- The condition to check
 --- @param supplier Supplier<T> -- The function to call if `condition` is `true`
 --- @return Option<T> -- The result of calling `supplier`, or "none"
---- @error "[Option.some()]: Value cannot be nil" -- Thrown if `condition` is `true` and `supplier` returns `nil`
+--- @error "[Option.whenThen()]: Supplier returned nil for a some value" -- Thrown if `condition` is `true` and `supplier` returns `nil`
 function Option.whenThen<T>(condition: boolean, supplier: Supplier<T>): Option<T>
-    return if condition then Option.some(supplier()) else Option.none()
+    if condition then
+        local supplied = supplier()
+        if supplied == nil then
+            fail("Supplier returned nil for a some value")
+        end
+        return Option.some(supplier())
+    end
+    return Option.none()
 end
 
 --- Maps an `Option<T>` to `Option<U>` by applying a function to a contained

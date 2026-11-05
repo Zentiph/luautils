@@ -57,7 +57,7 @@ end
 --- @return T -- The copied table
 --- @error "[Tables.deepCopy()]: Cannot copy a table with a locked metatable" -- Thrown if the table has a locked metatable (note that metatables locked by tables are not detected)
 return function<T>(tbl: T): T
-    return if type(tbl) ~= "table"
-        then tbl :: T
-        else Internal.deepCopyImpl(tbl, {}, 3) :: T
+    return (
+        if type(tbl) ~= "table" then tbl else Internal.deepCopyImpl(tbl, {}, 3)
+    ) :: T
 end
