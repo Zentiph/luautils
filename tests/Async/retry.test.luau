@@ -3,7 +3,7 @@
 -- retry tests
 -- by @vuppyan
 
--- `task` does not exist outside of Roblox, so every case that sets `delay`
+-- `task` does not exist outside of ROBLOX, so every case that sets `delay`
 -- must also pass a `sleep` so `task.wait` is never reached.
 
 local test = require("@std/test")

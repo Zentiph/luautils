@@ -100,7 +100,7 @@ export type Iterable<Self, C, V...> = {
     iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?),
 }
 
---[[ Roblox-compatible protocols ]]
+--[[ ROBLOX-compatible protocols ]]
 
 --- A type that can be disconnected (like `RBXScriptConnection`).
 export type Disconnectable = { Disconnect: (self: any) -> () }

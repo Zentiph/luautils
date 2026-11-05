@@ -1,4 +1,7 @@
-# Roblox Studio lock files
+# Local downloads
+.cache/
+
+# ROBLOX Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock
 

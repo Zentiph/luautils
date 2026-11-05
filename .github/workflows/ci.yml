@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    name: Format, lint, type check, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # installs every tool pinned in rokit.toml
+      - uses: CompeyDev/setup-rokit@v0.2.1
+
+      # generates the @std/@lute type definitions referenced by .luaurc
+      - name: Set up Lute
+        run: lute setup
+
+      - name: Run checks
+        run: .lute/ci.luau
+
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build Moonwave docs
+        run: npx --yes moonwave@latest build

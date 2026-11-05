@@ -9,6 +9,12 @@
 --- functional programming, inspired by the Rust standard library.
 local Luautils = {}
 
+--- The version of luautils, following semantic versioning.
+---
+--- @prop VERSION string
+--- @within Luautils
+Luautils.VERSION = "0.1.0"
+
 local Core = require("@self/Core")
 Luautils.Core = Core
 export type Option<T> = Core.Option<T>
@@ -73,4 +79,4 @@ Luautils.Events = Events
 local Roblox = require("@self/Roblox")
 Luautils.Roblox = Roblox
 
-return Luautils
+return table.freeze(Luautils)

@@ -18,6 +18,13 @@ local Errors = {}
 --- the caller that throws the thrower should be a table field if passing a
 --- custom level.
 ---
+--- ```lua
+--- local fail = Errors.errorWithScope("MyModule")
+--- function MyModule.thrower()
+---     fail("Whoops") -- errors with "[MyModule.thrower()]: Whoops"
+--- end
+--- ```
+---
 --- @param moduleName string -- The name of the module that threw the error
 --- @return (message: string, level: number?, functionName: string?): never -- The error thrower
 function Errors.errorWithScope(moduleName: string): (

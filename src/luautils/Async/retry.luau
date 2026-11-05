@@ -48,7 +48,7 @@ export type RetryOptions = {
 --- end, { attempts = 5 })
 --- ```
 ---
---- @param attempt types.Supplier<Result<T, E>> -- The function to call
+--- @param attempt Supplier<Result<T, E>> -- The function to call
 --- @param options RetryOptions -- The retry options
 --- @return Result<T, E> -- The result of `attempt`
 return function<T, E>(
