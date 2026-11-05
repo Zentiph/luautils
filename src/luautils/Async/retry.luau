@@ -6,8 +6,8 @@
 local Core = require("../Core")
 type Result<T, E> = Core.Result<T, E>
 
-local types = require("../Core/types")
-type Supplier<T> = types.Supplier<T>
+local typing = require("../Core/typing")
+type Supplier<T> = typing.Supplier<T>
 
 local fail = Core.Errors.errorWithScope("retry")
 

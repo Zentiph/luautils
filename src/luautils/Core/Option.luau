@@ -3,15 +3,15 @@
 -- Option type
 -- by @vuppyan
 
-local types = require("./types")
-type Action = types.Action
-type Array<T> = types.Array<T>
-type BiMapper<T, U, R> = types.BiMapper<T, U, R>
-type Consumer<T> = types.Consumer<T>
-type Map<K, V> = types.Map<K, V>
-type Mapper<T, U> = types.Mapper<T, U>
-type Predicate<T> = types.Predicate<T>
-type Supplier<T> = types.Supplier<T>
+local typing = require("./typing")
+type Action = typing.Action
+type Array<T> = typing.Array<T>
+type BiMapper<T, U, R> = typing.BiMapper<T, U, R>
+type Consumer<T> = typing.Consumer<T>
+type Map<K, V> = typing.Map<K, V>
+type Mapper<T, U> = typing.Mapper<T, U>
+type Predicate<T> = typing.Predicate<T>
+type Supplier<T> = typing.Supplier<T>
 
 local repr = require("../_internal").repr
 local fail = require("./Errors").errorWithScope("Option")

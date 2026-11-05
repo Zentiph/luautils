@@ -6,15 +6,15 @@
 local Option = require("./Option")
 type Option<T> = Option.Option<T>
 
-local types = require("./types")
-type Consumer<T> = types.Consumer<T>
-type Factory<T, A...> = types.Factory<T, A...>
-type Map<K, V> = types.Map<K, V>
-type Mapper<T, U> = types.Mapper<T, U>
-type PackedTable = types.PackedTable
-type Predicate<T> = types.Predicate<T>
-type Supplier<T> = types.Supplier<T>
-type TupleFactory<T..., A...> = types.TupleFactory<T..., A...>
+local typing = require("./typing")
+type Consumer<T> = typing.Consumer<T>
+type Factory<T, A...> = typing.Factory<T, A...>
+type Map<K, V> = typing.Map<K, V>
+type Mapper<T, U> = typing.Mapper<T, U>
+type PackedTable = typing.PackedTable
+type Predicate<T> = typing.Predicate<T>
+type Supplier<T> = typing.Supplier<T>
+type TupleFactory<T..., A...> = typing.TupleFactory<T..., A...>
 
 local repr = require("../_internal").repr
 local fail = require("./Errors").errorWithScope("Result")
