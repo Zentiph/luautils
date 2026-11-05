@@ -7,6 +7,7 @@
     A module of error handling utilities.
 
     @class Errors
+    @since v0.1.0
 ]=]
 local Errors = {}
 
@@ -30,6 +31,7 @@ local Errors = {}
     end
     ```
 
+    @since v0.1.0
     @param moduleName string -- The name of the module that threw the error
     @return (message: string, level: number?, functionName: string?): never -- The error thrower
 ]=]

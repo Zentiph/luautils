@@ -31,6 +31,7 @@ local fail = require("./Errors").errorWithScope("Option")
     as-is and are not prefixed.
 
     @class Option
+    @since v0.1.0
 ]=]
 local Option = {}
 Option.__index = Option
@@ -51,6 +52,7 @@ local NONE = new(nil)
 --[=[
     Creates a new "some" `Option` with the specified value.
 
+    @since v0.1.0
     @param value T -- The value to wrap
     @return Option<T> -- The new `Option`
     @error "[Option.some()]: Value cannot be nil (use Option.fromNillable() for nillable values)" -- Thrown if `value` is `nil`; use [Option.fromNillable] for nillable values
@@ -71,6 +73,7 @@ end
     This returns a singleton instance, meaning creating more "none" `Option`s
     does not allocate more memory.
 
+    @since v0.1.0
     @return Option<T> -- The "none" `Option`
 ]=]
 function Option.none<T>(): Option<T>
@@ -88,6 +91,7 @@ end
     Option.fromNillable(nil) -- None
     ```
 
+    @since v0.1.0
     @param value T? -- The value to wrap
     @return Option<T> -- The new `Option`
 ]=]
@@ -104,6 +108,7 @@ end
 
     @method toNillable
     @within Option
+    @since v0.1.0
     @return T? -- The contained value, or `nil`
 ]=]
 function Option.toNillable<T>(self: Option<T>): T?
@@ -115,6 +120,7 @@ end
 
     @method isSome
     @within Option
+    @since v0.1.0
     @return boolean -- Whether the `Option` is "some"
 ]=]
 function Option.isSome<T>(self: Option<T>): boolean
@@ -129,6 +135,7 @@ end
 
     @method isSomeAnd
     @within Option
+    @since v0.1.0
     @param predicate Predicate<T> -- The predicate to check the value against
     @return boolean -- Whether the `Option` is "some" and the value matches the predicate
 ]=]
@@ -141,6 +148,7 @@ end
 
     @method isNone
     @within Option
+    @since v0.1.0
     @return boolean -- Whether the `Option` is "none"
 ]=]
 function Option.isNone<T>(self: Option<T>): boolean
@@ -155,6 +163,7 @@ end
 
     @method isNoneOr
     @within Option
+    @since v0.1.0
     @param predicate Predicate<T> -- The predicate to check the value against
     @return boolean -- Whether the `Option` is "none" or the value matches the predicate
 ]=]
@@ -168,6 +177,7 @@ end
 
     @method expect
     @within Option
+    @since v0.1.0
     @param message string -- The error message
     @return T -- The contained value
     @error "[Option.expect()]: {message}" -- Thrown if the `Option` is "none"
@@ -184,6 +194,7 @@ end
 
     @method unwrap
     @within Option
+    @since v0.1.0
     @return T -- The contained value
     @error '[Option.unwrap()]: Attempted to unwrap an Option that was "none"' -- Thrown if the `Option` is "none"
 ]=]
@@ -202,6 +213,7 @@ end
 
     @method unwrapOr
     @within Option
+    @since v0.1.0
     @param default T -- The default value to return if the `Option` is "none"
     @return T -- The contained value, or the provided default
 ]=]
@@ -216,6 +228,7 @@ end
 
     @method unwrapOrElse
     @within Option
+    @since v0.1.0
     @param supplier Supplier<T> -- The function to call if the `Option` is "none"
     @return T -- The contained value, or the computed value
 ]=]
@@ -239,6 +252,7 @@ end
 
     @method unwrapOrThrow
     @within Option
+    @since v0.1.0
     @param errorSupplier Supplier<any> -- The function that supplies the error
     @return T -- The contained value
     @error any -- Thrown if the `Option` is "none"
@@ -260,6 +274,7 @@ end
 
     @method contains
     @within Option
+    @since v0.1.0
     @param value T -- The value to compare against
     @return boolean -- Whether the `Option` holds `value`
 ]=]
@@ -279,6 +294,7 @@ end
     Option.when(false, 1) -- None
     ```
 
+    @since v0.1.0
     @param condition boolean -- The condition to check
     @param value T -- The value to wrap if `condition` is `true`
     @return Option<T> -- A "some" holding `value`, or "none"
@@ -301,6 +317,7 @@ end
     Option.whenThen(false, createValue) -- None; `createValue` is never called
     ```
 
+    @since v0.1.0
     @param condition boolean -- The condition to check
     @param supplier Supplier<T> -- The function to call if `condition` is `true`
     @return Option<T> -- The result of calling `supplier`, or "none"
@@ -334,6 +351,7 @@ end
 
     @method map
     @within Option
+    @since v0.1.0
     @param mapper Mapper<T, U?> -- The function to apply to the contained value
     @return Option<U> -- The mapped `Option`
 ]=]
@@ -360,6 +378,7 @@ end
 
     @method mapOr
     @within Option
+    @since v0.1.0
     @param default U -- The default value to return if the `Option` is "none"
     @param mapper Mapper<T, U> -- The function to apply to the contained value
     @return U -- The provided default value, or the mapped value
@@ -385,6 +404,7 @@ end
 
     @method mapOrElse
     @within Option
+    @since v0.1.0
     @param supplier Supplier<U> -- The function to call if the `Option` is "none"
     @param mapper Mapper<T, U> -- The function to apply to the contained value
     @return U -- The computed default value, or the mapped value
@@ -404,6 +424,7 @@ end
 
     @method inspect
     @within Option
+    @since v0.1.0
     @param consumer Consumer<T> -- The function to call with the contained value
     @return Option<T> -- The original `Option`
 ]=]
@@ -428,6 +449,7 @@ end
 
     @method andOption
     @within Option
+    @since v0.1.0
     @param other Option<U> -- The `Option` to return if the `Option` is "some"
     @return Option<U> -- `other`, or "none"
 ]=]
@@ -452,6 +474,7 @@ end
 
     @method andThen
     @within Option
+    @since v0.1.0
     @param mapper Mapper<T, Option<U>> -- The function to call if the `Option` is "some"
     @return Option<U> -- The `Option` returned by `mapper`, or "none"
 ]=]
@@ -478,6 +501,7 @@ end
 
     @method filter
     @within Option
+    @since v0.1.0
     @param predicate Predicate<T> -- The predicate to check the value against
     @return Option<T> -- The original `Option`, or "none"
 ]=]
@@ -500,6 +524,7 @@ end
 
     @method orOption
     @within Option
+    @since v0.1.0
     @param other Option<T> -- The `Option` to return if the `Option` is "none"
     @return Option<T> -- `other`, or the original "some" `Option`
 ]=]
@@ -512,6 +537,7 @@ end
 
     @method orElse
     @within Option
+    @since v0.1.0
     @param supplier Supplier<Option<T>> -- The function to call if the `Option` is "none"
     @return Option<T> -- The `Option` returned by `supplier`, or the original "some" `Option`
 ]=]
@@ -531,6 +557,7 @@ end
 
     @method match
     @within Option
+    @since v0.1.0
     @param ifSome Consumer<T> -- The function to call with the contained value
     @param ifNone Action -- The function to call if the `Option` is "none"
 ]=]
@@ -555,6 +582,7 @@ end
 
     @method xor
     @within Option
+    @since v0.1.0
     @param other Option<T> -- The `Option` to compare with the current `Option`
     @return Option<T> -- The single "some" `Option`, or "none"
 ]=]
@@ -583,6 +611,7 @@ end
 
     @method zip
     @within Option
+    @since v0.1.0
     @param other Option<U> -- The `Option` to combine with the current `Option`
     @param biMapper BiMapper<T, U, R?> -- The function to call with both contained values
     @return Option<R> -- The result of calling `biMapper`, or "none"
@@ -615,6 +644,7 @@ end
 
     @method reduce
     @within Option
+    @since v0.1.0
     @param other Option<T> -- The `Option` to reduce with the current `Option`
     @param reducer BiMapper<T, T, T?> -- The function to call with both contained values
     @return Option<T> -- The reduced `Option`
@@ -642,6 +672,7 @@ end
 
     @method flatten
     @within Option
+    @since v0.1.0
     @return Option<T> -- The flattened `Option`
     @error "[Option.flatten()]: Called flatten on an Option that does not contain an Option" -- Thrown if the `Option` is "some" and does not hold an `Option`
 ]=]
@@ -668,6 +699,7 @@ end
     Option.all({ Option.some(1), Option.none() }) -- None
     ```
 
+    @since v0.1.0
     @param options Map<K, Option<T>> -- The table of `Option`s
     @return Option<Map<K, T>> -- The converted `Option`
     @error "[Option.all()]: Called all on a table containing a non-Option value" -- Thrown if a non-`Option` value is found before any "none"
@@ -698,6 +730,7 @@ end
     Option.firstSome({ Option.none() }) -- None
     ```
 
+    @since v0.1.0
     @param options Array<Option<T>> -- The array of `Option`s
     @return Option<T> -- The first "some" `Option`, or "none"
     @error "[Option.firstSome()]: Called firstSome on a table containing a non-Option value" -- Thrown if a non-`Option` value is found before any "some"
@@ -724,6 +757,7 @@ end
     Option.somes({ Option.some(1), Option.none(), Option.some(3) }) -- { 1, 3 }
     ```
 
+    @since v0.1.0
     @param options Array<Option<T>> -- The array of `Option`s
     @return Array<T> -- The contained values
     @error "[Option.somes()]: Called somes on a table containing a non-Option value" -- Thrown if any value is not an `Option`
@@ -747,6 +781,7 @@ end
 
     @method toArray
     @within Option
+    @since v0.1.0
     @return Array<T> -- The contained value as an array
 ]=]
 function Option.toArray<T>(self: Option<T>): Array<T>
@@ -756,6 +791,7 @@ end
 --[=[
     Returns whether the given value is an `Option`.
 
+    @since v0.1.0
     @param value any -- The value to check
     @return boolean -- Whether the value is an `Option`
 ]=]
@@ -781,6 +817,7 @@ end
 
     @method equals
     @within Option
+    @since v0.1.0
     @param other Option<T> -- The `Option` to compare with the current `Option`
     @return boolean -- Whether the two `Option`s are equal
 ]=]
@@ -803,6 +840,7 @@ Option.__eq = Option.equals
 
     @method toString
     @within Option
+    @since v0.1.0
     @return string -- A string representation of the `Option`
 ]=]
 function Option.toString<T>(self: Option<T>): string

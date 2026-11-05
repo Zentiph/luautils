@@ -250,6 +250,11 @@ Callers can still use colon syntax: `value:method()`.
 * Public functions have Moonwave doc comments with `@param`, `@return`, and
   `@error` tags.
   Methods also need `@method` and `@within` due to the dot notation convention.
+* Every public doc comment (classes, functions, methods, types, interfaces, and
+  properties) has an `@since` tag with the version it was added in, such as
+  `@since v0.1.0`.
+  Place it after the `@class`/`@method`/`@within`/`@type` tags and before
+  `@field`/`@param`/`@return`/`@error`.
 * Include a short `lua` example block when the behavior isn't obvious from the
   signature.
 * Note when an argument is evaluated eagerly (for example "`default` is

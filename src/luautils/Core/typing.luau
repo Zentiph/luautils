@@ -11,6 +11,7 @@
     `Luautils`, so use them as `Luautils.Supplier<T>` or `Core.Map<K, V>`, etc.
 
     @class typing
+    @since v0.1.0
 ]=]
 
 --[[ Function shapes ]]
@@ -20,6 +21,7 @@
 
     @type Action () -> ()
     @within typing
+    @since v0.1.0
 ]=]
 export type Action = () -> ()
 
@@ -28,6 +30,7 @@ export type Action = () -> ()
 
     @type Callback (A...) -> ()
     @within typing
+    @since v0.1.0
 ]=]
 export type Callback<A...> = (A...) -> ()
 
@@ -36,6 +39,7 @@ export type Callback<A...> = (A...) -> ()
 
     @type Supplier () -> T
     @within typing
+    @since v0.1.0
 ]=]
 export type Supplier<T> = () -> T
 
@@ -44,6 +48,7 @@ export type Supplier<T> = () -> T
 
     @type Factory (A...) -> T
     @within typing
+    @since v0.1.0
 ]=]
 export type Factory<T, A...> = (A...) -> T
 
@@ -52,6 +57,7 @@ export type Factory<T, A...> = (A...) -> T
 
     @type TupleFactory (A...) -> T...
     @within typing
+    @since v0.1.0
 ]=]
 export type TupleFactory<T..., A...> = (A...) -> T...
 
@@ -60,6 +66,7 @@ export type TupleFactory<T..., A...> = (A...) -> T...
 
     @type Consumer (value: T) -> ()
     @within typing
+    @since v0.1.0
 ]=]
 export type Consumer<T> = (value: T) -> ()
 
@@ -68,6 +75,7 @@ export type Consumer<T> = (value: T) -> ()
 
     @type BiConsumer (a: T, b: U) -> ()
     @within typing
+    @since v0.1.0
 ]=]
 export type BiConsumer<T, U> = (a: T, b: U) -> ()
 
@@ -76,6 +84,7 @@ export type BiConsumer<T, U> = (a: T, b: U) -> ()
 
     @type Predicate (value: T) -> boolean
     @within typing
+    @since v0.1.0
 ]=]
 export type Predicate<T> = (value: T) -> boolean
 
@@ -84,6 +93,7 @@ export type Predicate<T> = (value: T) -> boolean
 
     @type BiPredicate (a: T, b: U) -> boolean
     @within typing
+    @since v0.1.0
 ]=]
 export type BiPredicate<T, U> = (a: T, b: U) -> boolean
 
@@ -92,6 +102,7 @@ export type BiPredicate<T, U> = (a: T, b: U) -> boolean
 
     @type Mapper (value: T) -> U
     @within typing
+    @since v0.1.0
 ]=]
 export type Mapper<T, U> = (value: T) -> U
 
@@ -100,6 +111,7 @@ export type Mapper<T, U> = (value: T) -> U
 
     @type BiMapper (a: T, b: U) -> R
     @within typing
+    @since v0.1.0
 ]=]
 export type BiMapper<T, U, R> = (a: T, b: U) -> R
 
@@ -108,6 +120,7 @@ export type BiMapper<T, U, R> = (a: T, b: U) -> R
 
     @type UnaryOperator (value: T) -> T
     @within typing
+    @since v0.1.0
 ]=]
 export type UnaryOperator<T> = (value: T) -> T
 
@@ -116,6 +129,7 @@ export type UnaryOperator<T> = (value: T) -> T
 
     @type BinaryOperator (a: T, b: T) -> T
     @within typing
+    @since v0.1.0
 ]=]
 export type BinaryOperator<T> = (a: T, b: T) -> T
 
@@ -124,6 +138,7 @@ export type BinaryOperator<T> = (a: T, b: T) -> T
 
     @type Reducer (accumulator: A, value: T) -> A
     @within typing
+    @since v0.1.0
 ]=]
 export type Reducer<T, A> = (accumulator: A, value: T) -> A
 
@@ -135,6 +150,7 @@ export type Reducer<T, A> = (accumulator: A, value: T) -> A
 
     @type Comparator (a: T, b: T) -> number
     @within typing
+    @since v0.1.0
 ]=]
 export type Comparator<T> = (a: T, b: T) -> number
 
@@ -145,6 +161,7 @@ export type Comparator<T> = (a: T, b: T) -> number
 
     @type Array { T }
     @within typing
+    @since v0.1.0
 ]=]
 export type Array<T> = { T }
 
@@ -153,6 +170,7 @@ export type Array<T> = { T }
 
     @type Map { [K]: V }
     @within typing
+    @since v0.1.0
 ]=]
 export type Map<K, V> = { [K]: V }
 
@@ -161,6 +179,7 @@ export type Map<K, V> = { [K]: V }
 
     @type Set { [T]: true }
     @within typing
+    @since v0.1.0
 ]=]
 export type Set<T> = { [T]: true }
 
@@ -169,6 +188,7 @@ export type Set<T> = { [T]: true }
 
     @type PackedTable { n: number, [number]: any }
     @within typing
+    @since v0.1.0
 ]=]
 export type PackedTable = { n: number, [number]: any }
 
@@ -181,6 +201,7 @@ export type PackedTable = { n: number, [number]: any }
 
     @type Generator () -> T?
     @within typing
+    @since v0.1.0
 ]=]
 export type Generator<T> = () -> T?
 
@@ -191,6 +212,7 @@ export type Generator<T> = () -> T?
 
     @type Iterator (state: S, control: C?) -> (C?, V...)
     @within typing
+    @since v0.1.0
 ]=]
 export type Iterator<S, C, V...> = (state: S, control: C?) -> (C?, V...)
 
@@ -201,6 +223,7 @@ export type Iterator<S, C, V...> = (state: S, control: C?) -> (C?, V...)
 
     @type Equatable { equals: (self: Self, other: Self) -> boolean }
     @within typing
+    @since v0.1.0
 ]=]
 export type Equatable<Self> = { equals: (self: Self, other: Self) -> boolean }
 
@@ -212,6 +235,7 @@ export type Equatable<Self> = { equals: (self: Self, other: Self) -> boolean }
 
     @type Comparable { compareTo: (self: Self, other: Self) -> number }
     @within typing
+    @since v0.1.0
 ]=]
 export type Comparable<Self> =
     { compareTo: (self: Self, other: Self) -> number }
@@ -221,6 +245,7 @@ export type Comparable<Self> =
 
     @type Stringable { toString: (self: Self) -> string }
     @within typing
+    @since v0.1.0
 ]=]
 export type Stringable<Self> = { toString: (self: Self) -> string }
 
@@ -230,6 +255,7 @@ export type Stringable<Self> = { toString: (self: Self) -> string }
 
     @type Keyable { toKey: (self: Self) -> string }
     @within typing
+    @since v0.1.0
 ]=]
 export type Keyable<Self> = { toKey: (self: Self) -> string }
 
@@ -238,6 +264,7 @@ export type Keyable<Self> = { toKey: (self: Self) -> string }
 
     @type Cloneable { clone: (self: Self) -> Self }
     @within typing
+    @since v0.1.0
 ]=]
 export type Cloneable<Self> = { clone: (self: Self) -> Self }
 
@@ -246,6 +273,7 @@ export type Cloneable<Self> = { clone: (self: Self) -> Self }
 
     @type Serializable { serialize: (self: Self) -> D }
     @within typing
+    @since v0.1.0
 ]=]
 export type Serializable<Self, D> = { serialize: (self: Self) -> D }
 
@@ -254,6 +282,7 @@ export type Serializable<Self, D> = { serialize: (self: Self) -> D }
 
     @type Deserializable { deserialize: (data: D) -> Self }
     @within typing
+    @since v0.1.0
 ]=]
 export type Deserializable<Self, D> = { deserialize: (data: D) -> Self }
 
@@ -262,6 +291,7 @@ export type Deserializable<Self, D> = { deserialize: (data: D) -> Self }
 
     @type Iterable { iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?) }
     @within typing
+    @since v0.1.0
 ]=]
 export type Iterable<Self, C, V...> = {
     iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?),
@@ -274,6 +304,7 @@ export type Iterable<Self, C, V...> = {
 
     @type Disconnectable { Disconnect: (self: any) -> () }
     @within typing
+    @since v0.1.0
 ]=]
 export type Disconnectable = { Disconnect: (self: any) -> () }
 
@@ -282,6 +313,7 @@ export type Disconnectable = { Disconnect: (self: any) -> () }
 
     @type Destroyable { Destroy: (self: any) -> () }
     @within typing
+    @since v0.1.0
 ]=]
 export type Destroyable = { Destroy: (self: any) -> () }
 

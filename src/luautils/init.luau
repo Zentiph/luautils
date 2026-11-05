@@ -9,6 +9,7 @@
     Luautils strives to act as an extension of Luau's standard library.
 
     @class Luautils
+    @since v0.1.0
 ]=]
 local Luautils = {}
 
@@ -18,6 +19,7 @@ local Luautils = {}
     @prop VERSION string
     @within Luautils
     @readonly
+    @since v0.1.0
 ]=]
 Luautils.VERSION = "0.1.2"
 
