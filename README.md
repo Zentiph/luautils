@@ -65,7 +65,11 @@ lute run .lute/ci.luau
 
 ## Documentation
 
-API documentation is written as Moonwave doc comments in the source.
+The API documentation is hosted on GitHub Pages at
+<https://zentiph.github.io/luautils/>, and is rebuilt from `master` on every
+push that passes CI.
+
+It is written as Moonwave doc comments in the source.
 To preview it locally:
 
 ```bash

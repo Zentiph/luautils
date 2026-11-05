@@ -5,6 +5,9 @@ on:
     branches: [master]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   check:
     name: Format, lint, type check, test
@@ -20,15 +23,45 @@ jobs:
         run: lute setup
 
       - name: Run checks
-        run: .lute/ci.luau
+        run: lute run .lute/ci.luau
 
   docs:
     name: Build docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Build Moonwave docs
         run: npx --yes moonwave@latest build
+
+      # only keep the built site if it will be deployed
+      - name: Upload site
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+
+  deploy-docs:
+    name: Deploy docs
+    # only deploy from master, and only once every check has passed
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [check, docs]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # never cancel a deployment halfway; queue the next one instead
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
