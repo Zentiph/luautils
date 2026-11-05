@@ -43,7 +43,7 @@ classes = ["Tables"]
 
 [[classOrder]]
 section = "Time"
-classes = ["Time", "Duration"]
+classes = ["Time", "Duration", "Stopwatch"]
 
 [[classOrder]]
 section = "Validation"
