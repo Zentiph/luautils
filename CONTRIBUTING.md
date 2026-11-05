@@ -23,6 +23,15 @@ The first run of `lute run .lute/ci.luau` downloads ROBLOX's type definitions
 ## Development commands
 
 ```bash
+# pull the latest changes without leaving stray merge commits
+# master only changes through pull requests, so local master should only
+# fast-forward
+git pull --ff-only
+# or set it once in your config
+git config pull.ff only
+```
+
+```bash
 # run every CI check
 lute run .lute/ci.luau
 ```
@@ -92,6 +101,7 @@ The script runs these steps in order and reports every failure at the end:
 
 | Step              | Command                                                 |
 | ----------------- | ------------------------------------------------------- |
+| version           | `lute run .lute/version.luau`                           |
 | format            | `stylua --check src tests`                              |
 | lint              | `selene src`                                            |
 | sourcemap         | `rojo sourcemap default.project.json -o sourcemap.json` |
@@ -155,6 +165,13 @@ _internal <- Core <- Time, Tables, Strings, ... <- Events <- Roblox
 Everything outside `Events/` and `Roblox/` is pure Luau and must run under Lute.
 If a pure module needs a Roblox global, make it injectable (like `retry`'s
 `sleep` option) and only fall back to the global at call time.
+
+`Events/` and `Roblox/` may use ROBLOX globals, but only inside functions,
+never when the module is required.
+The root `init.luau` requires every sublibrary, so this keeps the whole library
+loadable outside ROBLOX (which the pesde package relies on).
+`tests/Luautils.test.luau` enforces this by requiring the root module under
+Lute.
 
 ## Conventions
 
@@ -240,7 +257,27 @@ Callers can still use colon syntax: `value:method()`.
   `Helpers.eqByStr` or `==`, not `asserts.eq`, which compares tables
   structurally and ignores `__eq`.
 * Tests require submodules directly, never the root `init.luau`.
+  The exception is `tests/Luautils.test.luau`, which checks that the root module
+  loads outside ROBLOX.
 * Test error messages by their full `[Scope.function()]: ` prefix.
+
+## Package registries
+
+This library is published to both Wally and pesde:
+
+| Registry | Manifest     | Target                    | For                          |
+| -------- | ------------ | ------------------------- | ---------------------------- |
+| Wally    | `wally.toml` | ROBLOX (`realm = shared`) | ROBLOX projects              |
+| pesde    | `pesde.toml` | `luau` environment only   | Lute and other Luau runtimes |
+
+pesde is not published with a `roblox` target.
+Wally is the standard for ROBLOX projects, and a second pesde target would need
+a separate publish for every version.
+
+Both packages ship the whole library, including `Events/` and `Roblox/` (see
+Dependency direction).
+`default.project.json` is Wally's entry point, and pesde's `includes` leaves it
+out, since pesde rejects packages that contain it.
 
 ## Releasing
 
@@ -249,29 +286,59 @@ While the library is below `1.0.0`, breaking changes bump the minor version
 (`0.1.0` to `0.2.0`), and everything else bumps the patch version (`0.1.0` to
 `0.1.1`).
 
-1. Make sure CI passes on `master`.
-2. Bump `VERSION` in `src/luautils/init.luau` to the new version.
-3. In [CHANGELOG.md](CHANGELOG.md), rename the `Unreleased` section to the new
-   version and today's date (for example `## [0.2.0] - 2026-11-05`), then add a
-   new, empty `Unreleased` section above it.
-4. Commit the changes:
+`master` only changes through pull requests, and a version tag can only be
+pushed once its commit has been deployed to GitHub Pages (the "Deploy docs" CI
+job, which runs after a pull request is merged).
+
+In the steps below, replace `X.Y.Z` with the new version and `YYYY-MM-DD` with
+today's date.
+
+1. Create a release branch from an up-to-date `master`:
 
 ```bash
-git commit -am "Release v0.2.0"
+git switch master
+git pull --ff-only
+git switch -c release/vX.Y.Z
 ```
 
-5. Tag the commit and push it along with the tag:
+2. Bump the version in `src/luautils/init.luau` (`VERSION`), `wally.toml`, and
+   `pesde.toml`, then add a `## [vX.Y.Z] - YYYY-MM-DD` section to the top of
+   [CHANGELOG.md](CHANGELOG.md).
+   The `version` CI step fails if these differ.
+3. Commit, push the branch, and open a pull request:
 
 ```bash
-git tag v0.2.0
-git push origin master --tags
+git commit -am "Release vX.Y.Z"
+git push -u origin release/vX.Y.Z
+gh pr create --title "Release vX.Y.Z" --fill
 ```
 
-6. Optionally, create a GitHub release from the tag, using the changelog section
-   as the release notes:
+4. Merge the pull request once CI passes, and wait for "Deploy docs" to finish
+   on `master` (`gh run watch`).
+5. Tag the merged commit and push only the tag:
 
 ```bash
-gh release create v0.2.0 --title v0.2.0 --notes "<changelog section>"
+git switch master
+git pull --ff-only
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-The version in `VERSION`, the changelog heading, and the tag must all match.
+6. Publish from the tagged commit (the first time, log in with `wally login`
+   and `pesde auth login`):
+
+```bash
+wally publish
+
+# check the tarball first
+pesde publish --dry-run
+pesde publish
+```
+
+7. Create the GitHub release, using the changelog section as the notes:
+
+```bash
+gh release create vX.Y.Z --title vX.Y.Z --notes "<changelog section>"
+```
+
+The tag must match the version in the files above.
