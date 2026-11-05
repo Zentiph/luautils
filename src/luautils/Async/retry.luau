@@ -9,7 +9,7 @@ type Result<T, E> = Core.Result<T, E>
 local typing = require("../Core/typing")
 type Supplier<T> = typing.Supplier<T>
 
-local fail = Core.Errors.errorWithScope("retry")
+local fail = Core.Errors.errorWithScope("Async")
 
 --- Options for `retry`.
 ---
@@ -57,7 +57,7 @@ return function<T, E>(
 ): Result<T, E>
     local attempts = options.attempts
     if attempts < 1 or attempts % 1 ~= 0 then
-        fail("attempts must be a positive integer", nil, "retry")
+        fail("Attempts must be a positive integer", nil, "retry")
     end
 
     local result = attempt()
