@@ -5,7 +5,7 @@
 *
 -->
 
-## [v0.1.1] - 202X-XX-XX
+## [v0.1.1] - 2026-11-05
 * Published to Wally and pesde
 * Made all tables returned from modules frozen to enforce read-only properties
 * Documentation fixes
