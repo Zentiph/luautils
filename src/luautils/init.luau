@@ -3,17 +3,21 @@
 -- Luautils central imports
 -- by @vuppyan
 
---- Luautils: A Luau utilities library
----
---- Luautils strives to act as an extension of Luau's standard library.
----
---- @class Luautils
+--[=[
+    Luautils: A Luau utilities library
+
+    Luautils strives to act as an extension of Luau's standard library.
+
+    @class Luautils
+]=]
 local Luautils = {}
 
---- The version of luautils, following semantic versioning.
----
---- @prop VERSION string
---- @within Luautils
+--[=[
+    The version of luautils, following semantic versioning.
+
+    @prop VERSION string
+    @within Luautils
+]=]
 Luautils.VERSION = "0.1.0"
 
 local Core = require("@self/Core")

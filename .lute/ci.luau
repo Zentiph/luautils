@@ -51,7 +51,8 @@ end
 local definitions = ensureDefinitions()
 
 -- Keep this list in sync with the CI section of CONTRIBUTING.md
--- CI runs exactly this script, so a local pass means a CI pass
+-- CI runs this script, plus a separate docs job (moonwave build) that this
+-- script does not cover
 local STEPS: { Step } = {
     {
         name = "format",

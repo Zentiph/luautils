@@ -36,7 +36,7 @@ lute test tests/Core/Result.test.luau
 ```
 
 ```bash
-# check formatting, then fit it
+# check formatting, then fix it
 stylua --check src tests
 stylua src tests
 ```
@@ -84,7 +84,9 @@ rojo serve dev.project.json
 Every push to `master` and every pull request runs the checks in
 `.github/workflows/ci.yml`.
 The workflow installs the tools pinned in `rokit.toml` and runs `.lute/ci.luau`,
-the same script you run locally, so a local pass means a CI pass.
+the same script you run locally. A separate job also builds the docs, which the
+script does not do, so run `moonwave build` too if you changed any doc comments
+or the README.
 
 The script runs these steps in order and reports every failure at the end:
 
@@ -104,7 +106,8 @@ module they require, which would fail on those ROBLOX globals, so
 `--ignore="src/**"` hides `src` diagnostics there; `src` is already checked
 in the step before.
 
-A separate job builds the Moonwave docs, so broken doc comments fail CI too.
+The separate docs job runs `moonwave build`, so broken doc comments or README
+links fail CI too, even when the script passes.
 
 If you add or change a check, update `.lute/ci.luau` and the table above
 together.
@@ -231,7 +234,7 @@ Callers can still use colon syntax: `value:method()`.
 
 * Tests mirror `src/`: `src/luautils/Core/Option.luau` is tested by
   `tests/Core/Option.test.luau`.
-* Use the helpers in `test/Helpers.luau`, such as `eqByStr`, `throwsWith`, and
+* Use the helpers in `tests/Helpers.luau`, such as `eqByStr`, `throwsWith`, and
   `spy`.
 * Compare tables like `Option`s, `Result`s, and `Duration`s with
   `Helpers.eqByStr` or `==`, not `asserts.eq`, which compares tables

@@ -4,7 +4,7 @@ A Luau utilities library written for a wide variety of general use cases.
 Luautils strives to act as an extension of Luau's standard library.
 
 This library is heavily inspired by standard libraries of other languages such
-as Rust and Java
+as Rust and Java.
 
 ## Contents
 
@@ -54,7 +54,7 @@ local Option = Luautils.Core.Option
 ### Verifying your copy
 
 The tools used by this project are pinned in `rokit.toml`.
-To install them ans run every check (formatting, linting, type checking, and
+To install them and run every check (formatting, linting, type checking, and
 tests), run the following from the repository root:
 
 ```bash

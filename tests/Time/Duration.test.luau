@@ -747,6 +747,25 @@ test.suite("times()", function(suite)
     end)
 
     suite:case(
+        "times() is exact for integer scalars past 2^53",
+        function(asserts)
+            -- 999_999_999 * (2^53 + 2) nanoseconds
+            assertParts(
+                asserts,
+                Duration.new(0, 999_999_999):times(2 ^ 53 + 2),
+                9_007_199_245_733_794,
+                745_259_006
+            )
+            assertParts(
+                asserts,
+                Duration.new(-1, 1):times(2 ^ 53 + 2),
+                -9_007_199_245_733_795,
+                254_740_994
+            )
+        end
+    )
+
+    suite:case(
         "times() rounds fractional products to the nearest nanosecond",
         function(asserts)
             Helpers.eqByStr(asserts, millis(1_500), Duration.SECOND:times(1.5))
@@ -814,6 +833,25 @@ test.suite("times()", function(suite)
 end)
 
 test.suite("dividedBy()", function(suite)
+    suite:case(
+        "dividedBy() is exact for integer scalars past 2^53",
+        function(asserts)
+            -- (2^53 - 1) s + 999_999_999 ns divided by 2^53 + 2, rounded
+            assertParts(
+                asserts,
+                Duration.new(2 ^ 53 - 1, 999_999_999):dividedBy(2 ^ 53 + 2),
+                1,
+                0
+            )
+            assertParts(
+                asserts,
+                Duration.new(123_456_789_012, 987_654_321):dividedBy(2 ^ 61),
+                0,
+                54
+            )
+        end
+    )
+
     suite:case("dividedBy() divides by integers", function(asserts)
         Helpers.eqByStr(asserts, millis(500), Duration.SECOND:dividedBy(2))
         Helpers.eqByStr(asserts, millis(-500), Duration.SECOND:dividedBy(-2))
