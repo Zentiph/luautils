@@ -6,7 +6,7 @@
 -->
 
 ## [v0.1.1] - 202X-XX-XX
-* Published to Wally
+* Published to Wally and pesde
 * Made all tables returned from modules frozen to enforce read-only properties
 * Documentation fixes
   * Marked `Luautils.VERSION` as read-only

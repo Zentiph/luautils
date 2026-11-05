@@ -1,0 +1,20 @@
+name = "zentiph/luautils"
+version = "0.1.1"
+description = "A Luau utilities library; an extension of Luau's standard library"
+authors = ["vuppyan"]
+repository = "https://github.com/Zentiph/luautils"
+license = "MIT"
+includes = [
+    "pesde.toml",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "src/**/*.luau",
+]
+
+[target]
+environment = "luau"
+lib = "src/luautils/init.luau"
+
+[indices]
+default = "https://github.com/pesde-pkg/index"
