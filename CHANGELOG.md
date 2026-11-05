@@ -4,10 +4,13 @@
 * CI
   * `.lute/version.luau` takes an optional expected version, checked before
     tagging a release
+  * Added a CI check for branch names on pull requests
+  * Added automatic pull request labels based on the branch name
 * Documentation
   * Documented feature branches and the `Unreleased` changelog section in
     CONTRIBUTING
   * Added merge and version-check commands to the release steps in CONTRIBUTING
+  * Documented the allowed branch name prefixes in CONTRIBUTING
 
 ## [v0.1.2] - 2026-11-05
 * Fixed `Luautils.VERSION` reporting `0.1.0` in the published 0.1.1 packages

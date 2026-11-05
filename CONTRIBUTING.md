@@ -119,6 +119,9 @@ in the step before.
 The separate docs job runs `moonwave build`, so broken doc comments or README
 links fail CI too, even when the script passes.
 
+On pull requests, a "Branch name" job also checks the branch name (see Feature
+branches), and a separate Labeler workflow labels the pull request.
+
 If you add or change a check, update `.lute/ci.luau` and the table above
 together.
 
@@ -288,6 +291,12 @@ out, since pesde rejects packages that contain it.
 
 Name branches after the change they make (for example `feat/stopwatch-class`
 or `fix/duration-parsing`), and open a pull request into `master` for each one.
+Use one of these prefixes: `feat/`, `fix/`, `docs/`, `ci/`, `test/`,
+`refactor/`, `chore/`, or `release/`, followed by lowercase letters, numbers,
+`.`, `_`, or `-`.
+The "Branch name" CI job fails pull requests from any other branch name, and
+pull requests are labeled automatically from the prefix (see
+`.github/labeler.yml`).
 Add a line for the change under `## [Unreleased]` in
 [CHANGELOG.md](CHANGELOG.md) in the same pull request.
 
