@@ -257,7 +257,7 @@ end
 --- @return Option<T> -- A "some" holding `value`, or "none"
 --- @error "[Option.when()]: Value cannot be nil" -- Thrown if `condition` is `true` and `value` is `nil`
 function Option.when<T>(condition: boolean, value: T): Option<T>
-    if value == nil then
+    if condition and value == nil then
         fail("Value cannot be nil")
     end
     return if condition then Option.some(value) else Option.none()
@@ -282,7 +282,7 @@ function Option.whenThen<T>(condition: boolean, supplier: Supplier<T>): Option<T
         if supplied == nil then
             fail("Supplier returned nil for a some value")
         end
-        return Option.some(supplier())
+        return Option.some(supplied)
     end
     return Option.none()
 end

@@ -135,7 +135,7 @@ test.suite("whenThen()", function(suite)
             Option.whenThen(true, function()
                 return nil
             end)
-        end, "Value cannot be nil")
+        end, "[Option.whenThen()]: Supplier returned nil for a some value")
     end)
 end)
 

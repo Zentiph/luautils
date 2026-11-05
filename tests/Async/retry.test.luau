@@ -183,7 +183,7 @@ test.suite("retry()", function(suite)
 
                 Helpers.throwsWith(asserts, function()
                     retry(attempt.fn, { attempts = attempts })
-                end, "[retry.retry()]: attempts must be a positive integer")
+                end, "[Async.retry()]: Attempts must be a positive integer")
                 asserts.eq(0, attempt.calls)
             end
         end
