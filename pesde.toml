@@ -1,5 +1,5 @@
 name = "zentiph/luautils"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Luau utilities library; an extension of Luau's standard library"
 authors = ["vuppyan"]
 repository = "https://github.com/Zentiph/luautils"

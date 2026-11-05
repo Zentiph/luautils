@@ -33,13 +33,14 @@ wally search luautils
 Add it to your `wally.toml`:
 
 ```toml
-Luautils = "zentiph/luautils@<version>
+[dependencies]
+Luautils = "zentiph/luautils@<version>"
 ```
 
 Then require it:
 
 ```lua
-local Luautils = require(ReplicatedStorage.Packages.Luautils)
+local Luautils = require(game:GetService("ReplicatedStorage").Packages.Luautils)
 ```
 
 ### Standalone Luau
@@ -48,6 +49,7 @@ For standalone Luau projects, such as Lute, pesde is the recommended method:
 
 ```bash
 pesde add zentiph/luautils
+pesde install
 ```
 
 The pesde release targets luau only.

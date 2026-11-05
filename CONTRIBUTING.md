@@ -24,7 +24,8 @@ The first run of `lute run .lute/ci.luau` downloads ROBLOX's type definitions
 
 ```bash
 # pull the latest changes without leaving stray merge commits
-# this is required due to the protection rules on master
+# master only changes through pull requests, so local master should only
+# fast-forward
 git pull --ff-only
 # or set it once in your config
 git config pull.ff only
@@ -161,11 +162,16 @@ Requires only point down or sideways within a sublibrary, never up:
 _internal <- Core <- Time, Tables, Strings, ... <- Events <- Roblox
 ```
 
-Everything outside `Events/` and `Roblox/` is pure Luau.
+Everything outside `Events/` and `Roblox/` is pure Luau and must run under Lute.
 If a pure module needs a Roblox global, make it injectable (like `retry`'s
 `sleep` option) and only fall back to the global at call time.
-This way, `Events/` and `Roblox/` can still be loaded in non-ROBLOX environments
-without crashing.
+
+`Events/` and `Roblox/` may use ROBLOX globals, but only inside functions,
+never when the module is required.
+The root `init.luau` requires every sublibrary, so this keeps the whole library
+loadable outside ROBLOX (which the pesde package relies on).
+`tests/Luautils.test.luau` enforces this by requiring the root module under
+Lute.
 
 ## Conventions
 
@@ -200,16 +206,6 @@ With colon notation, the type checker infers `self`'s type, which prevents
 generics from working properly across classes, along with other type issues.
 Dot notation forces `self` to be declared explicitly, which fixes these issues.
 Callers can still use colon syntax: `value:method()`.
-
-### Dependency requires
-
-* Use local paths to `require` other sublibraries, such as
-  `require(".../Core")`.
-* If a module needs a ROBLOX `require`, load it lazily inside functions to avoid
-  load-time errors for non-ROBLOX environments.
-* Requiring any sublibraries within this library should never touch a ROBLOX
-  global for the same reason.
-  ROBLOX globals should be injectable or lazily evaluated.
 
 ### Errors
 
@@ -260,16 +256,28 @@ Callers can still use colon syntax: `value:method()`.
 * Compare tables like `Option`s, `Result`s, and `Duration`s with
   `Helpers.eqByStr` or `==`, not `asserts.eq`, which compares tables
   structurally and ignores `__eq`.
-* Tests require submodules directly, never the root `init.luau` (except for the
-  root test file itself).
+* Tests require submodules directly, never the root `init.luau`.
+  The exception is `tests/Luautils.test.luau`, which checks that the root module
+  loads outside ROBLOX.
 * Test error messages by their full `[Scope.function()]: ` prefix.
 
 ## Package registries
 
-This library is published to both Wally and pesde.
-Wally is for ROBLOX, while pesde is luau-only.
+This library is published to both Wally and pesde:
+
+| Registry | Manifest     | Target                    | For                          |
+| -------- | ------------ | ------------------------- | ---------------------------- |
+| Wally    | `wally.toml` | ROBLOX (`realm = shared`) | ROBLOX projects              |
+| pesde    | `pesde.toml` | `luau` environment only   | Lute and other Luau runtimes |
+
+pesde is not published with a `roblox` target.
+Wally is the standard for ROBLOX projects, and a second pesde target would need
+a separate publish for every version.
+
+Both packages ship the whole library, including `Events/` and `Roblox/` (see
+Dependency direction).
 `default.project.json` is Wally's entry point, and pesde's `includes` leaves it
-out.
+out, since pesde rejects packages that contain it.
 
 ## Releasing
 
@@ -278,30 +286,56 @@ While the library is below `1.0.0`, breaking changes bump the minor version
 (`0.1.0` to `0.2.0`), and everything else bumps the patch version (`0.1.0` to
 `0.1.1`).
 
-1. Create a release branch (like `release/v0.2.0`).
-2. Bump any files that contain a version number (the `version` step in CI
-   checks this), and update [CHANGELOG.md](CHANGELOG.md).
-3. Open a PR, merge it, wait for "Deploy docs" to finish, then
-   `git pull --ff-only`.
-4. Create a tag for the release (`git tag v0.2.0`) and push only the tag:
+`master` only changes through pull requests, and a version tag can only be
+pushed once its commit has been deployed to GitHub Pages (the "Deploy docs" CI
+job, which runs after a pull request is merged).
+
+1. Create a release branch from an up-to-date `master`:
 
 ```bash
-git tag v0.2.0
-git push origin master --tags
+git switch master
+git pull --ff-only
+git switch -c release/v0.2.0
 ```
 
-5. Publish to Wally and pesde:
+2. Bump the version in `src/luautils/init.luau` (`VERSION`), `wally.toml`, and
+   `pesde.toml`, then add a `## [v0.2.0] - YYYY-MM-DD` section to the top of
+   [CHANGELOG.md](CHANGELOG.md).
+   The `version` CI step fails if these differ.
+3. Commit, push the branch, and open a pull request:
+
+```bash
+git commit -am "Release v0.2.0"
+git push -u origin release/v0.2.0
+gh pr create --title "Release v0.2.0" --fill
+```
+
+4. Merge the pull request once CI passes, and wait for "Deploy docs" to finish
+   on `master` (`gh run watch`).
+5. Tag the merged commit and push only the tag:
+
+```bash
+git switch master
+git pull --ff-only
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+6. Publish from the tagged commit (the first time, log in with `wally login`
+   and `pesde auth login`):
 
 ```bash
 wally publish
 
-# confirm first with dry run
+# check the tarball first
 pesde publish --dry-run
 pesde publish
 ```
 
-6. Create the GitHub release for the new version:
+7. Create the GitHub release, using the changelog section as the notes:
 
 ```bash
-gh release create v0.2.0 --title v0.2.0 --notes "did some things"
+gh release create v0.2.0 --title v0.2.0 --notes "<changelog section>"
 ```
+
+The tag must match the version in the files above.
