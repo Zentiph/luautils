@@ -53,6 +53,8 @@ end
 ---
 --- If a non-table value is passed, it is returned as-is.
 ---
+--- @function deepCopy
+--- @within Tables
 --- @param tbl T -- The table to copy
 --- @return T -- The copied table
 --- @error "[Tables.deepCopy()]: Cannot copy a table with a locked metatable" -- Thrown if the table has a locked metatable (note that metatables locked by tables are not detected)

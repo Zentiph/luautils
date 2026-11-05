@@ -14,6 +14,7 @@ local fail = Core.Errors.errorWithScope("Async")
 --- Options for `retry`.
 ---
 --- @type RetryOptions { attempts: number, delay: number?, sleep: ((seconds: number) -> ())? }
+--- @within Async
 export type RetryOptions = {
     --- The total number of attempts, including the first.
     read attempts: number,
@@ -48,6 +49,8 @@ export type RetryOptions = {
 --- end, { attempts = 5 })
 --- ```
 ---
+--- @function retry
+--- @within Async
 --- @param attempt Supplier<Result<T, E>> -- The function to call
 --- @param options RetryOptions -- The retry options
 --- @return Result<T, E> -- The result of `attempt`

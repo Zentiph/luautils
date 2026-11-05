@@ -4,6 +4,8 @@
 -- by @vuppyan
 
 --- A module of error handling utilities.
+---
+--- @class Errors
 local Errors = {}
 
 --- Builds an error thrower that prefixes `"[Module.fn()]: "` to an error message.

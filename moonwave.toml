@@ -6,9 +6,45 @@ gitSourceBranch = "master"
 sidebarPosition = 1
 
 [[classOrder]]
+section = "Luautils"
+classes = ["Luautils"]
+
+[[classOrder]]
 section = "Core"
-classes = ["Option", "Result"]
+classes = ["Core", "Errors", "Option", "Result", "typing"]
+
+[[classOrder]]
+section = "Async"
+classes = ["Async"]
+
+[[classOrder]]
+section = "Collections"
+classes = ["Collections"]
+
+[[classOrder]]
+section = "Events"
+classes = ["Events"]
+
+[[classOrder]]
+section = "Math"
+classes = ["Math"]
+
+[[classOrder]]
+section = "Roblox"
+classes = ["Roblox"]
+
+[[classOrder]]
+section = "Strings"
+classes = ["Strings"]
+
+[[classOrder]]
+section = "Tables"
+classes = ["Tables"]
 
 [[classOrder]]
 section = "Time"
-classes = ["Duration"]
+classes = ["Time", "Duration"]
+
+[[classOrder]]
+section = "Validation"
+classes = ["Validation"]

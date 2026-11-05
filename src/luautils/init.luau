@@ -3,10 +3,11 @@
 -- Luautils central imports
 -- by @vuppyan
 
---- Luautils -- A Luau utilities library
+--- Luautils: A Luau utilities library
 ---
---- Contains tools for general use when coding in Luau, with a heavy focus on
---- functional programming, inspired by the Rust standard library.
+--- Luautils strives to act as an extension of Luau's standard library.
+---
+--- @class Luautils
 local Luautils = {}
 
 --- The version of luautils, following semantic versioning.

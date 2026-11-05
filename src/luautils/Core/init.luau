@@ -42,6 +42,10 @@ export type Iterable<Self, C, V...> = typing.Iterable<Self, C, V...>
 export type Disconnectable = typing.Disconnectable
 export type Destroyable = typing.Destroyable
 
+--- The foundation of the library: `Option` and `Result` for explicit absence
+--- and failure, error handling utilities, and shared type aliases.
+---
+--- @class Core
 return {
     Errors = require("@self/Errors"),
     Option = Option,

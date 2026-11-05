@@ -1,7 +1,7 @@
 # luautils
 
 A Luau utilities library written for a wide variety of general use cases.
-Luautils strives to be like an extension of Luau's standard library.
+Luautils strives to act as an extension of Luau's standard library.
 
 This library is heavily inspired by standard libraries of other languages such
 as Rust and Java
@@ -66,8 +66,8 @@ lute run .lute/ci.luau
 ## Documentation
 
 The API documentation is hosted on GitHub Pages at
-<https://zentiph.github.io/luautils/>, and is rebuilt from `master` on every
-push that passes CI.
+[zentiph.github.io/luautils](https://zentiph.github.io/luautils/), and is
+rebuilt from `master` on every push that passes CI.
 
 It is written as Moonwave doc comments in the source.
 To preview it locally:
@@ -78,5 +78,7 @@ moonwave dev
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, the CI checks, and
-the conventions used throughout the library.
+See
+[CONTRIBUTING.md](https://github.com/Zentiph/luautils/blob/master/CONTRIBUTING.md)
+for development setup, the CI checks, and the conventions used throughout the
+library.
