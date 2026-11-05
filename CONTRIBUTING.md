@@ -23,6 +23,14 @@ The first run of `lute run .lute/ci.luau` downloads ROBLOX's type definitions
 ## Development commands
 
 ```bash
+# pull the latest changes without leaving stray merge commits
+# this is required due to the protection rules on master
+git pull --ff-only
+# or set it once in your config
+git config pull.ff only
+```
+
+```bash
 # run every CI check
 lute run .lute/ci.luau
 ```
@@ -92,6 +100,7 @@ The script runs these steps in order and reports every failure at the end:
 
 | Step              | Command                                                 |
 | ----------------- | ------------------------------------------------------- |
+| version           | `lute run .lute/version.luau`                           |
 | format            | `stylua --check src tests`                              |
 | lint              | `selene src`                                            |
 | sourcemap         | `rojo sourcemap default.project.json -o sourcemap.json` |
@@ -152,9 +161,11 @@ Requires only point down or sideways within a sublibrary, never up:
 _internal <- Core <- Time, Tables, Strings, ... <- Events <- Roblox
 ```
 
-Everything outside `Events/` and `Roblox/` is pure Luau and must run under Lute.
+Everything outside `Events/` and `Roblox/` is pure Luau.
 If a pure module needs a Roblox global, make it injectable (like `retry`'s
 `sleep` option) and only fall back to the global at call time.
+This way, `Events/` and `Roblox/` can still be loaded in non-ROBLOX environments
+without crashing.
 
 ## Conventions
 
@@ -189,6 +200,16 @@ With colon notation, the type checker infers `self`'s type, which prevents
 generics from working properly across classes, along with other type issues.
 Dot notation forces `self` to be declared explicitly, which fixes these issues.
 Callers can still use colon syntax: `value:method()`.
+
+### Dependency requires
+
+* Use local paths to `require` other sublibraries, such as
+  `require(".../Core")`.
+* If a module needs a ROBLOX `require`, load it lazily inside functions to avoid
+  load-time errors for non-ROBLOX environments.
+* Requiring any sublibraries within this library should never touch a ROBLOX
+  global for the same reason.
+  ROBLOX globals should be injectable or lazily evaluated.
 
 ### Errors
 
@@ -239,8 +260,16 @@ Callers can still use colon syntax: `value:method()`.
 * Compare tables like `Option`s, `Result`s, and `Duration`s with
   `Helpers.eqByStr` or `==`, not `asserts.eq`, which compares tables
   structurally and ignores `__eq`.
-* Tests require submodules directly, never the root `init.luau`.
+* Tests require submodules directly, never the root `init.luau` (except for the
+  root test file itself).
 * Test error messages by their full `[Scope.function()]: ` prefix.
+
+## Package registries
+
+This library is published to both Wally and pesde.
+Wally is for ROBLOX, while pesde is luau-only.
+`default.project.json` is Wally's entry point, and pesde's `includes` leaves it
+out.
 
 ## Releasing
 
@@ -249,29 +278,30 @@ While the library is below `1.0.0`, breaking changes bump the minor version
 (`0.1.0` to `0.2.0`), and everything else bumps the patch version (`0.1.0` to
 `0.1.1`).
 
-1. Make sure CI passes on `master`.
-2. Bump `VERSION` in `src/luautils/init.luau` to the new version.
-3. In [CHANGELOG.md](CHANGELOG.md), rename the `Unreleased` section to the new
-   version and today's date (for example `## [0.2.0] - 2026-11-05`), then add a
-   new, empty `Unreleased` section above it.
-4. Commit the changes:
-
-```bash
-git commit -am "Release v0.2.0"
-```
-
-5. Tag the commit and push it along with the tag:
+1. Create a release branch (like `release/v0.2.0`).
+2. Bump any files that contain a version number (the `version` step in CI
+   checks this), and update [CHANGELOG.md](CHANGELOG.md).
+3. Open a PR, merge it, wait for "Deploy docs" to finish, then
+   `git pull --ff-only`.
+4. Create a tag for the release (`git tag v0.2.0`) and push only the tag:
 
 ```bash
 git tag v0.2.0
 git push origin master --tags
 ```
 
-6. Optionally, create a GitHub release from the tag, using the changelog section
-   as the release notes:
+5. Publish to Wally and pesde:
 
 ```bash
-gh release create v0.2.0 --title v0.2.0 --notes "<changelog section>"
+wally publish
+
+# confirm first with dry run
+pesde publish --dry-run
+pesde publish
 ```
 
-The version in `VERSION`, the changelog heading, and the tag must all match.
+6. Create the GitHub release for the new version:
+
+```bash
+gh release create v0.2.0 --title v0.2.0 --notes "did some things"
+```
