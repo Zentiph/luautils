@@ -20,16 +20,46 @@ planned and currently empty.
 
 ## Installation
 
-As of now, there is no clean way to install the library other than to clone the
-repository or download it manually.
-This library will eventually be added to Wally, but for now, the best way to
-install is to clone the repository:
+### ROBLOX
+
+For use in ROBLOX projects, Wally is the recommended installation method.
+
+Get the latest version:
+
+```bash
+wally search luautils
+```
+
+Add it to your `wally.toml`:
+
+```toml
+Luautils = "zentiph/luautils@<version>
+```
+
+Then require it:
+
+```lua
+local Luautils = require(ReplicatedStorage.Packages.Luautils)
+```
+
+### Standalone Luau
+
+For standalone Luau projects, such as Lute, pesde is the recommended method:
+
+```bash
+pesde add zentiph/luautils
+```
+
+The pesde release targets luau only.
+[ROBLOX projects should use Wally](#roblox).
+
+### Manually
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/Zentiph/luautils.git
 ```
-
-### Using it in ROBLOX
 
 Build the library into a model file with Rojo, then insert it into your place:
 
