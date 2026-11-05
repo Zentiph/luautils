@@ -48,6 +48,8 @@ end
 ---
 --- Table keys are shared with the original, not copied.
 --- Copies of frozen tables are also frozen.
+--- Metatables are shared with the original, not copied, and `__iter`
+--- metamethods are bypassed so every raw key/value pair is copied.
 ---
 --- If a non-table value is passed, it is returned as-is.
 ---

@@ -5,6 +5,7 @@
 
 local test = require("@std/test")
 local types = require("@std/test/types")
+local Helpers = require("../Helpers")
 local deepCopy = require("../../src/luautils/Tables/deepCopy")
 
 local function assertDeepCopy(
@@ -112,9 +113,65 @@ test.suite("deepCopy", function(suite)
             __metatable = "locked",
         }
         local t = setmetatable({ inner = setmetatable({}, mt) }, mt)
-        asserts.throws(function()
+        Helpers.throwsWith(asserts, function()
             deepCopy(t)
-        end)
+        end, "[Tables.deepCopy()]: Cannot copy a table with a locked metatable")
+    end)
+
+    suite:case("fails on nested locked metatable", function(asserts)
+        local t = { a = { b = setmetatable({}, { __metatable = false }) } }
+        Helpers.throwsWith(asserts, function()
+            deepCopy(t)
+        end, "[Tables.deepCopy()]: Cannot copy a table with a locked metatable")
+    end)
+
+    suite:case("locked metatable error points to the caller", function(asserts)
+        local t = { a = { b = setmetatable({}, { __metatable = "locked" }) } }
+        Helpers.throwsWith(asserts, function()
+            deepCopy(t)
+        end, "deepCopy.test")
+    end)
+
+    suite:case("returns non-table values as-is", function(asserts)
+        local fn = function() end
+        asserts.eq(5, deepCopy(5))
+        asserts.eq("hi", deepCopy("hi"))
+        asserts.eq(fn, deepCopy(fn))
+        asserts.eq(nil, deepCopy(nil))
+    end)
+
+    suite:case("copies of frozen tables are frozen", function(asserts)
+        local t = table.freeze({ 1, 2, 3 })
+        local copy = deepCopy(t)
+
+        assertDeepCopy(asserts, t, copy)
+        asserts.eq(true, table.isfrozen(copy))
+    end)
+
+    suite:case("preserves frozen state of nested tables", function(asserts)
+        local frozen = table.freeze({ 1 })
+        local t = { frozen = frozen, open = { 2 } }
+        local copy = deepCopy(t)
+
+        asserts.eq(false, table.isfrozen(copy))
+        asserts.eq(true, table.isfrozen(copy.frozen))
+        asserts.eq(false, table.isfrozen(copy.open))
+        asserts.neq(frozen, copy.frozen)
+    end)
+
+    suite:case("bypasses __iter metamethod", function(asserts)
+        local mt = {
+            __iter = function()
+                return next, {}
+            end,
+        }
+        local t = setmetatable({ a = 1, b = { 2 } }, mt)
+        local copy: any = deepCopy(t)
+
+        asserts.eq(mt, getmetatable(copy))
+        asserts.eq(1, rawget(copy, "a"))
+        asserts.eq(2, rawget(copy, "b")[1])
+        asserts.neq(t.b, rawget(copy, "b"))
     end)
 
     suite:case("keeps non-table values by reference", function(asserts)
