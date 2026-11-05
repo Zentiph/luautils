@@ -290,24 +290,27 @@ While the library is below `1.0.0`, breaking changes bump the minor version
 pushed once its commit has been deployed to GitHub Pages (the "Deploy docs" CI
 job, which runs after a pull request is merged).
 
+In the steps below, replace `X.Y.Z` with the new version and `YYYY-MM-DD` with
+today's date.
+
 1. Create a release branch from an up-to-date `master`:
 
 ```bash
 git switch master
 git pull --ff-only
-git switch -c release/v0.2.0
+git switch -c release/vX.Y.Z
 ```
 
 2. Bump the version in `src/luautils/init.luau` (`VERSION`), `wally.toml`, and
-   `pesde.toml`, then add a `## [v0.2.0] - YYYY-MM-DD` section to the top of
+   `pesde.toml`, then add a `## [vX.Y.Z] - YYYY-MM-DD` section to the top of
    [CHANGELOG.md](CHANGELOG.md).
    The `version` CI step fails if these differ.
 3. Commit, push the branch, and open a pull request:
 
 ```bash
-git commit -am "Release v0.2.0"
-git push -u origin release/v0.2.0
-gh pr create --title "Release v0.2.0" --fill
+git commit -am "Release vX.Y.Z"
+git push -u origin release/vX.Y.Z
+gh pr create --title "Release vX.Y.Z" --fill
 ```
 
 4. Merge the pull request once CI passes, and wait for "Deploy docs" to finish
@@ -317,8 +320,8 @@ gh pr create --title "Release v0.2.0" --fill
 ```bash
 git switch master
 git pull --ff-only
-git tag v0.2.0
-git push origin v0.2.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 6. Publish from the tagged commit (the first time, log in with `wally login`
@@ -335,7 +338,7 @@ pesde publish
 7. Create the GitHub release, using the changelog section as the notes:
 
 ```bash
-gh release create v0.2.0 --title v0.2.0 --notes "<changelog section>"
+gh release create vX.Y.Z --title vX.Y.Z --notes "<changelog section>"
 ```
 
 The tag must match the version in the files above.
