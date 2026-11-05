@@ -430,6 +430,22 @@ test.suite("*Part()", function(suite)
         asserts.eq(500, millis(1_500):millisPart())
     end)
 
+    suite:case("*Part() is exact past 2^53 seconds", function(asserts)
+        -- 2^60 + 3328 = 13_343_998_895_912d 14h 51m 44s
+        local big = Duration.new(2 ^ 60 + 3328, 123_456_789)
+        asserts.eq(14, big:hoursPart())
+        asserts.eq(51, big:minutesPart())
+        asserts.eq(44, big:secondsPart())
+        asserts.eq(123, big:millisPart())
+        asserts.eq(456, big:microsPart())
+        asserts.eq(789, big:nanosPart())
+
+        local neg = Duration.new(-(2 ^ 60 + 3328), 0)
+        asserts.eq(-14, neg:hoursPart())
+        asserts.eq(-51, neg:minutesPart())
+        asserts.eq(-44, neg:secondsPart())
+    end)
+
     suite:case("*Part() of zero is zero, not negative zero", function(asserts)
         local negSecond = -Duration.SECOND
         -- -1s has zero sub-second parts, which should not be -0
@@ -1891,6 +1907,20 @@ test.suite("toString()", function(suite)
         end
     )
 
+    suite:case(
+        "toString() components are exact past 2^53 seconds",
+        function(asserts)
+            asserts.eq(
+                "P13343998895912DT14H51M44S",
+                secs(2 ^ 60 + 3328):toString()
+            )
+            asserts.eq(
+                "-P13343998895912DT13H56M16S",
+                secs(-(2 ^ 60)):toString()
+            )
+        end
+    )
+
     suite:case("toString() is used by tostring()", function(asserts)
         asserts.eq("PT1.5S", tostring(millis(1_500)))
     end)
@@ -1907,6 +1937,11 @@ test.suite("format()", function(suite)
 
     suite:case("format() replaces each specifier", function(asserts)
         asserts.eq("2 3 4 5 6", d:format("%d %H %M %S %f"))
+    end)
+
+    suite:case("format() is exact past 2^53 seconds", function(asserts)
+        local big = Duration.new(2 ^ 60 + 3328, 6_000_000)
+        asserts.eq("13343998895912 14 51 44 6", big:format("%d %H %M %S %f"))
     end)
 
     suite:case("format() zero-pads with a width", function(asserts)

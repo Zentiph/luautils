@@ -145,13 +145,10 @@ local NANOS_MAX = 999_999_999
 local NANOS_PER_MICRO = 1_000
 local NANOS_PER_MILLI = 1_000_000
 local NANOS_PER_SECOND = 1_000_000_000
-local MICROS_PER_MILLI = 1_000
 local SECONDS_PER_MINUTE = 60
 local SECONDS_PER_HOUR = 3_600
 local SECONDS_PER_DAY = 86_400
 local SECONDS_PER_WEEK = 604_800
-local MINUTES_PER_HOUR = 60
-local HOURS_PER_DAY = 24
 
 local DATE_UNITS: { [string]: { rank: number, secs: number } } = {
     W = { rank = 1, secs = SECONDS_PER_WEEK },
@@ -798,7 +795,7 @@ function Duration.nanosPart(self: Duration): number
     end
 
     local sign, _, nanos = toMagnitude(self)
-    return signedPart(sign, nanos % NANOS_PER_MICRO)
+    return signedPart(sign, math.fmod(nanos, NANOS_PER_MICRO))
 end
 
 --- Returns the microseconds component of this `Duration`.
@@ -818,7 +815,7 @@ function Duration.microsPart(self: Duration): number
     local sign, _, nanos = toMagnitude(self)
     return signedPart(
         sign,
-        math.floor(nanos / NANOS_PER_MICRO) % MICROS_PER_MILLI
+        math.floor(math.fmod(nanos, NANOS_PER_MILLI) / NANOS_PER_MICRO)
     )
 end
 
@@ -855,7 +852,7 @@ function Duration.secondsPart(self: Duration): number
     end
 
     local sign, secs = toMagnitude(self)
-    return signedPart(sign, secs % SECONDS_PER_MINUTE)
+    return signedPart(sign, math.fmod(secs, SECONDS_PER_MINUTE))
 end
 
 --- Returns the minutes component of this `Duration`.
@@ -875,7 +872,7 @@ function Duration.minutesPart(self: Duration): number
     local sign, secs = toMagnitude(self)
     return signedPart(
         sign,
-        math.floor(secs / SECONDS_PER_MINUTE) % MINUTES_PER_HOUR
+        math.floor(math.fmod(secs, SECONDS_PER_HOUR) / SECONDS_PER_MINUTE)
     )
 end
 
@@ -894,7 +891,10 @@ function Duration.hoursPart(self: Duration): number
     end
 
     local sign, secs = toMagnitude(self)
-    return signedPart(sign, math.floor(secs / SECONDS_PER_HOUR) % HOURS_PER_DAY)
+    return signedPart(
+        sign,
+        math.floor(math.fmod(secs, SECONDS_PER_DAY) / SECONDS_PER_HOUR)
+    )
 end
 
 --- Returns the days component of this `Duration`.
@@ -902,6 +902,9 @@ end
 --- Days are the largest component, so the magnitude is unbounded. The result
 --- has the same sign as the `Duration`. Returns `math.huge` or `-math.huge`
 --- for infinite `Duration`s.
+---
+--- Unlike the smaller `*Part` methods, which are exact at any magnitude, this
+--- is a float division and may be off by rounding past 2^53 seconds.
 ---
 --- @method daysPart
 --- @within Duration
@@ -919,7 +922,9 @@ end
 ---
 --- Unlike the `*Part` methods, such as [Duration:hoursPart], every part is
 --- non-negative and the sign is stored in `negative`. Passing the result to
---- [Duration.fromParts] recreates the same `Duration`.
+--- [Duration.fromParts] recreates the same `Duration`, as long as it is below
+--- 2^53 seconds; past that, [Duration.fromParts] sums the parts with inexact
+--- float arithmetic.
 ---
 --- ```lua
 --- Duration.fromSeconds(-90_061.5):toParts()
@@ -2042,10 +2047,11 @@ end
 --- a zero `Duration` is `"PT0S"`. Negative `Duration`s are prefixed with `-`.
 --- Infinite `Duration`s are `"Infinity"` or `"-Infinity"`.
 ---
---- The result can be parsed back into an equal `Duration` with
---- [Duration.parse], as long as the `Duration` is below 2^53 seconds. Above
---- that, the hours, minutes, and seconds are computed with inexact float
---- arithmetic and may be wrong, and [Duration.parse] rejects the result.
+--- The hours, minutes, and seconds are exact at any magnitude, but the days
+--- are a float division and may be off by rounding past 2^53 seconds. The
+--- result can be parsed back into an equal `Duration` with [Duration.parse]
+--- only if the `Duration` is below 2^53 seconds (about 285 million years),
+--- since [Duration.parse] rejects anything larger.
 ---
 --- Also used by `tostring()`.
 ---
@@ -2074,11 +2080,13 @@ function Duration.toString(self: Duration): string
     local nanos = mag._nanos
 
     local d = math.floor(secs / SECONDS_PER_DAY)
-    secs %= SECONDS_PER_DAY
+    -- math.fmod is exact at any magnitude, unlike %, which computes
+    -- a - floor(a / b) * b and loses precision past 2^53
+    secs = math.fmod(secs, SECONDS_PER_DAY)
     local h = math.floor(secs / SECONDS_PER_HOUR)
-    secs %= SECONDS_PER_HOUR
+    secs = math.fmod(secs, SECONDS_PER_HOUR)
     local m = math.floor(secs / SECONDS_PER_MINUTE)
-    secs %= SECONDS_PER_MINUTE
+    secs = math.fmod(secs, SECONDS_PER_MINUTE)
 
     local result = (negative and "-" or "") .. "P"
     if d > 0 then
@@ -2128,8 +2136,9 @@ Duration.__tostring = Duration.toString
 --- and are always non-negative; negative `Duration`s are prefixed with a
 --- single '-' instead. A trailing '%' with no specifier is kept as-is.
 ---
---- Like [Duration:toString], the components are only exact for `Duration`s
---- below 2^53 seconds.
+--- `%H`, `%M`, `%S`, and `%f` are exact at any magnitude. `%d` is a float
+--- division, so like [Duration:toString], it may be off by rounding for
+--- `Duration`s past 2^53 seconds.
 ---
 --- Infinite `Duration`s ignore `pattern` and return `"∞"` or `"-∞"`.
 ---
@@ -2151,9 +2160,13 @@ function Duration.format(self: Duration, pattern: string): string
     local mag = self:abs()
     local values = {
         d = math.floor(mag._secs / SECONDS_PER_DAY),
-        H = math.floor(mag._secs % SECONDS_PER_DAY / SECONDS_PER_HOUR),
-        M = math.floor(mag._secs % SECONDS_PER_HOUR / SECONDS_PER_MINUTE),
-        S = mag._secs % SECONDS_PER_MINUTE,
+        H = math.floor(
+            math.fmod(mag._secs, SECONDS_PER_DAY) / SECONDS_PER_HOUR
+        ),
+        M = math.floor(
+            math.fmod(mag._secs, SECONDS_PER_HOUR) / SECONDS_PER_MINUTE
+        ),
+        S = math.fmod(mag._secs, SECONDS_PER_MINUTE),
         f = math.floor(mag._nanos / NANOS_PER_MILLI),
     }
 
