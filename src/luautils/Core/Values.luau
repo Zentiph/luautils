@@ -122,7 +122,7 @@ end
     @return any -- The value as a key
 ]=]
 function Values.toKey(v: any): any
-    return if isTableAndHasMethod(v, "toKey") then (v :: any).toKey() else v
+    return if isTableAndHasMethod(v, "toKey") then (v :: any):toKey() else v
 end
 
 --[=[
@@ -138,8 +138,35 @@ end
 ]=]
 function Values.toString(v: any): string
     return if isTableAndHasMethod(v, "toString")
-        then (v :: any).toString()
+        then (v :: any):toString()
         else tostring(v)
+end
+
+--[=[
+    Returns a copy of the value.
+
+    If `v` is a table and matches the [Cloneable] protocol, then the result of
+    `v:clone()` is returned.
+    Otherwise, if `v` is a primitive type, then `v` itself is returned.
+    Otherwise, an error is thrown.
+
+    @since [UNRELEASED]
+    @param v T -- The value to clone
+    @return T -- The cloned value
+    @error "[Values.clone()]: Cannot clone value of type {type(v)}." -- Thrown if the value cannot be cloned
+]=]
+function Values.clone<T>(v: T): T
+    return if isTableAndHasMethod(v, "clone")
+        then (v :: any):clone()
+        elseif Values.isPrimitive(v) then v
+        else fail(
+            `Cannot clone value of type {type(v)}. `
+                .. "(If you are trying to clone a class, "
+                .. "give it a .clone() method to match the Cloneable protocol. "
+                .. "If you are trying to clone a table, "
+                .. "use table.clone() for shallow copies or "
+                .. "Tables.deepCopy() for deep copies.)"
+        )
 end
 
 return Values
