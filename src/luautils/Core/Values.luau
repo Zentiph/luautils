@@ -40,14 +40,23 @@ function Values.is(v: any, t: string, ...: string): boolean
 end
 
 --[=[
-    Returns `true` if the value is a primitive type (not a table or userdata).
+    Returns `true` if the value is a primitive type.
+
+    A value is a primitive type if it is a:
+    * string
+    * number
+    * boolean
+    * nil
+    * function
+
+    Tables, userdata, and threads are not considered primitive types.
 
     @since [UNRELEASED]
     @param v any -- The value to check
     @return boolean -- Whether the value is primitive
 ]=]
 function Values.isPrimitive(v: any): boolean
-    return type(v) ~= "table" and type(v) ~= "userdata"
+    return Values.is(v, "string", "number", "boolean", "nil", "function")
 end
 
 --[=[
