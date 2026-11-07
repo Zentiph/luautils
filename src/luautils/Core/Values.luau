@@ -27,6 +27,10 @@ function Internal.compareFail<T>(a: T, b: T, functionName: string): never
     )
 end
 
+function Internal.nanFail(functionName: string): never
+    return fail("Cannot meaningfully compare NaN values", 3, functionName)
+end
+
 local function isTableAndHasMethod(v: any, method: string): boolean
     return type(v) == "table" and type(v[method]) == "function"
 end
@@ -128,6 +132,11 @@ end
 function Values.compare<T>(a: T, b: T): number
     if not Values.isComparable(a, b) then
         Internal.compareFail(a, b, "compare")
+    elseif
+        (type(a) == "number" and math.isnan(a))
+        or (type(b) == "number" and math.isnan(b))
+    then
+        Internal.nanFail("compare")
     end
 
     if isTableAndHasMethod(a, "compareTo") then
@@ -167,7 +176,13 @@ end
 function Values.lessThan<T>(a: T, b: T): boolean
     if not Values.isComparable(a, b) then
         Internal.compareFail(a, b, "lessThan")
+    elseif
+        (type(a) == "number" and math.isnan(a))
+        or (type(b) == "number" and math.isnan(b))
+    then
+        Internal.nanFail("lessThan")
     end
+
     return Values.compare(a, b) < 0
 end
 
@@ -189,7 +204,13 @@ end
 function Values.min<T>(a: T, b: T): T
     if not Values.isComparable(a, b) then
         Internal.compareFail(a, b, "min")
+    elseif
+        (type(a) == "number" and math.isnan(a))
+        or (type(b) == "number" and math.isnan(b))
+    then
+        Internal.nanFail("min")
     end
+
     return if Values.compare(a, b) <= 0 then a else b
 end
 
@@ -211,7 +232,13 @@ end
 function Values.max<T>(a: T, b: T): T
     if not Values.isComparable(a, b) then
         Internal.compareFail(a, b, "max")
+    elseif
+        (type(a) == "number" and math.isnan(a))
+        or (type(b) == "number" and math.isnan(b))
+    then
+        Internal.nanFail("max")
     end
+
     return if Values.compare(a, b) >= 0 then a else b
 end
 
@@ -237,6 +264,12 @@ function Values.clamp<T>(v: T, lo: T, hi: T): T
         Internal.compareFail(v, lo, "clamp")
     elseif not Values.isComparable(v, hi) then
         Internal.compareFail(v, hi, "clamp")
+    elseif
+        (type(v) == "number" and math.isnan(v))
+        or (type(lo) == "number" and math.isnan(lo))
+        or (type(hi) == "number" and math.isnan(hi))
+    then
+        Internal.nanFail("clamp")
     elseif Values.compare(lo, hi) > 0 then
         fail("lo must be less than or equal to hi")
     end
