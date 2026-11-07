@@ -78,4 +78,21 @@ function Values.compare<T>(a: T, b: T): number
     end
 end
 
+--[=[
+    Returns the value as a key for a table.
+
+    If `v` is a table and matches the [Keyable] protocol, then the result of
+    `v:toKey()` is returned.
+    Otherwise, `v` itself is returned
+
+    @since [UNRELEASED]
+    @param v any -- The value to convert to a key
+    @return any -- The value as a key
+]=]
+function Values.toKey(v: any): any
+    return if type(v) == "table" and type(v.toKey) == "function"
+        then (v :: any).toKey()
+        else v
+end
+
 return Values
