@@ -17,6 +17,17 @@ local fail = require("./Errors").errorWithScope("Values")
 local Values = {}
 
 --[=[
+    Returns `true` if the value is a primitive type (not a table or userdata).
+
+    @since [UNRELEASED]
+    @param v any -- The value to check
+    @return boolean -- Whether the value is primitive
+]=]
+function Values.isPrimitive(v: any): boolean
+    return type(v) ~= "table" and type(v) ~= "userdata"
+end
+
+--[=[
     Returns `true` if the arguments are equal to each other.
 
     If `rawequal(a, b)` is `true`, `true` is returned.
