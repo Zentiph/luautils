@@ -368,4 +368,4 @@ function Values.clone<T>(v: T): T
         )
 end
 
-return Values
+return table.freeze(Values)
