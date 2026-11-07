@@ -16,6 +16,10 @@ local fail = require("./Errors").errorWithScope("Values")
 ]=]
 local Values = {}
 
+local function isTableAndHasMethod(v: any, method: string): boolean
+    return type(v) == "table" and type(v[method]) == "function"
+end
+
 --[=[
     Returns `true` if the value is a primitive type (not a table or userdata).
 
@@ -43,9 +47,7 @@ end
 function Values.equals<T>(a: T, b: T): boolean
     return if rawequal(a, b)
         then true
-        elseif type(a) == "table" and type(a.equals) == "function" then (
-            a :: any
-        ):equals(b)
+        elseif isTableAndHasMethod(a, "equals") then (a :: any):equals(b)
         else a == b
 end
 
@@ -66,9 +68,11 @@ end
     @error "[Values.compare()]: Cannot meaningfully compare values of type {type(a)} and {type(b)}" -- Thrown if the values cannot be meaningfully compared
 ]=]
 function Values.compare<T>(a: T, b: T): number
-    if type(a) == "table" and type((a :: any).compareTo) == "function" then
+    if isTableAndHasMethod(a, "compareTo") then
         return (a :: any):compareTo(b)
-    elseif type(a) == type(b) then
+    elseif
+        type(a) == type(b) and (type(a) == "number" or type(a) == "string")
+    then
         return if a < b then -1 elseif a == b then 0 else 1
     else
         fail(
@@ -90,9 +94,24 @@ end
     @return any -- The value as a key
 ]=]
 function Values.toKey(v: any): any
-    return if type(v) == "table" and type(v.toKey) == "function"
-        then (v :: any).toKey()
-        else v
+    return if isTableAndHasMethod(v, "toKey") then (v :: any).toKey() else v
+end
+
+--[=[
+    Returns the value as a string.
+
+    If `v` is a table and matches the [Stringable] protocol, then the result of
+    `v:toString()` is returned.
+    Otherwise, `tostring(v)` is returned.
+
+    @since [UNRELEASED]
+    @param v any -- The value to convert to a string
+    @return string -- The value as a string
+]=]
+function Values.toString(v: any): string
+    return if isTableAndHasMethod(v, "toString")
+        then (v :: any).toString()
+        else tostring(v)
 end
 
 return Values
