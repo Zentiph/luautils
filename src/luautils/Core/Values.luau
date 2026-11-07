@@ -62,16 +62,44 @@ end
     * number
     * boolean
     * nil
-    * function
 
-    Tables, userdata, and threads are not considered primitive types.
+    Tables, functions, threads, and userdata are not considered primitive types.
 
     @since [UNRELEASED]
     @param v any -- The value to check
     @return boolean -- Whether the value is primitive
 ]=]
 function Values.isPrimitive(v: any): boolean
-    return Values.is(v, "string", "number", "boolean", "nil", "function")
+    return Values.is(v, "string", "number", "boolean", "nil")
+end
+
+--[=[
+    Returns `true` if the value is an immutable type.
+
+    A value is an immutable type if it is a:
+    * string
+    * number
+    * boolean
+    * nil
+    * vector
+    * function
+
+    Tables, threads, and userdata are not considered immutable types.
+
+    @since [UNRELEASED]
+    @param v any -- The value to check
+    @return boolean -- Whether the value is immutable
+]=]
+function Values.isImmutable(v: any): boolean
+    return Values.is(
+        v,
+        "string",
+        "number",
+        "boolean",
+        "nil",
+        "vector",
+        "function"
+    )
 end
 
 --[=[
@@ -325,7 +353,7 @@ end
 function Values.clone<T>(v: T): T
     return if isTableAndHasMethod(v, "clone")
         then (v :: any):clone()
-        elseif Values.isPrimitive(v) then v
+        elseif Values.isImmutable(v) then v
         else fail(
             `Cannot clone value of type {type(v)}. `
                 .. "(If you are trying to clone a class, "
