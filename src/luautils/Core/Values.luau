@@ -20,6 +20,31 @@ local function isTableAndHasMethod(v: any, method: string): boolean
     return type(v) == "table" and type(v[method]) == "function"
 end
 
+-- stop inlining of functions that require stack frames for error reporting
+local Internal = {}
+
+function Internal.compare<T>(
+    a: T,
+    b: T,
+    level: number?,
+    functionName: string?
+): number
+    if isTableAndHasMethod(a, "compareTo") then
+        return (a :: any):compareTo(b)
+    elseif
+        type(a) == type(b) and (type(a) == "number" or type(a) == "string")
+    then
+        return if a < b then -1 elseif a == b then 0 else 1
+    else
+        fail(
+            `Cannot meaningfully compare values of type {type(a)} and {type(b)}`,
+            if level == nil then 3 else level,
+            functionName
+        )
+        return 0 -- unreachable, just to make the type checker happy
+    end
+end
+
 --[=[
     Returns `true` if the value is one of the given types.
 
@@ -96,18 +121,67 @@ end
     @error "[Values.compare()]: Cannot meaningfully compare values of type {type(a)} and {type(b)}" -- Thrown if the values cannot be meaningfully compared
 ]=]
 function Values.compare<T>(a: T, b: T): number
-    if isTableAndHasMethod(a, "compareTo") then
-        return (a :: any):compareTo(b)
-    elseif
-        type(a) == type(b) and (type(a) == "number" or type(a) == "string")
-    then
-        return if a < b then -1 elseif a == b then 0 else 1
-    else
-        fail(
-            `Cannot meaningfully compare values of type {type(a)} and {type(b)}`
-        )
-        return 0 -- unreachable, just to make the type checker happy
-    end
+    return Internal.compare(a, b)
+end
+
+--[=[
+    Returns `true` if `a` < `b`.
+
+    If `a` is a table and matches the [Comparable] protocol, then the result of
+    `a:compareTo(b) < 0` is returned.
+    Otherwise, if `a` and `b` are the same type and support total ordering, then
+    the result of comparing `a` and `b` with `<` is returned.
+    Otherwise, an error is thrown.
+
+    Can be passed to `table.sort` to sort a table of values that support total
+    ordering.
+
+    @since [UNRELEASED]
+    @param a T -- The first value
+    @param b T -- The second value
+    @return boolean -- Whether `a` < `b`
+    @error "[Values.lessThan()]: Cannot meaningfully compare values of type {type(a)} and {type(b)}" -- Thrown if the values cannot be meaningfully compared
+]=]
+function Values.lessThan<T>(a: T, b: T): boolean
+    return Values.compare(a, b, nil, "lessThan") < 0
+end
+
+--[=[
+    Returns the smaller of two values.
+
+    If `a` is a table and matches the [Comparable] protocol, then the result of
+    `a:compareTo(b)` is returned.
+    Otherwise, if `a` and `b` are the same type and support total ordering, then
+    the result of comparing `a` and `b` with `<` and `==` is returned.
+    Otherwise, an error is thrown.
+
+    @since [UNRELEASED]
+    @param a T -- The first value
+    @param b T -- The second value
+    @return T -- The smaller value
+    @error "[Values.min()]: Cannot meaningfully compare values of type {type(a)} and {type(b)}" -- Thrown if the values cannot be meaningfully compared
+]=]
+function Values.min<T>(a: T, b: T): T
+    return if Values.compare(a, b, nil, "min") <= 0 then a else b
+end
+
+--[=[
+    Returns the larger of the values.
+
+    If `a` is a table and matches the [Comparable] protocol, then the result of
+    `a:compareTo(b)` is returned.
+    Otherwise, if `a` and `b` are the same type and support total ordering, then
+    the result of comparing `a` and `b` with `<` and `==` is returned.
+    Otherwise, an error is thrown.
+
+    @since [UNRELEASED]
+    @param a T -- The first value
+    @param b T -- The second value
+    @return T -- The larger value
+    @error "[Values.max()]: Cannot meaningfully compare values of type {type(a)} and {type(b)}" -- Thrown if the values cannot be meaningfully compared
+]=]
+function Values.max<T>(a: T, b: T): T
+    return if Values.compare(a, b, nil, "max") >= 0 then a else b
 end
 
 --[=[
