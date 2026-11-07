@@ -45,13 +45,17 @@ end
     @return boolean -- Whether the value is one of the types
 ]=]
 function Values.is(v: any, t: string, ...: string): boolean
-    local args = { ... }
-    for _, arg in args do
-        if type(v) == arg then
+    if type(v) == t then
+        return true
+    end
+
+    for i = 1, select("#", ...) do
+        if type(v) == select(i, ...) then
             return true
         end
     end
-    return type(v) == t
+
+    return false
 end
 
 --[=[
