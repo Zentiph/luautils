@@ -411,8 +411,8 @@ end
     are keyed by reference.
 
     Keys from [typing.Keyable] values are strings, so they can collide with
-    plain string keys in the same table. This function throws on `NaN` and `nil`
-    since are not valid table keys.
+    plain string keys in the same table. `NaN` and `nil` throw an error, since
+    they cannot be used as table keys.
 
     ```lua
     local seen = {}
