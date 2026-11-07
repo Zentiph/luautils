@@ -16,33 +16,19 @@ local fail = require("./Errors").errorWithScope("Values")
 ]=]
 local Values = {}
 
-local function isTableAndHasMethod(v: any, method: string): boolean
-    return type(v) == "table" and type(v[method]) == "function"
-end
-
--- stop inlining of functions that require stack frames for error reporting
+-- prevent function inlining for helpers that require call stack consistency
 local Internal = {}
 
-function Internal.compare<T>(
-    a: T,
-    b: T,
-    level: number?,
-    functionName: string?
-): number
-    if isTableAndHasMethod(a, "compareTo") then
-        return (a :: any):compareTo(b)
-    elseif
-        type(a) == type(b) and (type(a) == "number" or type(a) == "string")
-    then
-        return if a < b then -1 elseif a == b then 0 else 1
-    else
-        fail(
-            `Cannot meaningfully compare values of type {type(a)} and {type(b)}`,
-            if level == nil then 3 else level,
-            functionName
-        )
-        return 0 -- unreachable, just to make the type checker happy
-    end
+function Internal.compareFail<T>(a: T, b: T, functionName: string): never
+    return fail(
+        `Cannot meaningfully compare values of type {type(a)} and {type(b)}`,
+        3,
+        functionName
+    )
+end
+
+local function isTableAndHasMethod(v: any, method: string): boolean
+    return type(v) == "table" and type(v[method]) == "function"
 end
 
 --[=[
@@ -85,6 +71,25 @@ function Values.isPrimitive(v: any): boolean
 end
 
 --[=[
+    Returns `true` if the arguments can be meaningfully compared.
+
+    If `a` is a table and matches the [Comparable] protocol, then `true` is
+    returned.
+    Otherwise, if `a` and `b` are the same type and support total ordering, then
+    `true` is returned.
+    Otherwise, `false` is returned.
+
+    @since [UNRELEASED]
+    @param a T -- The first value
+    @param b T -- The second value
+    @return boolean -- Whether the values can be meaningfully compared
+]=]
+function Values.isComparable<T>(a: T, b: T): boolean
+    return isTableAndHasMethod(a, "compareTo")
+        or (type(a) == type(b) and (type(a) == "number" or type(a) == "string"))
+end
+
+--[=[
     Returns `true` if the arguments are equal to each other.
 
     If `rawequal(a, b)` is `true`, `true` is returned.
@@ -121,7 +126,24 @@ end
     @error "[Values.compare()]: Cannot meaningfully compare values of type {type(a)} and {type(b)}" -- Thrown if the values cannot be meaningfully compared
 ]=]
 function Values.compare<T>(a: T, b: T): number
-    return Internal.compare(a, b)
+    if not Values.isComparable(a, b) then
+        Internal.compareFail(a, b, "compare")
+    end
+
+    if isTableAndHasMethod(a, "compareTo") then
+        return (a :: any):compareTo(b)
+    elseif
+        type(a) == type(b) and (type(a) == "number" or type(a) == "string")
+    then
+        return if a < b then -1 elseif a == b then 0 else 1
+    else
+        -- should generally be unreachable since the functions should
+        -- check Values.isComparable first, but here just in case.
+        fail(
+            `Cannot meaningfully compare values of type {type(a)} and {type(b)}`
+        )
+        return 0 -- unreachable, just to make the type checker happy
+    end
 end
 
 --[=[
@@ -143,14 +165,17 @@ end
     @error "[Values.lessThan()]: Cannot meaningfully compare values of type {type(a)} and {type(b)}" -- Thrown if the values cannot be meaningfully compared
 ]=]
 function Values.lessThan<T>(a: T, b: T): boolean
-    return Values.compare(a, b, nil, "lessThan") < 0
+    if not Values.isComparable(a, b) then
+        Internal.compareFail(a, b, "lessThan")
+    end
+    return Values.compare(a, b) < 0
 end
 
 --[=[
     Returns the smaller of two values.
 
     If `a` is a table and matches the [Comparable] protocol, then the result of
-    `a:compareTo(b)` is returned.
+    comparison using `a:compareTo(b)` is returned.
     Otherwise, if `a` and `b` are the same type and support total ordering, then
     the result of comparing `a` and `b` with `<` and `==` is returned.
     Otherwise, an error is thrown.
@@ -162,14 +187,17 @@ end
     @error "[Values.min()]: Cannot meaningfully compare values of type {type(a)} and {type(b)}" -- Thrown if the values cannot be meaningfully compared
 ]=]
 function Values.min<T>(a: T, b: T): T
-    return if Values.compare(a, b, nil, "min") <= 0 then a else b
+    if not Values.isComparable(a, b) then
+        Internal.compareFail(a, b, "min")
+    end
+    return if Values.compare(a, b) <= 0 then a else b
 end
 
 --[=[
     Returns the larger of the values.
 
     If `a` is a table and matches the [Comparable] protocol, then the result of
-    `a:compareTo(b)` is returned.
+    comparison using `a:compareTo(b)` is returned.
     Otherwise, if `a` and `b` are the same type and support total ordering, then
     the result of comparing `a` and `b` with `<` and `==` is returned.
     Otherwise, an error is thrown.
@@ -181,7 +209,36 @@ end
     @error "[Values.max()]: Cannot meaningfully compare values of type {type(a)} and {type(b)}" -- Thrown if the values cannot be meaningfully compared
 ]=]
 function Values.max<T>(a: T, b: T): T
-    return if Values.compare(a, b, nil, "max") >= 0 then a else b
+    if not Values.isComparable(a, b) then
+        Internal.compareFail(a, b, "max")
+    end
+    return if Values.compare(a, b) >= 0 then a else b
+end
+
+--[=[
+    Returns the value clamped between `lo` and `hi`.
+
+    If `v` is a table and matches the [Comparable] protocol, then the result of
+    comparison using `v:compareTo(lo)` and `v:compareTo(hi)` is returned.
+    Otherwise, if `v` and `lo`/`hi` are the same type and support total ordering, then
+    the result of comparing `v` and `lo`/`hi` with `<` and `==` is returned.
+    Otherwise, an error is thrown.
+
+    @since [UNRELEASED]
+    @param v T -- The value to clamp
+    @param lo T -- The lower bound
+    @param hi T -- The upper bound
+    @return T -- The clamped value
+    @error "[Values.clamp()]: Cannot meaningfully compare values of type {type(v)} and {type(lo|hi)}" -- Thrown if the values cannot be meaningfully compared
+]=]
+function Values.clamp<T>(v: T, lo: T, hi: T): T
+    if not Values.isComparable(v, lo) then
+        Internal.compareFail(v, lo, "clamp")
+    elseif not Values.isComparable(v, hi) then
+        Internal.compareFail(v, hi, "clamp")
+    end
+
+    return Values.min(Values.max(v, lo), hi)
 end
 
 --[=[
