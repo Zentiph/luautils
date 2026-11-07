@@ -105,8 +105,8 @@ end
 --[=[
     Returns `true` if the arguments can be meaningfully compared.
 
-    If `a` is a table and matches the [Comparable] protocol, then `true` is
-    returned.
+    If `a` and `b` are tables and match the [Comparable] protocol, then `true`
+    is returned.
     Otherwise, if `a` and `b` are the same type and support total ordering, then
     `true` is returned.
     Otherwise, `false` is returned.
@@ -117,7 +117,10 @@ end
     @return boolean -- Whether the values can be meaningfully compared
 ]=]
 function Values.isComparable<T>(a: T, b: T): boolean
-    return isTableAndHasMethod(a, "compareTo")
+    return (
+        isTableAndHasMethod(a, "compareTo")
+        and isTableAndHasMethod(b, "compareTo")
+    )
         or (type(a) == type(b) and (type(a) == "number" or type(a) == "string"))
 end
 
@@ -145,8 +148,8 @@ end
     Compares two values, returning a negative number if `a` < `b`, a positive
     number if `a` > `b`, or `0` if `a` == `b`.
 
-    If `a` is a table and matches the [Comparable] protocol, then the result of
-    `a:compareTo(b)` is returned.
+    If `a` and `b` are tables and match the [Comparable] protocol, then the
+    result of `a:compareTo(b)` is returned.
     Otherwise, if `a` and `b` are the same type and support total ordering, then
     the result of comparing `a` and `b` with `<` and `==` is returned.
     Otherwise, an error is thrown.
@@ -186,8 +189,8 @@ end
 --[=[
     Returns `true` if `a` < `b`.
 
-    If `a` is a table and matches the [Comparable] protocol, then the result of
-    `a:compareTo(b) < 0` is returned.
+    If `a` and `b` are tables and match the [Comparable] protocol, then the
+    result of `a:compareTo(b) < 0` is returned.
     Otherwise, if `a` and `b` are the same type and support total ordering, then
     the result of comparing `a` and `b` with `<` is returned.
     Otherwise, an error is thrown.
@@ -217,8 +220,8 @@ end
 --[=[
     Returns the smaller of two values.
 
-    If `a` is a table and matches the [Comparable] protocol, then the result of
-    comparison using `a:compareTo(b)` is returned.
+    If `a` and `b` are tables and match the [Comparable] protocol, then the
+    result of comparison using `a:compareTo(b)` is returned.
     Otherwise, if `a` and `b` are the same type and support total ordering, then
     the result of comparing `a` and `b` with `<` and `==` is returned.
     Otherwise, an error is thrown.
@@ -245,8 +248,8 @@ end
 --[=[
     Returns the larger of the values.
 
-    If `a` is a table and matches the [Comparable] protocol, then the result of
-    comparison using `a:compareTo(b)` is returned.
+    If `a` and `b` are tables and match the [Comparable] protocol, then the
+    result of comparison using `a:compareTo(b)` is returned.
     Otherwise, if `a` and `b` are the same type and support total ordering, then
     the result of comparing `a` and `b` with `<` and `==` is returned.
     Otherwise, an error is thrown.
@@ -273,8 +276,9 @@ end
 --[=[
     Returns the value clamped between `lo` and `hi`.
 
-    If `v` is a table and matches the [Comparable] protocol, then the result of
-    comparison using `v:compareTo(lo)` and `v:compareTo(hi)` is returned.
+    If `v`, `lo`, and `hi` are tables and match the [Comparable] protocol, then
+    the result of comparison using `v:compareTo(lo)` and `v:compareTo(hi)` is
+    returned.
     Otherwise, if `v` and `lo`/`hi` are the same type and support total ordering, then
     the result of comparing `v` and `lo`/`hi` with `<` and `==` is returned.
     Otherwise, an error is thrown.
