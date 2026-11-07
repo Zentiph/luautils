@@ -11,7 +11,7 @@ classes = ["Luautils"]
 
 [[classOrder]]
 section = "Core"
-classes = ["Core", "Errors", "Option", "Result", "typing"]
+classes = ["Core", "Errors", "Option", "Result", "Values", "typing"]
 
 [[classOrder]]
 section = "Async"

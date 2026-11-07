@@ -1,6 +1,10 @@
 # Changelog for luautils
 
 ## [Unreleased]
+* Features
+  * Core.Values
+    * Standard value checks
+    * Protocol matching on any value
 * CI
   * `.lute/version.luau` takes an optional expected version, checked before
     tagging a release

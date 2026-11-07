@@ -53,4 +53,5 @@ return table.freeze({
     Errors = require("@self/Errors"),
     Option = Option,
     Result = Result,
+    Values = require("@self/Values"),
 })
