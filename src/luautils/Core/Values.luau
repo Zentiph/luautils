@@ -230,12 +230,15 @@ end
     @param hi T -- The upper bound
     @return T -- The clamped value
     @error "[Values.clamp()]: Cannot meaningfully compare values of type {type(v)} and {type(lo|hi)}" -- Thrown if the values cannot be meaningfully compared
+    @error "[Values.clamp()]: lo must be less than or equal to hi" -- Thrown if `lo` is greater than `hi`
 ]=]
 function Values.clamp<T>(v: T, lo: T, hi: T): T
     if not Values.isComparable(v, lo) then
         Internal.compareFail(v, lo, "clamp")
     elseif not Values.isComparable(v, hi) then
         Internal.compareFail(v, hi, "clamp")
+    elseif Values.compare(lo, hi) > 0 then
+        fail("lo must be less than or equal to hi")
     end
 
     return Values.min(Values.max(v, lo), hi)
