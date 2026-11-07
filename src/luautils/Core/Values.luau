@@ -21,6 +21,25 @@ local function isTableAndHasMethod(v: any, method: string): boolean
 end
 
 --[=[
+    Returns `true` if the value is one of the given types.
+
+    @since [UNRELEASED]
+    @param v any -- The value to check
+    @param t string -- The first type to check (required)
+    @param ... string -- Additional types to check
+    @return boolean -- Whether the value is one of the types
+]=]
+function Values.is(v: any, t: string, ...: string): boolean
+    local args = { ... }
+    for _, arg in args do
+        if type(v) == arg then
+            return true
+        end
+    end
+    return type(v) == t
+end
+
+--[=[
     Returns `true` if the value is a primitive type (not a table or userdata).
 
     @since [UNRELEASED]
