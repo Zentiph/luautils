@@ -172,17 +172,8 @@ function Values.compare<T>(a: T, b: T): number
 
     if isTableAndHasMethod(a, "compareTo") then
         return (a :: any):compareTo(b)
-    elseif
-        type(a) == type(b) and (type(a) == "number" or type(a) == "string")
-    then
-        return if a < b then -1 elseif a == b then 0 else 1
     else
-        -- should generally be unreachable since the functions should
-        -- check Values.isComparable first, but here just in case.
-        fail(
-            `Cannot meaningfully compare values of type {type(a)} and {type(b)}`
-        )
-        return 0 -- unreachable, just to make the type checker happy
+        return if (a :: any) < b then -1 elseif a == b then 0 else 1
     end
 end
 
