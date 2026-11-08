@@ -69,6 +69,20 @@ end
 -- end
 
 --[=[
+    Starts (or resumes) the `Stopwatch`, saving the total accumulated time.
+
+    Does nothing if the `Stopwatch` is already running.
+
+    @method start
+    @within Stopwatch
+]=]
+function Stopwatch.start(self: Stopwatch): ()
+    if self._startedAt == nil then
+        self._startedAt = self._clock()
+    end
+end
+
+--[=[
     Returns whether the given value is a `Stopwatch`.
 
     Only values created by `Stopwatch` functions are considered `Stopwatch`s;
