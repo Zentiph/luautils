@@ -45,4 +45,20 @@ function Stopwatch.new(clock: Supplier<number>?): Stopwatch
     }, Stopwatch)
 end
 
+--[=[
+    Creates an already running `Stopwatch` at zero.
+
+    @param clock Supplier<number>? -- The clock function to use (defaults to `os.clock`)
+    @return Stopwatch -- The new `Stopwatch`
+]=]
+function Stopwatch.startNew(clock: Supplier<number>?): Stopwatch
+    local usedClock = clock or os.clock
+    return setmetatable({
+        _clock = usedClock,
+        _startedAt = usedClock(),
+        _accumulated = Duration.ZERO,
+        _lapMark = Duration.ZERO,
+    }, Stopwatch)
+end
+
 return table.freeze(Stopwatch)
