@@ -83,6 +83,21 @@ function Stopwatch.start(self: Stopwatch): ()
 end
 
 --[=[
+    Pauses the `Stopwatch` and adds the current interval to the total.
+
+    Does nothing if the `Stopwatch` is already stopped.
+
+    @method stop
+    @within Stopwatch
+]=]
+function Stopwatch.stop(self: Stopwatch): ()
+    if self._startedAt ~= nil then
+        self._accumulated += Duration.between(self._startedAt, self._clock())
+        self._startedAt = nil
+    end
+end
+
+--[=[
     Returns whether the given value is a `Stopwatch`.
 
     Only values created by `Stopwatch` functions are considered `Stopwatch`s;
