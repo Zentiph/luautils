@@ -5,6 +5,7 @@
 
 local Core = require("../Core")
 type Supplier<T> = Core.Supplier<T>
+type TupleFactory<T..., A...> = Core.TupleFactory<T..., A...>
 
 local Duration = require("./Duration")
 type Duration = Duration.Duration
@@ -59,6 +60,25 @@ function Stopwatch.startNew(clock: Supplier<number>?): Stopwatch
         _accumulated = Duration.ZERO,
         _lapMark = Duration.ZERO,
     }, Stopwatch)
+end
+
+-- function Stopwatch.measure<A..., R...>(fn: TupleFactory<R..., A...>, ...: A...): (Duration, R...)
+--     local stopwatch = Stopwatch.startNew()
+--     local results = table.pack(fn(...))
+--     return stopwatch:elapsed(), table.unpack(results)
+-- end
+
+--[=[
+    Returns whether the given value is a `Stopwatch`.
+
+    Only values created by `Stopwatch` functions are considered `Stopwatch`s;
+    tables with the same fields are not.
+
+    @param value any -- The value to check
+    @return boolean -- Whether the given value is a `Stopwatch`
+]=]
+function Stopwatch.is(value: any): boolean
+    return getmetatable(value) == Stopwatch
 end
 
 return table.freeze(Stopwatch)
