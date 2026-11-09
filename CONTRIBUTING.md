@@ -255,6 +255,10 @@ Callers can still use colon syntax: `value:method()`.
   `@since v0.1.0`.
   Place it after the `@class`/`@method`/`@within`/`@type` tags and before
   `@field`/`@param`/`@return`/`@error`.
+* Every class doc comment is tagged `@tag immutable` (frozen instances) or
+  `@tag mutable` (stateful instances that change over time), placed before
+  `@class`.
+  Modules that only hold functions or types are not classes and are not tagged.
 * Include a short `lua` example block when the behavior isn't obvious from the
   signature.
 * Note when an argument is evaluated eagerly (for example "`default` is

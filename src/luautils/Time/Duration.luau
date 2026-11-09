@@ -42,6 +42,7 @@ local fail = Core.Errors.errorWithScope("Duration")
     position prefix added by `error()`. Operators report the method that backs
     them, so `a + b` reports `[Duration.plus()]`.
 
+    @tag immutable
     @class Duration
     @since v0.1.0
 ]=]

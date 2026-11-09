@@ -30,6 +30,7 @@ local fail = require("./Errors").errorWithScope("Option")
     prefix added by `error()`. Errors from [Option:unwrapOrThrow] are thrown
     as-is and are not prefixed.
 
+    @tag immutable
     @class Option
     @since v0.1.0
 ]=]
