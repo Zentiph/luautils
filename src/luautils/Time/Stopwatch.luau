@@ -40,6 +40,7 @@ local _fail = Core.Errors.errorWithScope("Stopwatch")
 
     @tag mutable
     @class Stopwatch
+    @since [UNRELEASED]
 ]=]
 local Stopwatch = {}
 Stopwatch.__index = Stopwatch
