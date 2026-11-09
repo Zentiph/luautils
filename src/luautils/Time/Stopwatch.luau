@@ -232,7 +232,9 @@ function Stopwatch.measure<A..., R...>(
     ...: A...
 ): (Duration, R...)
     local start = os.clock()
-    local results = table.pack(fn(...) :: any)
+    -- cast fn rather than its call since asserting a call's type truncates it
+    -- to one value, and table.pack's ...: V can't accept the generic pack R...
+    local results = table.pack((fn :: (A...) -> ...any)(...))
     local elapsed = Duration.between(start, os.clock()):max(Duration.ZERO)
     return elapsed, table.unpack(results, 1, results.n)
 end
