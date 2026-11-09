@@ -93,6 +93,7 @@ end
 function Stopwatch.stop(self: Stopwatch): ()
     if self._startedAt ~= nil then
         self._accumulated += Duration.between(self._startedAt, self._clock())
+            :max(Duration.ZERO)
         self._startedAt = nil
     end
 end
@@ -132,10 +133,9 @@ end
     @return Duration -- The total accumulated time
 ]=]
 function Stopwatch.elapsed(self: Stopwatch): Duration
-    local total = Duration.ZERO
-    if self._startedAt ~= nil then
-        total += Duration.between(self._startedAt, self._clock())
-    end
+    local total = if self._startedAt ~= nil
+        then Duration.between(self._startedAt, self._clock()):max(Duration.ZERO)
+        else Duration.ZERO
     return total + self._accumulated
 end
 
