@@ -56,6 +56,7 @@ end
 
     @function deepCopy
     @within Tables
+    @since v0.1.0
     @param tbl T -- The table to copy
     @return T -- The copied table
     @error "[Tables.deepCopy()]: Cannot copy a table with a locked metatable" -- Thrown if the table, or any table inside it, has a metatable locked with a non-table `__metatable` value. Tables locked with a table `__metatable` value are not detected, and their copy is given that `__metatable` value as its metatable instead of the real one

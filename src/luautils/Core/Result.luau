@@ -34,6 +34,7 @@ local fail = require("./Errors").errorWithScope("Result")
     errors from [Result:unwrap], are not prefixed.
 
     @class Result
+    @since v0.1.0
 ]=]
 local Result = {}
 Result.__index = Result
@@ -69,6 +70,7 @@ end
     Result.ok(nil) -- Ok(nil), which is still "ok"
     ```
 
+    @since v0.1.0
     @param value T -- The value to wrap
     @return Result<T, E> -- The new `Result`
 ]=]
@@ -83,6 +85,7 @@ end
     by this function can still be used generically as a `Result<T, E>`. This is
     done to prevent false positives from the type checker.
 
+    @since v0.1.0
     @param err E -- The error to wrap
     @return Result<T, E> -- The new `Result`
     @error "[Result.err()]: Error cannot be nil" -- Thrown if `err` is `nil`
@@ -112,6 +115,7 @@ end
 
     @method toNillable
     @within Result
+    @since v0.1.0
     @return T? -- The contained value, or `nil`
 ]=]
 function Result.toNillable<T, E>(self: Result<T, E>): T?
@@ -126,6 +130,7 @@ end
 
     @method errToNillable
     @within Result
+    @since v0.1.0
     @return E? -- The contained error, or `nil`
 ]=]
 function Result.errToNillable<T, E>(self: Result<T, E>): E?
@@ -137,6 +142,7 @@ end
 
     @method isOk
     @within Result
+    @since v0.1.0
     @return boolean -- Whether the `Result` is "ok"
 ]=]
 function Result.isOk<T, E>(self: Result<T, E>): boolean
@@ -151,6 +157,7 @@ end
 
     @method isOkAnd
     @within Result
+    @since v0.1.0
     @param predicate Predicate<T> -- The predicate to check the value against
     @return boolean -- Whether the `Result` is "ok" and the value matches the predicate
 ]=]
@@ -163,6 +170,7 @@ end
 
     @method isErr
     @within Result
+    @since v0.1.0
     @return boolean -- Whether the `Result` is "err"
 ]=]
 function Result.isErr<T, E>(self: Result<T, E>): boolean
@@ -177,6 +185,7 @@ end
 
     @method isErrAnd
     @within Result
+    @since v0.1.0
     @param predicate Predicate<E> -- The predicate to check the error against
     @return boolean -- Whether the `Result` is "err" and the error matches the predicate
 ]=]
@@ -196,6 +205,7 @@ end
     Result.fromOption(Option.none(), "missing") -- Err("missing")
     ```
 
+    @since v0.1.0
     @param option Option<T> -- The `Option` to convert
     @param err E -- The error to provide if the `Option` is "none"
     @return Result<T, E> -- The converted `Result`
@@ -216,6 +226,7 @@ end
 
     `err` is only called if the [Option] is "none".
 
+    @since v0.1.0
     @param option Option<T> -- The `Option` to convert
     @param err Supplier<E> -- The function that supplies the error if the `Option` is "none"
     @return Result<T, E> -- The converted `Result`
@@ -248,6 +259,7 @@ end
 
     @method asOk
     @within Result
+    @since v0.1.0
     @return Option<T> -- The converted `Option`
 ]=]
 function Result.asOk<T, E>(self: Result<T, E>): Option<T>
@@ -263,6 +275,7 @@ end
 
     @method asErr
     @within Result
+    @since v0.1.0
     @return Option<E> -- The converted `Option`
 ]=]
 function Result.asErr<T, E>(self: Result<T, E>): Option<E>
@@ -275,6 +288,7 @@ end
 
     @method map
     @within Result
+    @since v0.1.0
     @param mapper Mapper<T, U> -- The function to apply to the contained value
     @return Result<U, E> -- The mapped `Result`
 ]=]
@@ -291,6 +305,7 @@ end
 
     @method mapOr
     @within Result
+    @since v0.1.0
     @param default U -- The default value to return if the `Result` is "err"
     @param mapper Mapper<T, U> -- The function to apply to the contained value
     @return U -- The provided default value, or the mapped value
@@ -316,6 +331,7 @@ end
 
     @method mapOrElse
     @within Result
+    @since v0.1.0
     @param default Mapper<E, U> -- The function to apply to the contained error
     @param mapper Mapper<T, U> -- The function to apply to the contained value
     @return U -- The mapped value
@@ -349,6 +365,7 @@ end
 
     @method tryMap
     @within Result
+    @since v0.1.0
     @param mapper Mapper<T, U> -- The function to apply to the contained value
     @return Result<U, unknown> -- The mapped `Result`
 ]=]
@@ -365,6 +382,7 @@ end
 
     @method mapErr
     @within Result
+    @since v0.1.0
     @param mapper Mapper<E, F> -- The function to apply to the contained error
     @return Result<T, F> -- The mapped `Result`
     @error '[Result.mapErr()]: Mapper produced a nil error; "err" Results cannot hold nil' -- Thrown if `mapper` returns `nil`
@@ -402,6 +420,7 @@ end
 
     @method filterOrElse
     @within Result
+    @since v0.1.0
     @param predicate Predicate<T> -- The predicate to check the value against
     @param errorFactory Factory<E, T> -- The function that creates the error from the value
     @return Result<T, E> -- The original `Result`, or the new "err"
@@ -429,6 +448,7 @@ end
 
     @method inspect
     @within Result
+    @since v0.1.0
     @param consumer Consumer<T> -- The function to call with the contained value
     @return Result<T, E> -- The original `Result`
 ]=]
@@ -446,6 +466,7 @@ end
 
     @method inspectErr
     @within Result
+    @since v0.1.0
     @param consumer Consumer<E> -- The function to call with the contained error
     @return Result<T, E> -- The original `Result`
 ]=]
@@ -471,6 +492,7 @@ end
 
     @method expect
     @within Result
+    @since v0.1.0
     @param message string -- The error message
     @return T -- The contained value
     @error "[Result.expect()]: {message}: {error}" -- Thrown if the `Result` is "err"
@@ -498,6 +520,7 @@ end
 
     @method unwrap
     @within Result
+    @since v0.1.0
     @return T -- The contained value
     @error unknown -- Thrown if the `Result` is "err"; `"[Result.unwrap()]: {error}"` unless the error is a table or userdata
 ]=]
@@ -518,6 +541,7 @@ end
 
     @method expectErr
     @within Result
+    @since v0.1.0
     @param message string -- The error message
     @return E -- The contained error
     @error "[Result.expectErr()]: {message}: {value}" -- Thrown if the `Result` is "ok"
@@ -538,6 +562,7 @@ end
 
     @method unwrapErr
     @within Result
+    @since v0.1.0
     @return E -- The contained error
     @error "[Result.unwrapErr()]: Called on an ok value: {value}" -- Thrown if the `Result` is "ok"
 ]=]
@@ -562,6 +587,7 @@ end
 
     @method andResult
     @within Result
+    @since v0.1.0
     @param other Result<U, E> -- The `Result` to return if the `Result` is "ok"
     @return Result<U, E> -- `other`, or the original "err" `Result`
 ]=]
@@ -587,6 +613,7 @@ end
 
     @method andThen
     @within Result
+    @since v0.1.0
     @param mapper Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
     @return Result<U, E> -- The `Result` returned by `mapper`, or the original "err" `Result`
 ]=]
@@ -610,6 +637,7 @@ end
 
     @method orResult
     @within Result
+    @since v0.1.0
     @param other Result<T, F> -- The `Result` to return if the `Result` is "err"
     @return Result<T, F> -- `other`, or the original "ok" `Result`
 ]=]
@@ -632,6 +660,7 @@ end
 
     @method orElse
     @within Result
+    @since v0.1.0
     @param mapper Mapper<E, Result<T, F>> -- The function to call if the `Result` is "err"
     @return Result<T, F> -- The `Result` returned by `mapper`, or the original "ok" `Result`
 ]=]
@@ -650,6 +679,7 @@ end
 
     @method unwrapOr
     @within Result
+    @since v0.1.0
     @param default T -- The default value to return if the `Result` is "err"
     @return T -- The contained value, or the provided default
 ]=]
@@ -663,6 +693,7 @@ end
 
     @method unwrapOrElse
     @within Result
+    @since v0.1.0
     @param mapper Mapper<E, T> -- The function to call if the `Result` is "err"
     @return T -- The contained value, or the computed value
 ]=]
@@ -679,6 +710,7 @@ end
 
     @method match
     @within Result
+    @since v0.1.0
     @param ifOk Consumer<T> -- The function to call with the contained value
     @param ifErr Consumer<E> -- The function to call with the contained error
 ]=]
@@ -720,6 +752,7 @@ end
     end) -- Err("error(nil) was called")
     ```
 
+    @since v0.1.0
     @param factory Factory<T, A...> -- The function to call in protected mode
     @param ... A... -- The arguments to pass to `factory`
     @return Result<T, unknown> -- The `Result` of running the function
@@ -757,6 +790,7 @@ end
     end, "player123") -- Err(<the error with its traceback>) if `loadData` fails
     ```
 
+    @since v0.1.0
     @param factory Factory<T, A...> -- The function to call in extended protected mode
     @param onErr Mapper<unknown, E?> -- The error handler to call if the function fails
     @param ... A... -- The arguments to pass to `factory`
@@ -790,6 +824,7 @@ end
     print(table.unpack(packed, 1, packed.n)) -- 1 nil 3
     ```
 
+    @since v0.1.0
     @param factory TupleFactory<...any, A...> -- The function to call in protected mode
     @param ... A... -- The arguments to pass to `factory`
     @return Result<PackedTable, unknown> -- The `Result` of running the function, holding the packed return values if "ok"
@@ -828,6 +863,7 @@ end
 
     @method tryAndThen
     @within Result
+    @since v0.1.0
     @param mapper Mapper<T, Result<U, E>> -- The function to call if the `Result` is "ok"
     @return Result<U, unknown> -- The `Result` returned by `mapper`, the thrown error, or the original "err" `Result`
     @error "[Result.flatten()]: Called flatten on a Result that does not contain a Result" -- Thrown if `mapper` returns a non-`Result` value without throwing
@@ -856,6 +892,7 @@ end
     tryParse("x") -- Err("not a number: x")
     ```
 
+    @since v0.1.0
     @param factory Factory<T, A...> -- The function to wrap
     @return Factory<Result<T, unknown>, A...> -- The wrapped function
 ]=]
@@ -881,6 +918,7 @@ end
 
     @method transpose
     @within Result
+    @since v0.1.0
     @return Option<Result<T, E>> -- The transposed `Option`
     @error "[Result.transpose()]: Called transpose on a Result that does not contain an Option" -- Thrown if the `Result` is "ok" and does not hold an `Option`
 ]=]
@@ -910,6 +948,7 @@ end
     Result.transposeOption(Option.none()) -- Ok(None)
     ```
 
+    @since v0.1.0
     @param option Option<Result<T, E>> -- The `Option` to transpose
     @return Result<Option<T>, E> -- The transposed `Result`
     @error "[Result.transposeOption()]: Called transposeOption on an Option that does not contain a Result" -- Thrown if the `Option` is "some" and does not hold a `Result`
@@ -944,6 +983,7 @@ end
 
     @method flatten
     @within Result
+    @since v0.1.0
     @return Result<T, E> -- The flattened `Result`
     @error "[Result.flatten()]: Called flatten on a Result that does not contain a Result" -- Thrown if the `Result` is "ok" and does not hold a `Result`
 ]=]
@@ -973,6 +1013,7 @@ end
     Result.all({ Result.ok(1), Result.err("a"), Result.err("b") }) -- Err("a")
     ```
 
+    @since v0.1.0
     @param results Map<K, Result<T, E>> -- The table of `Result`s
     @return Result<Map<K, T>, E> -- The converted `Result`
     @error "[Result.all()]: Called all on a table containing a non-Result value" -- Thrown if a non-`Result` value is found before any "err"
@@ -1011,6 +1052,7 @@ end
     -- oks is { [1] = 1, [3] = 3 }, and errs is { [2] = "a" }
     ```
 
+    @since v0.1.0
     @param results Map<K, Result<T, E>> -- The table of `Result`s
     @return Map<K, T> -- The unwrapped "ok" values
     @return Map<K, E> -- The unwrapped "err" values
@@ -1034,6 +1076,7 @@ end
 --[=[
     Returns whether the given value is a `Result`.
 
+    @since v0.1.0
     @param value any -- The value to check
     @return boolean -- Whether the value is a `Result`
 ]=]
@@ -1059,6 +1102,7 @@ end
 
     @method equals
     @within Result
+    @since v0.1.0
     @param other Result<T, E> -- The `Result` to compare with the current `Result`
     @return boolean -- Whether the two `Result`s are equal
 ]=]
@@ -1083,6 +1127,7 @@ Result.__eq = Result.equals
 
     @method toString
     @within Result
+    @since v0.1.0
     @return string -- A string representation of the `Result`
 ]=]
 function Result.toString<T, E>(self: Result<T, E>): string
