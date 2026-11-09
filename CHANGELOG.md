@@ -17,6 +17,8 @@
     CONTRIBUTING
   * Added merge and version-check commands to the release steps in CONTRIBUTING
   * Documented the allowed branch name prefixes in CONTRIBUTING
+  * Tagged every class as `mutable` or `immutable` in the docs, and documented
+    the convention in CONTRIBUTING
 
 ## [v0.1.2] - 2026-11-05
 * Fixed `Luautils.VERSION` reporting `0.1.0` in the published 0.1.1 packages

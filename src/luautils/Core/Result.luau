@@ -33,6 +33,7 @@ local fail = require("./Errors").errorWithScope("Result")
     prefix added by `error()`. Errors that are thrown as-is, such as table
     errors from [Result:unwrap], are not prefixed.
 
+    @tag immutable
     @class Result
     @since v0.1.0
 ]=]
