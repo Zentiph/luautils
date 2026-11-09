@@ -162,12 +162,8 @@ end
     @return Duration -- The elapsed time since the last lap
 ]=]
 function Stopwatch.lap(self: Stopwatch): Duration
-    if self._startedAt == nil then
-        -- if stopped, return the time since last lap
-        return self._lapMark
-    end
-
-    self._lapMark = Duration.between(self._startedAt, self._clock())
+    local now = self:elapsed()
+    self._lapMark = now - self._lapMark
     return self._lapMark
 end
 
