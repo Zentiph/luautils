@@ -10,13 +10,13 @@ type TupleFactory<T..., A...> = Core.TupleFactory<T..., A...>
 local Duration = require("./Duration")
 type Duration = Duration.Duration
 
-local fail = Core.Errors.errorWithScope("Stopwatch")
+-- rename to "fail" if ever used
+local _fail = Core.Errors.errorWithScope("Stopwatch")
 
 --[=[
     A class for performing timings.
 
-    `Stopwatch` is not thread-safe.
-
+    @tag mutable
     @class Stopwatch
 ]=]
 local Stopwatch = {}
@@ -53,17 +53,13 @@ end
     @return Stopwatch -- The new `Stopwatch`
 ]=]
 function Stopwatch.startNew(clock: Supplier<number>?): Stopwatch
-    local usedClock = clock or os.clock
-    return setmetatable({
-        _clock = usedClock,
-        _startedAt = usedClock(),
-        _accumulated = Duration.ZERO,
-        _lapMark = Duration.ZERO,
-    }, Stopwatch)
+    local stopwatch = Stopwatch.new(clock)
+    stopwatch:start()
+    return stopwatch
 end
 
 --[=[
-    Starts (or resumes) this `Stopwatch`, saving the total accumulated time.
+    Starts (or resumes) this `Stopwatch`, keeping the accumulated time so far.
 
     Does nothing if this `Stopwatch` is already running.
 
@@ -127,10 +123,10 @@ end
     @return Duration -- The total accumulated time
 ]=]
 function Stopwatch.elapsed(self: Stopwatch): Duration
-    local total = if self._startedAt ~= nil
+    local interval = if self._startedAt ~= nil
         then Duration.between(self._startedAt, self._clock()):max(Duration.ZERO)
         else Duration.ZERO
-    return total + self._accumulated
+    return interval + self._accumulated
 end
 
 --[=[
@@ -138,6 +134,7 @@ end
 
     @method isRunning
     @within Stopwatch
+    @return boolean -- Whether this `Stopwatch` is running
 ]=]
 function Stopwatch.isRunning(self: Stopwatch): boolean
     return self._startedAt ~= nil
