@@ -110,6 +110,20 @@ function Stopwatch.reset(self: Stopwatch): ()
 end
 
 --[=[
+    Resets this `Stopwatch` back to zero, and then starts it again.
+
+    Equivalent to calling [Stopwatch.reset] followed by [Stopwatch.start].
+
+    @method restart
+    @within Stopwatch
+]=]
+function Stopwatch.restart(self: Stopwatch): ()
+    self._startedAt = self._clock()
+    self._accumulated = Duration.ZERO
+    self._lapMark = Duration.ZERO
+end
+
+--[=[
     Returns whether the given value is a `Stopwatch`.
 
     Only values created by `Stopwatch` functions are considered `Stopwatch`s;
