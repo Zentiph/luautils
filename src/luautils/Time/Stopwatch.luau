@@ -14,7 +14,29 @@ type Duration = Duration.Duration
 local _fail = Core.Errors.errorWithScope("Stopwatch")
 
 --[=[
-    A class for performing timings.
+    A mutable stopwatch for measuring elapsed time, which can be started,
+    stopped, and lapped.
+
+    Time accumulates across every interval the `Stopwatch` runs for, and does
+    not count while it is stopped. Readings come from a clock function, which
+    is `os.clock` by default and can be swapped out through [Stopwatch.new].
+    If the clock ever goes backwards, the affected interval counts as zero
+    rather than negative.
+
+    Unlike `Duration`s, `Stopwatch`s are not frozen, and their methods modify
+    them in place.
+
+    Supports `tostring()`.
+
+    ```lua
+    local stopwatch = Stopwatch.startNew()
+    doWork()
+    stopwatch:stop()
+    doUntimedWork() -- not counted
+    stopwatch:start()
+    doMoreWork()
+    print(stopwatch:elapsed():toHumanString()) -- e.g. "1s 250ms"
+    ```
 
     @tag mutable
     @class Stopwatch
@@ -34,6 +56,14 @@ export type Stopwatch = typeof(setmetatable({} :: StopwatchData, Stopwatch))
 --[=[
     Creates a new `Stopwatch` that is stopped and at zero.
 
+    The clock function should return the current time in seconds, and should
+    not go backwards.
+    Common choices are:
+    * `os.clock` for local elapsed time (the default)
+    * `os.time` for Unix seconds with whole-second precision
+    * `function() return Workspace:GetServerTimeNow() end` for time
+      synchronized between client and server
+
     @param clock Supplier<number>? -- The clock function to use (defaults to `os.clock`)
     @return Stopwatch -- The new `Stopwatch`
 ]=]
@@ -47,7 +77,9 @@ function Stopwatch.new(clock: Supplier<number>?): Stopwatch
 end
 
 --[=[
-    Creates an already running `Stopwatch` at zero.
+    Creates a new `Stopwatch` that starts running from zero.
+
+    Equivalent to calling [Stopwatch.new] followed by [Stopwatch:start].
 
     @param clock Supplier<number>? -- The clock function to use (defaults to `os.clock`)
     @return Stopwatch -- The new `Stopwatch`
@@ -59,7 +91,7 @@ function Stopwatch.startNew(clock: Supplier<number>?): Stopwatch
 end
 
 --[=[
-    Starts (or resumes) this `Stopwatch`, keeping the accumulated time so far.
+    Starts (or resumes) this `Stopwatch`, keeping the time accumulated so far.
 
     Does nothing if this `Stopwatch` is already running.
 
@@ -73,9 +105,10 @@ function Stopwatch.start(self: Stopwatch): ()
 end
 
 --[=[
-    Pauses this `Stopwatch` and adds the current interval to the total.
+    Stops (pauses) this `Stopwatch`, adding the current interval to its total.
 
-    Does nothing if this `Stopwatch` is already stopped.
+    The accumulated time is kept, so calling [Stopwatch:start] resumes from
+    where it left off. Does nothing if this `Stopwatch` is already stopped.
 
     @method stop
     @within Stopwatch
@@ -91,6 +124,9 @@ end
 --[=[
     Resets this `Stopwatch` to zero, stopping it if it is running.
 
+    This also clears the last lap, so the next [Stopwatch:lap] measures from
+    zero.
+
     @method reset
     @within Stopwatch
 ]=]
@@ -101,9 +137,9 @@ function Stopwatch.reset(self: Stopwatch): ()
 end
 
 --[=[
-    Resets this `Stopwatch` back to zero, and then starts it again.
+    Resets this `Stopwatch` to zero, and then starts it again.
 
-    Equivalent to calling [Stopwatch.reset] followed by [Stopwatch.start].
+    Equivalent to calling [Stopwatch:reset] followed by [Stopwatch:start].
 
     @method restart
     @within Stopwatch
@@ -115,12 +151,14 @@ function Stopwatch.restart(self: Stopwatch): ()
 end
 
 --[=[
-    Returns the total accumulated time of this `Stopwatch` whether it is running
-    or stopped.
+    Returns the total time this `Stopwatch` has been running, including the
+    current interval if it is running.
+
+    Time spent stopped is not counted.
 
     @method elapsed
     @within Stopwatch
-    @return Duration -- The total accumulated time
+    @return Duration -- The total running time
 ]=]
 function Stopwatch.elapsed(self: Stopwatch): Duration
     local interval = if self._startedAt ~= nil
@@ -141,16 +179,27 @@ function Stopwatch.isRunning(self: Stopwatch): boolean
 end
 
 --[=[
-    Returns the time elapsed since the last `lap()`, or since starting.
+    Returns the running time since the last call to [Stopwatch:lap], and marks
+    a new lap.
 
-    If called when stopped, this method still returns the time since the last
-    lap.
+    The first lap is measured from when this `Stopwatch` was created, reset,
+    or restarted. Like [Stopwatch:elapsed], laps only count running time, so
+    time spent stopped is not included in any lap. This method does not stop
+    or start this `Stopwatch`.
 
-    This method does not stop the stopwatch.
+    ```lua
+    local stopwatch = Stopwatch.startNew()
+    -- 1 second later
+    stopwatch:lap() -- 1 second
+    -- 2 seconds later
+    stopwatch:lap() -- 2 seconds
+    -- 1 second later
+    stopwatch:lap() -- 1 second
+    ```
 
     @method lap
     @within Stopwatch
-    @return Duration -- The elapsed time since the last lap
+    @return Duration -- The running time since the last lap
 ]=]
 function Stopwatch.lap(self: Stopwatch): Duration
     local now = self:elapsed()
@@ -159,14 +208,23 @@ function Stopwatch.lap(self: Stopwatch): Duration
 end
 
 --[=[
-    Calls the given function with the given arguments, returning how long it
-    took to execute, followed by its return value(s).
+    Calls `fn` with the given arguments, returning how long it took to run,
+    followed by all of its return values.
 
-    Errors thrown by the function are propagated.
+    The time is always measured with `os.clock`, not a custom clock. Errors
+    thrown by `fn` are not caught; use [Result.try] to catch them.
+
+    ```lua
+    local elapsed, sum = Stopwatch.measure(function(a, b)
+        return a + b
+    end, 1, 2)
+    print(elapsed:toHumanString(), sum) -- e.g. "0ms" 3
+    ```
 
     @param fn TupleFactory<R..., A...> -- The function to call
-    @param ... A... -- The arguments to call the function with
-    @return Duration, R... -- The elapsed time, followed by the returned values
+    @param ... A... -- The arguments to pass to `fn`
+    @return Duration -- How long `fn` took to run
+    @return R... -- The values returned by `fn`
 ]=]
 function Stopwatch.measure<A..., R...>(
     fn: TupleFactory<R..., A...>,
@@ -185,18 +243,31 @@ end
     tables with the same fields are not.
 
     @param value any -- The value to check
-    @return boolean -- Whether the given value is a `Stopwatch`
+    @return boolean -- Whether the value is a `Stopwatch`
 ]=]
 function Stopwatch.is(value: any): boolean
     return getmetatable(value) == Stopwatch
 end
 
 --[=[
-    Returns a string representation of this `Stopwatch`.
+    Returns the elapsed time of this `Stopwatch` as a human-readable string.
+
+    The time is formatted with [Duration:toHumanString], followed by
+    `" (running)"` if this `Stopwatch` is running.
+
+    Also used by `tostring()`.
+
+    ```lua
+    local stopwatch = Stopwatch.startNew()
+    -- 1.25 seconds later
+    stopwatch:toString() -- "1s 250ms (running)"
+    stopwatch:stop()
+    tostring(stopwatch) -- "1s 250ms"
+    ```
 
     @method toString
     @within Stopwatch
-    @return string -- The string representation
+    @return string -- The human-readable string
 ]=]
 function Stopwatch.toString(self: Stopwatch): string
     return self:elapsed():toHumanString()
