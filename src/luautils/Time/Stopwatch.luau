@@ -203,8 +203,9 @@ end
 ]=]
 function Stopwatch.lap(self: Stopwatch): Duration
     local now = self:elapsed()
-    self._lapMark = now - self._lapMark
-    return self._lapMark
+    local lap = now - self._lapMark
+    self._lapMark = now
+    return lap
 end
 
 --[=[
