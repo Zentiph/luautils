@@ -150,6 +150,28 @@ function Stopwatch.isRunning(self: Stopwatch): boolean
 end
 
 --[=[
+    Returns the time elapsed since the last `lap()`, or since starting.
+
+    If called when stopped, this method still returns the time since the last
+    lap.
+
+    This method does not stop the stopwatch.
+
+    @method lap
+    @within Stopwatch
+    @return Duration -- The elapsed time since the last lap
+]=]
+function Stopwatch.lap(self: Stopwatch): Duration
+    if self._startedAt == nil then
+        -- if stopped, return the time since last lap
+        return self._lapMark
+    end
+
+    self._lapMark = Duration.between(self._startedAt, self._clock())
+    return self._lapMark
+end
+
+--[=[
     Returns whether the given value is a `Stopwatch`.
 
     Only values created by `Stopwatch` functions are considered `Stopwatch`s;
