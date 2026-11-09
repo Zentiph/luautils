@@ -140,6 +140,16 @@ function Stopwatch.elapsed(self: Stopwatch): Duration
 end
 
 --[=[
+    Returns whether this `Stopwatch` is running.
+
+    @method isRunning
+    @within Stopwatch
+]=]
+function Stopwatch.isRunning(self: Stopwatch): boolean
+    return self._startedAt ~= nil
+end
+
+--[=[
     Returns whether the given value is a `Stopwatch`.
 
     Only values created by `Stopwatch` functions are considered `Stopwatch`s;
