@@ -184,4 +184,17 @@ function Stopwatch.is(value: any): boolean
     return getmetatable(value) == Stopwatch
 end
 
+--[=[
+    Returns a string representation of this `Stopwatch`.
+
+    @method toString
+    @within Stopwatch
+    @return string -- The string representation
+]=]
+function Stopwatch.toString(self: Stopwatch): string
+    return self:elapsed():toHumanString()
+        .. if self:isRunning() then " (running)" else ""
+end
+Stopwatch.__tostring = Stopwatch.toString
+
 return table.freeze(Stopwatch)
