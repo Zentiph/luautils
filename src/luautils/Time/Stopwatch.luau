@@ -62,12 +62,6 @@ function Stopwatch.startNew(clock: Supplier<number>?): Stopwatch
     }, Stopwatch)
 end
 
--- function Stopwatch.measure<A..., R...>(fn: TupleFactory<R..., A...>, ...: A...): (Duration, R...)
---     local stopwatch = Stopwatch.startNew()
---     local results = table.pack(fn(...))
---     return stopwatch:elapsed(), table.unpack(results)
--- end
-
 --[=[
     Starts (or resumes) this `Stopwatch`, saving the total accumulated time.
 
@@ -165,6 +159,26 @@ function Stopwatch.lap(self: Stopwatch): Duration
     local now = self:elapsed()
     self._lapMark = now - self._lapMark
     return self._lapMark
+end
+
+--[=[
+    Calls the given function with the given arguments, returning how long it
+    took to execute, followed by its return value(s).
+
+    Errors thrown by the function are propagated.
+
+    @param fn TupleFactory<R..., A...> -- The function to call
+    @param ... A... -- The arguments to call the function with
+    @return Duration, R... -- The elapsed time, followed by the returned values
+]=]
+function Stopwatch.measure<A..., R...>(
+    fn: TupleFactory<R..., A...>,
+    ...: A...
+): (Duration, R...)
+    local start = os.clock()
+    local results = table.pack(fn(...) :: any)
+    local elapsed = Duration.between(start, os.clock()):max(Duration.ZERO)
+    return elapsed, table.unpack(results, 1, results.n)
 end
 
 --[=[
