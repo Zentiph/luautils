@@ -74,6 +74,7 @@ Luautils.Tables = Tables
 local Time = require("@self/Time")
 Luautils.Time = Time
 export type Duration = Time.Duration
+export type Stopwatch = Time.Stopwatch
 
 local Validation = require("@self/Validation")
 Luautils.Validation = Validation
