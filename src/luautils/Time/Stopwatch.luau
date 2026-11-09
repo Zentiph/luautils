@@ -69,9 +69,9 @@ end
 -- end
 
 --[=[
-    Starts (or resumes) the `Stopwatch`, saving the total accumulated time.
+    Starts (or resumes) this `Stopwatch`, saving the total accumulated time.
 
-    Does nothing if the `Stopwatch` is already running.
+    Does nothing if this `Stopwatch` is already running.
 
     @method start
     @within Stopwatch
@@ -83,9 +83,9 @@ function Stopwatch.start(self: Stopwatch): ()
 end
 
 --[=[
-    Pauses the `Stopwatch` and adds the current interval to the total.
+    Pauses this `Stopwatch` and adds the current interval to the total.
 
-    Does nothing if the `Stopwatch` is already stopped.
+    Does nothing if this `Stopwatch` is already stopped.
 
     @method stop
     @within Stopwatch
@@ -95,6 +95,18 @@ function Stopwatch.stop(self: Stopwatch): ()
         self._accumulated += Duration.between(self._startedAt, self._clock())
         self._startedAt = nil
     end
+end
+
+--[=[
+    Resets this `Stopwatch` to zero, stopping it if it is running.
+
+    @method reset
+    @within Stopwatch
+]=]
+function Stopwatch.reset(self: Stopwatch): ()
+    self._startedAt = nil
+    self._accumulated = Duration.ZERO
+    self._lapMark = Duration.ZERO
 end
 
 --[=[
