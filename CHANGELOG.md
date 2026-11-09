@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 * Features
+  * Core.Time
+    * Stopwatch class
   * Core.Values
     * Standard value checks
     * Protocol matching on any value
