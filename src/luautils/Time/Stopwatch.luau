@@ -124,6 +124,22 @@ function Stopwatch.restart(self: Stopwatch): ()
 end
 
 --[=[
+    Returns the total accumulated time of this `Stopwatch` whether it is running
+    or stopped.
+
+    @method elapsed
+    @within Stopwatch
+    @return Duration -- The total accumulated time
+]=]
+function Stopwatch.elapsed(self: Stopwatch): Duration
+    local total = Duration.ZERO
+    if self._startedAt ~= nil then
+        total += Duration.between(self._startedAt, self._clock())
+    end
+    return total + self._accumulated
+end
+
+--[=[
     Returns whether the given value is a `Stopwatch`.
 
     Only values created by `Stopwatch` functions are considered `Stopwatch`s;
