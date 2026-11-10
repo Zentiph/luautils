@@ -27,7 +27,7 @@ local fail = require("./Errors").errorWithScope("Values")
     prefix added by `error()`.
 
     @class Values
-    @since [UNRELEASED]
+    @since v0.1.3
 ]=]
 local Values = {}
 
@@ -62,7 +62,7 @@ end
     Values.is(workspace, "Instance") -- false, since `type(workspace)` is "userdata"
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param v any -- The value to check
     @param t string -- The first type to check against (required)
     @param ... string -- Additional types to check against
@@ -103,7 +103,7 @@ end
     Values.isPrimitive({}) -- false
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param v any -- The value to check
     @return boolean -- Whether the value is primitive
 ]=]
@@ -135,7 +135,7 @@ end
     Values.isImmutable(table.freeze({})) -- false, since tables never count
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param v any -- The value to check
     @return boolean -- Whether the value is immutable
 ]=]
@@ -171,7 +171,7 @@ end
     Values.isComparable(Duration.SECOND, Duration.MINUTE) -- true
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param a T -- The first value
     @param b T -- The second value
     @return boolean -- Whether the values can be compared
@@ -208,7 +208,7 @@ end
     Values.equals({}, {}) -- false, since plain tables compare by reference
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param a T -- The first value
     @param b T -- The second value
     @return boolean -- Whether the values are equal
@@ -240,7 +240,7 @@ end
     Values.compare(0 / 0, 1) -- error, since NaN is not ordered
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param a T -- The first value
     @param b T -- The second value
     @return number -- Negative if `a < b`, positive if `a > b`, or `0` if they are equal
@@ -276,7 +276,7 @@ end
     -- { Duration.SECOND, Duration.MINUTE, Duration.HOUR }
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param a T -- The first value
     @param b T -- The second value
     @return boolean -- Whether `a` is less than `b`
@@ -308,7 +308,7 @@ end
     Values.min(Duration.MINUTE, Duration.SECOND) -- Duration.SECOND
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param a T -- The first value
     @param b T -- The second value
     @return T -- The smaller value, or `a` if they are equal
@@ -340,7 +340,7 @@ end
     Values.max(Duration.MINUTE, Duration.SECOND) -- Duration.MINUTE
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param a T -- The first value
     @param b T -- The second value
     @return T -- The larger value, or `a` if they are equal
@@ -374,7 +374,7 @@ end
     Values.clamp(5, 10, 0) -- error, since `lo` is greater than `hi`
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param v T -- The value to clamp
     @param lo T -- The lower bound
     @param hi T -- The upper bound
@@ -421,7 +421,7 @@ end
     end
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param v any -- The value to get a key for
     @return any -- The key for the value
     @error "[Values.toKey()]: Cannot use NaN as a table key" -- Thrown if `v` is `NaN`
@@ -453,7 +453,7 @@ end
     Values.toString(Duration.WEEK) -- "P7D"
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param v any -- The value to convert
     @return string -- The string representation
 ]=]
@@ -479,7 +479,7 @@ end
     Values.clone({}) -- error, use table.clone() or Tables.deepCopy()
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param v T -- The value to copy
     @return T -- The copy, or `v` itself if it is immutable
     @error "[Values.clone()]: Cannot clone value of type {type(v)}. (...)" -- Thrown if `v` is not immutable and has no `clone` method. The message continues with a hint to add a `clone` method, or to use `table.clone()` or [Tables.deepCopy]

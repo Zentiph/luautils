@@ -57,7 +57,7 @@ local fail = Core.Errors.errorWithScope("Cooldown")
 
     @tag mutable
     @class Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
 ]=]
 local Cooldown = {}
 Cooldown.__index = Cooldown
@@ -74,7 +74,7 @@ type CooldownEntry = {
 
     @type CooldownOptions { clock: Supplier<number>?, maxCharges: number? }
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
 ]=]
 export type CooldownOptions = {
     --[=[
@@ -88,13 +88,13 @@ export type CooldownOptions = {
         * `function() return workspace:GetServerTimeNow() end` for time
           synchronized between client and server
 
-        @since [UNRELEASED]
+        @since v0.1.3
     ]=]
     read clock: Supplier<number>?,
     --[=[
         The maximum number of charges each entry can hold (defaults to 1).
 
-        @since [UNRELEASED]
+        @since v0.1.3
     ]=]
     read maxCharges: number?,
 }
@@ -172,7 +172,7 @@ end
     })
     ```
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param length Duration -- The time each charge takes to recharge
     @param options CooldownOptions? -- The options to use (defaults to `{ clock = os.clock, maxCharges = 1 }`)
     @return Cooldown<any> -- The new `Cooldown`
@@ -230,7 +230,7 @@ end
 
     @method tryUse
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @param length Duration? -- The custom length to use (defaults to the `Cooldown`'s length)
     @return boolean -- Whether a charge was available
@@ -296,7 +296,7 @@ end
 
     @method start
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @param length Duration? -- The custom length to use (defaults to the `Cooldown`'s length)
     @error "[Cooldown.start()]: Key cannot be nil or NaN" -- Thrown if `key` is `nil` or NaN
@@ -342,7 +342,7 @@ end
 
     @method adjust
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @param delta Duration -- The amount to adjust
     @error "[Cooldown.adjust()]: Key cannot be nil or NaN" -- Thrown if `key` is `nil` or NaN
@@ -367,7 +367,7 @@ end
 
     @method reset
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @error "[Cooldown.reset()]: Key cannot be nil or NaN" -- Thrown if `key` is `nil` or NaN
 ]=]
@@ -383,7 +383,7 @@ end
 
     @method resetAll
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
 ]=]
 function Cooldown.resetAll<K>(self: Cooldown<K>): ()
     self._entries = {}
@@ -398,7 +398,7 @@ end
 
     @method prune
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @return number -- The number of entries remaining after pruning
 ]=]
 function Cooldown.prune<K>(self: Cooldown<K>): number
@@ -421,7 +421,7 @@ end
 
     @method isReady
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @return boolean -- Whether a charge is available
 ]=]
@@ -452,7 +452,7 @@ end
 
     @method remaining
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @return Duration -- The remaining time
 ]=]
@@ -484,7 +484,7 @@ end
 
     @method progress
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @return number -- The progress
 ]=]
@@ -510,7 +510,7 @@ end
 
     @method remainingUntilFull
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @return Duration -- The remaining time
 ]=]
@@ -538,7 +538,7 @@ end
 
     @method progressUntilFull
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @return number -- The progress
 ]=]
@@ -558,7 +558,7 @@ end
 
     @method getLength
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @return Duration -- The length
 ]=]
 function Cooldown.getLength<K>(self: Cooldown<K>): Duration
@@ -583,7 +583,7 @@ end
 
     @method setLength
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param length Duration -- The length
     @error "[Cooldown.setLength()]: Length cannot be negative" -- Thrown if `length` is negative
 ]=]
@@ -599,7 +599,7 @@ end
 
     @method charges
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @param key K -- The key of the entry
     @return number -- The number of charges
 ]=]
@@ -614,7 +614,7 @@ end
 
     @method maxCharges
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @return number -- The maximum number of charges
 ]=]
 function Cooldown.maxCharges<K>(self: Cooldown<K>): number
@@ -627,7 +627,7 @@ end
     Only values created by `Cooldown` functions are considered `Cooldown`s;
     tables with the same fields are not.
 
-    @since [UNRELEASED]
+    @since v0.1.3
     @param value any -- The value to check
     @return boolean -- Whether `value` is a `Cooldown`
 ]=]
@@ -655,7 +655,7 @@ end
 
     @method toString
     @within Cooldown
-    @since [UNRELEASED]
+    @since v0.1.3
     @return string -- The string representation
 ]=]
 function Cooldown.toString<K>(self: Cooldown<K>): string

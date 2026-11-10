@@ -21,15 +21,21 @@ local fail = Core.Errors.errorWithScope("Async")
 export type RetryOptions = {
     --[=[
         The total number of attempts, including the first.
+
+        @since v0.1.0
     ]=]
     read attempts: number,
     --[=[
         The seconds to wait between attempts (defaults to not waiting).
+
+        @since v0.1.0
     ]=]
     read delay: number?,
     --[=[
         The function used to wait between attempts (defaults to `task.wait`,
         which only exists in ROBLOX, so pass one when using `delay` elsewhere).
+
+        @since v0.1.0
     ]=]
     read sleep: ((seconds: number) -> ())?,
 }
