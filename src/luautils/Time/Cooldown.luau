@@ -245,6 +245,34 @@ function Cooldown.start<K>(self: Cooldown<K>, key: K, length: Duration?): ()
 end
 
 --[=[
+    Shifts the ready time of a cooldown by a signed `Duration`, doing nothing if
+    the key is ready.
+
+    Negative `Duration`s reduce the cooldown, while positive `Duration`s
+    increase it.
+
+    @method adjust
+    @within Cooldown
+    @since [UNRELEASED]
+    @param key K -- The key of the cooldown
+    @param delta Duration -- The amount to adjust
+]=]
+function Cooldown.adjust<K>(self: Cooldown<K>, key: K, delta: Duration): ()
+    local now = self._clock()
+    local entry = settle(self, key, now)
+    if entry == nil then
+        return
+    end
+
+    local newReadyAt = entry.readyAt + delta:toSeconds()
+    if newReadyAt <= now then
+        self._entries[key] = nil
+    else
+        self._entries[key].readyAt = newReadyAt
+    end
+end
+
+--[=[
     Returns whether the cooldown is ready for the given key.
 
     This method should be used for display or branching.
