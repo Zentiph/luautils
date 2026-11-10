@@ -3,6 +3,9 @@
 -- Time exports
 -- by @vuppyan
 
+local Cooldown = require("@self/Cooldown")
+export type Cooldown<K> = Cooldown.Cooldown<K>
+
 local Duration = require("@self/Duration")
 export type Duration = Duration.Duration
 
@@ -16,6 +19,7 @@ export type Stopwatch = Stopwatch.Stopwatch
     @since v0.1.0
 ]=]
 return table.freeze({
+    Cooldown = Cooldown,
     Duration = Duration,
     Stopwatch = Stopwatch,
 })

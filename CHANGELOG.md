@@ -4,6 +4,7 @@
 * Features
   * Core.Time
     * Stopwatch class
+    * Cooldown class
   * Core.Values
     * Standard value checks
     * Protocol matching on any value
