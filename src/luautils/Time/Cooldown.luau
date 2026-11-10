@@ -269,6 +269,33 @@ function Cooldown.progress<K>(self: Cooldown<K>, key: K): number
 end
 
 --[=[
+    Returns the remaining time on all charges for the given key.
+
+    A return value of [Duration.ZERO] indicates that all charges are ready.
+    To check for the time remaining of the next single charge, use
+    [Cooldown.remaining].
+
+    @method remainingUntilFull
+    @within Cooldown
+    @since [UNRELEASED]
+    @param key K -- The key of the cooldown
+    @return Duration -- The remaining time
+]=]
+function Cooldown.remainingUntilFull<K>(self: Cooldown<K>, key: K): Duration
+    local now = self._clock()
+    local entry = settle(self, key, now)
+    if entry == nil then
+        return Duration.ZERO
+    end
+    local missing = self._maxCharges - entry.charges
+    local seconds = entry.readyAt - now
+    if missing > 1 then
+        seconds += (missing - 1) * self._length
+    end
+    return Duration.fromSeconds(seconds):max(Duration.ZERO)
+end
+
+--[=[
     Returns whether the given value is a `Cooldown`.
 
     Only values created by `Cooldown` functions are considered `Cooldown`s;
