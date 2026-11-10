@@ -296,6 +296,30 @@ function Cooldown.remainingUntilFull<K>(self: Cooldown<K>, key: K): Duration
 end
 
 --[=[
+    Returns the progress on all charges for the given key in a range from 0.0
+    to 1.0.
+
+    A return value of 1.0 indicates that all charges are ready.
+    To check the progress of the next single charge, use [Cooldown.progress].
+
+    @method progressUntilFull
+    @within Cooldown
+    @since [UNRELEASED]
+    @param key K -- The key of the cooldown
+    @return number -- The progress
+]=]
+function Cooldown.progressUntilFull<K>(self: Cooldown<K>, key: K): number
+    local now = self._clock()
+    local entry = settle(self, key, now)
+    if entry == nil then
+        return 1
+    end
+    local interval = entry.readyAt - entry.startedAt
+    local partial = math.clamp((now - entry.startedAt) / interval, 0, 1)
+    return (entry.charges + partial) / self._maxCharges
+end
+
+--[=[
     Returns whether the given value is a `Cooldown`.
 
     Only values created by `Cooldown` functions are considered `Cooldown`s;
