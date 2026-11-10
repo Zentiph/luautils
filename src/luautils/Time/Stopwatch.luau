@@ -40,7 +40,7 @@ local _fail = Core.Errors.errorWithScope("Stopwatch")
 
     @tag mutable
     @class Stopwatch
-    @since [UNRELEASED]
+    @since v0.1.3
 ]=]
 local Stopwatch = {}
 Stopwatch.__index = Stopwatch
@@ -65,6 +65,7 @@ export type Stopwatch = typeof(setmetatable({} :: StopwatchData, Stopwatch))
     * `function() return workspace:GetServerTimeNow() end` for time
       synchronized between client and server
 
+    @since v0.1.3
     @param clock Supplier<number>? -- The clock function to use (defaults to `os.clock`)
     @return Stopwatch -- The new `Stopwatch`
 ]=]
@@ -82,6 +83,7 @@ end
 
     Equivalent to calling [Stopwatch.new] followed by [Stopwatch:start].
 
+    @since v0.1.3
     @param clock Supplier<number>? -- The clock function to use (defaults to `os.clock`)
     @return Stopwatch -- The new `Stopwatch`
 ]=]
@@ -98,6 +100,7 @@ end
 
     @method start
     @within Stopwatch
+    @since v0.1.3
 ]=]
 function Stopwatch.start(self: Stopwatch): ()
     if self._startedAt == nil then
@@ -113,6 +116,7 @@ end
 
     @method stop
     @within Stopwatch
+    @since v0.1.3
 ]=]
 function Stopwatch.stop(self: Stopwatch): ()
     if self._startedAt ~= nil then
@@ -130,6 +134,7 @@ end
 
     @method reset
     @within Stopwatch
+    @since v0.1.3
 ]=]
 function Stopwatch.reset(self: Stopwatch): ()
     self._startedAt = nil
@@ -144,6 +149,7 @@ end
 
     @method restart
     @within Stopwatch
+    @since v0.1.3
 ]=]
 function Stopwatch.restart(self: Stopwatch): ()
     self._startedAt = self._clock()
@@ -159,6 +165,7 @@ end
 
     @method elapsed
     @within Stopwatch
+    @since v0.1.3
     @return Duration -- The total running time
 ]=]
 function Stopwatch.elapsed(self: Stopwatch): Duration
@@ -173,6 +180,7 @@ end
 
     @method isRunning
     @within Stopwatch
+    @since v0.1.3
     @return boolean -- Whether this `Stopwatch` is running
 ]=]
 function Stopwatch.isRunning(self: Stopwatch): boolean
@@ -200,6 +208,7 @@ end
 
     @method lap
     @within Stopwatch
+    @since v0.1.3
     @return Duration -- The running time since the last lap
 ]=]
 function Stopwatch.lap(self: Stopwatch): Duration
@@ -223,6 +232,7 @@ end
     print(elapsed:toHumanString(), sum) -- e.g. "0ms" 3
     ```
 
+    @since v0.1.3
     @param fn TupleFactory<R..., A...> -- The function to call
     @param ... A... -- The arguments to pass to `fn`
     @return Duration -- How long `fn` took to run
@@ -246,6 +256,7 @@ end
     Only values created by `Stopwatch` functions are considered `Stopwatch`s;
     tables with the same fields are not.
 
+    @since v0.1.3
     @param value any -- The value to check
     @return boolean -- Whether the value is a `Stopwatch`
 ]=]
@@ -271,6 +282,7 @@ end
 
     @method toString
     @within Stopwatch
+    @since v0.1.3
     @return string -- The human-readable string
 ]=]
 function Stopwatch.toString(self: Stopwatch): string
