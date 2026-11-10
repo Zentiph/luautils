@@ -11,7 +11,7 @@ as Rust and Java.
 | Sublibrary | Contains                                       |
 | ---------- | ---------------------------------------------- |
 | `Core`     | `Option`, `Result`, `Errors`, and shared types |
-| `Time`     | `Duration`, `Stopwatch`                        |
+| `Time`     | `Duration`, `Stopwatch`, `Cooldown`            |
 | `Tables`   | `deepCopy`                                     |
 | `Async`    | `retry`                                        |
 
