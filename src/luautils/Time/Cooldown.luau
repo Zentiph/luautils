@@ -202,8 +202,7 @@ end
 
 --[=[
     Attempts to spend a charge from the given key's entry, returning `true` if
-    a charge was available and spent, or `false` if none were and nothing
-    happened.
+    a charge was available, or `false` if none were and nothing happened.
 
     An optional `length` parameter can be given to override the `Cooldown`'s
     length for this one use.
@@ -284,7 +283,7 @@ end
     Any later charges recharge with the `Cooldown`'s length.
 
     A length of zero removes the entry instead, restoring all of its charges
-    like [Cooldown.reset].
+    like [Cooldown:reset].
 
     ```lua
     local abilityCd = Cooldown.new(Duration.fromSeconds(5), { maxCharges = 3 })
@@ -418,7 +417,7 @@ end
     Returns whether the given key has at least one charge available.
 
     This method should be used for display or branching.
-    To check and spend a charge in one step, use [Cooldown.tryUse].
+    To check and spend a charge in one step, use [Cooldown:tryUse].
 
     @method isReady
     @within Cooldown
@@ -438,7 +437,7 @@ end
 
     With multiple charges, a nonzero return value does not mean the key is
     unready, as other charges may still be available.
-    Use [Cooldown.isReady] to check readiness, or [Cooldown.remainingUntilFull]
+    Use [Cooldown:isReady] to check readiness, or [Cooldown:remainingUntilFull]
     to check all charges at once.
 
     ```lua
@@ -471,7 +470,7 @@ end
 
     With multiple charges, a return value below 1.0 does not mean the key is
     unready, as other charges may still be available.
-    Use [Cooldown.isReady] to check readiness, or [Cooldown.progressUntilFull]
+    Use [Cooldown:isReady] to check readiness, or [Cooldown:progressUntilFull]
     to check all charges at once.
 
     ```lua
@@ -507,7 +506,7 @@ end
     Charges after the one in progress are assumed to take the `Cooldown`'s
     current length.
     To check the time remaining on the charge in progress, use
-    [Cooldown.remaining].
+    [Cooldown:remaining].
 
     @method remainingUntilFull
     @within Cooldown
@@ -535,7 +534,7 @@ end
     fraction.
 
     A return value of 1.0 indicates that all charges are available.
-    To check the progress of the charge in progress, use [Cooldown.progress].
+    To check the progress of the charge in progress, use [Cooldown:progress].
 
     @method progressUntilFull
     @within Cooldown
@@ -640,7 +639,7 @@ end
     Returns a string representation of the `Cooldown`, including its length
     and number of entries.
 
-    This method prunes the `Cooldown` (see [Cooldown.prune]) to count only the
+    This method prunes the `Cooldown` (see [Cooldown:prune]) to count only the
     entries with charges still recharging.
 
     Also used by `tostring()`.
