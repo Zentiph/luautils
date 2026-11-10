@@ -264,12 +264,8 @@ function Cooldown.adjust<K>(self: Cooldown<K>, key: K, delta: Duration): ()
         return
     end
 
-    local newReadyAt = entry.readyAt + delta:toSeconds()
-    if newReadyAt <= now then
-        self._entries[key] = nil
-    else
-        self._entries[key].readyAt = newReadyAt
-    end
+    entry.readyAt += delta:toSeconds()
+    settle(self, key, now)
 end
 
 --[=[
