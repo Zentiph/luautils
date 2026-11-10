@@ -422,6 +422,34 @@ function Cooldown.progressUntilFull<K>(self: Cooldown<K>, key: K): number
 end
 
 --[=[
+    Returns the length of the cooldown.
+
+    @method getLength
+    @within Cooldown
+    @since [UNRELEASED]
+    @return Duration -- The length
+]=]
+function Cooldown.getLength<K>(self: Cooldown<K>): Duration
+    return Duration.fromSeconds(self._length)
+end
+
+--[=[
+    Sets the length of the cooldown.
+
+    @method setLength
+    @within Cooldown
+    @since [UNRELEASED]
+    @param length Duration -- The length
+    @error "Length cannot be negative" -- Thrown if `length` is negative
+]=]
+function Cooldown.setLength<K>(self: Cooldown<K>, length: Duration): ()
+    if length:isNegative() then
+        fail("Length cannot be negative")
+    end
+    self._length = length:toSeconds()
+end
+
+--[=[
     Returns whether the given value is a `Cooldown`.
 
     Only values created by `Cooldown` functions are considered `Cooldown`s;
