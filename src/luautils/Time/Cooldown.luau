@@ -304,10 +304,8 @@ end
 ]=]
 function Cooldown.prune<K>(self: Cooldown<K>): ()
     local now = self._clock()
-    for key, entry in self._entries do
-        if entry.readyAt <= now then
-            self._entries[key] = nil
-        end
+    for key in self._entries do
+        settle(self, key, now)
     end
 end
 
