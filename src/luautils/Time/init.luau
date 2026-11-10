@@ -4,7 +4,7 @@
 -- by @vuppyan
 
 local Cooldown = require("@self/Cooldown")
-export type Cooldown = Cooldown.Cooldown
+export type Cooldown<K> = Cooldown.Cooldown<K>
 
 local Duration = require("@self/Duration")
 export type Duration = Duration.Duration
