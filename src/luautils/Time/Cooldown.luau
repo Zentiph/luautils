@@ -301,12 +301,18 @@ end
     @method prune
     @within Cooldown
     @since [UNRELEASED]
+    @return number -- The number of entries remaining after pruning
 ]=]
-function Cooldown.prune<K>(self: Cooldown<K>): ()
+function Cooldown.prune<K>(self: Cooldown<K>): number
     local now = self._clock()
+    local total = 0
     for key in self._entries do
-        settle(self, key, now)
+        local entry = settle(self, key, now)
+        if entry ~= nil then
+            total += 1
+        end
     end
+    return total
 end
 
 --[=[
@@ -497,11 +503,11 @@ end
     @return string -- The string representation
 ]=]
 function Cooldown.toString<K>(self: Cooldown<K>): string
-    self:prune()
+    local active = self:prune()
     return string.format(
         "Cooldown(%s, %d active)",
         Duration.fromSeconds(self._length):toString(),
-        #self._entries
+        active
     )
 end
 Cooldown.__tostring = Cooldown.toString
