@@ -75,6 +75,7 @@ local Time = require("@self/Time")
 Luautils.Time = Time
 export type Duration = Time.Duration
 export type Stopwatch = Time.Stopwatch
+export type Cooldown<K> = Time.Cooldown<K>
 
 local Validation = require("@self/Validation")
 Luautils.Validation = Validation
