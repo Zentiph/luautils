@@ -490,4 +490,22 @@ function Cooldown.is(value: any): boolean
     return getmetatable(value) == Cooldown
 end
 
+--[=[
+    Returns a string representation of the cooldown.
+
+    @method toString
+    @within Cooldown
+    @since [UNRELEASED]
+    @return string -- The string representation
+]=]
+function Cooldown.toString<K>(self: Cooldown<K>): string
+    self:prune()
+    return string.format(
+        "Cooldown(%s, %d active)",
+        Duration.fromSeconds(self._length):toString(),
+        #self._entries
+    )
+end
+Cooldown.__tostring = Cooldown.toString
+
 return table.freeze(Cooldown)
