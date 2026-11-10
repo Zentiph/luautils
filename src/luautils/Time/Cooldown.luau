@@ -222,8 +222,30 @@ end
     @return boolean -- Whether the cooldown is ready
 ]=]
 function Cooldown.isReady<K>(self: Cooldown<K>, key: K): boolean
-    local entry = settle(self, key, self._clock())
+    local now = self._clock()
+    local entry = settle(self, key, now)
     return entry == nil or entry.charges > 0
+end
+
+--[=[
+    Returns the remaining time on the cooldown for the given key.
+
+    A return value of [Duration.ZERO] may not indicate that the cooldown is
+    ready, in the case of a cooldown with multiple charges.
+    Use [Cooldown.isReady] to check readiness.
+
+    @method remaining
+    @within Cooldown
+    @since [UNRELEASED]
+    @param key K -- The key of the cooldown
+    @return Duration -- The remaining time
+]=]
+function Cooldown.remaining<K>(self: Cooldown<K>, key: K): Duration
+    local now = self._clock()
+    local entry = settle(self, key, now)
+    return if entry
+        then Duration.fromSeconds(entry.readyAt - now)
+        else Duration.ZERO
 end
 
 --[=[
