@@ -1,6 +1,6 @@
 [package]
 name = "zentiph/luautils"
-version = "0.1.2"
+version = "0.1.3"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 description = "A Luau utilities library; an extension of Luau's standard library"

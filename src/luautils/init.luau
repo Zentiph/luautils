@@ -21,7 +21,7 @@ local Luautils = {}
     @readonly
     @since v0.1.0
 ]=]
-Luautils.VERSION = "0.1.2"
+Luautils.VERSION = "0.1.3"
 
 local Core = require("@self/Core")
 Luautils.Core = Core

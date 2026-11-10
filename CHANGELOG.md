@@ -1,8 +1,13 @@
 # Changelog for luautils
 
-## [Unreleased]
+<!--
+## [UNRELEASED]
+*
+-->
+
+## [v0.1.3] - 2026-11-10
 * Features
-  * Core.Time
+  * Time
     * Stopwatch class
     * Cooldown class
   * Core.Values
