@@ -210,6 +210,41 @@ function Cooldown.tryUse<K>(self: Cooldown<K>, key: K, length: Duration?): boole
 end
 
 --[=[
+    Starts the cooldown for the given key without checking, setting the
+    available charges to 0, and thereby overriding any existing cooldown for the
+    key.
+
+    This method may be useful for effects like silences or stuns.
+
+    An optional `length` parameter can be given to override the cooldown's
+    length for this one use.
+    This may be useful for special cases like a longer cooldown after a charged
+    attack.
+
+    @method start
+    @within Cooldown
+    @since [UNRELEASED]
+    @param key K -- The key of the cooldown
+    @param length Duration? -- The custom length to use (defaults to the cooldown's normal length)
+]=]
+function Cooldown.start<K>(self: Cooldown<K>, key: K, length: Duration?): ()
+    if length and length:isNegative() then
+        fail("Length cannot be negative")
+    end
+    local seconds = if length then length:toSeconds() else self._length
+    if seconds == 0 then
+        self._entries[key] = nil
+        return
+    end
+    local now = self._clock()
+    self._entries[key] = {
+        charges = 0,
+        startedAt = now,
+        readyAt = now + seconds,
+    }
+end
+
+--[=[
     Returns whether the cooldown is ready for the given key.
 
     This method should be used for display or branching.
