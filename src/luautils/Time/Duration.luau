@@ -1143,7 +1143,7 @@ end
     Both parameters passed should use the same clock source:
     * `os.clock()` for local elapsed time (the default)
     * `os.time()` for Unix seconds with whole-second precision
-    * `Workspace:GetServerTimeNow()` for ensuring synchronized values between
+    * `workspace:GetServerTimeNow()` for ensuring synchronized values between
       client and server
 
     ```lua
@@ -1171,7 +1171,7 @@ end
     Both parameters passed should use the same clock source:
     * `os.clock()` for local elapsed time (the default)
     * `os.time()` for Unix seconds with whole-second precision
-    * `Workspace:GetServerTimeNow()` for ensuring synchronized values between
+    * `workspace:GetServerTimeNow()` for ensuring synchronized values between
       client and server
 
     ```lua

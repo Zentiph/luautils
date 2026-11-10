@@ -62,7 +62,7 @@ export type Stopwatch = typeof(setmetatable({} :: StopwatchData, Stopwatch))
     Common choices are:
     * `os.clock` for local elapsed time (the default)
     * `os.time` for Unix seconds with whole-second precision
-    * `function() return Workspace:GetServerTimeNow() end` for time
+    * `function() return workspace:GetServerTimeNow() end` for time
       synchronized between client and server
 
     @param clock Supplier<number>? -- The clock function to use (defaults to `os.clock`)

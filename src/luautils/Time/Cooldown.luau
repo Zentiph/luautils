@@ -48,16 +48,16 @@ export type CooldownOptions = {
     --[=[
         The clock function to use (defaults to `os.clock`).
     ]=]
-    clock: Supplier<number>?,
+    read clock: Supplier<number>?,
     --[=[
         The maximum number of charges to give the cooldown (defaults to 1).
     ]=]
-    maxCharges: number?,
+    read maxCharges: number?,
 }
 
 type CooldownData<K> = {
     read _clock: Supplier<number>,
-    _length: Duration,
+    _length: number,
     _maxCharges: number,
     _entries: Map<K, CooldownEntry>,
 }
@@ -72,18 +72,21 @@ export type Cooldown<K> = typeof(setmetatable({} :: CooldownData<K>, Cooldown))
     Common choices are:
     * `os.clock` for local elapsed time (the default)
     * `os.time` for Unix seconds with whole-second precision
-    * `function() return Workspace:GetServerTimeNow() end` for time
+    * `function() return workspace:GetServerTimeNow() end` for time
       synchronized between client and server
 
-    Because this constructor does not take an argument of type `K`, it is
-    recommended to type your constructed instance with the key type you are
-    using (e.g. `local cd: Cooldown<string> = Cooldown.new(...)`).
+    Because this constructor cannot be generic due to Luau limitations, it is
+    recommended to annotate your cooldowns if you want to use generic type
+    checking: `local cd: Cooldown<string> = Cooldown.new(...)`.
 
     @param length Duration -- The length of the cooldown
     @param options CooldownOptions? -- The options to use (defaults to `{ clock = os.clock, maxCharges = 1 }`)
-    @return Cooldown -- The new `Cooldown`
+    @return Cooldown<any> -- The new `Cooldown`
 ]=]
-function Cooldown.new<K>(length: Duration, options: CooldownOptions?): Cooldown<K>
+function Cooldown.new(
+    length: Duration,
+    options: CooldownOptions?
+): Cooldown<any>
     local clock = options and options.clock or os.clock
     local maxCharges = options and options.maxCharges or 1
 
@@ -95,10 +98,10 @@ function Cooldown.new<K>(length: Duration, options: CooldownOptions?): Cooldown<
 
     return setmetatable({
         _clock = clock,
-        _length = length,
+        _length = length:toSeconds(),
         _maxCharges = maxCharges,
         _entries = {},
     }, Cooldown)
 end
 
-return Cooldown
+return table.freeze(Cooldown)
