@@ -273,6 +273,18 @@ function Cooldown.adjust<K>(self: Cooldown<K>, key: K, delta: Duration): ()
 end
 
 --[=[
+    Resets the cooldown for the given key, making it ready.
+
+    @method reset
+    @within Cooldown
+    @since [UNRELEASED]
+    @param key K -- The key of the cooldown
+]=]
+function Cooldown.reset<K>(self: Cooldown<K>, key: K): ()
+    self._entries[key] = nil
+end
+
+--[=[
     Returns whether the cooldown is ready for the given key.
 
     This method should be used for display or branching.
