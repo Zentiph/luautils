@@ -8,12 +8,12 @@ as Rust and Java.
 
 ## Contents
 
-| Sublibrary | Contains                                       |
-| ---------- | ---------------------------------------------- |
-| `Core`     | `Option`, `Result`, `Errors`, and shared types |
-| `Time`     | `Duration`, `Stopwatch`, `Cooldown`            |
-| `Tables`   | `deepCopy`                                     |
-| `Async`    | `retry`                                        |
+| Sublibrary | Contains                                                 |
+| ---------- | -------------------------------------------------------- |
+| `Core`     | `Option`, `Result`, `Errors`, `Values`, and shared types |
+| `Time`     | `Duration`, `Stopwatch`, `Cooldown`                      |
+| `Tables`   | `deepCopy`                                               |
+| `Async`    | `retry`                                                  |
 
 `Collections`, `Math`, `Strings`, `Validation`, `Events`, and `Roblox` are
 planned and currently empty.
