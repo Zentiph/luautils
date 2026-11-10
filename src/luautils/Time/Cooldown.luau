@@ -47,10 +47,22 @@ type CooldownEntry = {
 export type CooldownOptions = {
     --[=[
         The clock function to use (defaults to `os.clock`).
+
+        The clock function should return the current time in seconds, and
+        should not go backwards.
+        Common choices are:
+        * `os.clock` for local elapsed time (the default)
+        * `os.time` for Unix seconds with whole-second precision
+        * `function() return workspace:GetServerTimeNow() end` for time
+          synchronized between client and server
+
+        @since [UNRELEASED]
     ]=]
     read clock: Supplier<number>?,
     --[=[
         The maximum number of charges to give the cooldown (defaults to 1).
+
+        @since [UNRELEASED]
     ]=]
     read maxCharges: number?,
 }
@@ -77,8 +89,9 @@ export type Cooldown<K> = typeof(setmetatable({} :: CooldownData<K>, Cooldown))
 
     Because this constructor cannot be generic due to Luau limitations, it is
     recommended to annotate your cooldowns if you want to use generic type
-    checking: `local cd: Cooldown<string> = Cooldown.new(...)`.
+    checking.
 
+    @since [UNRELEASED]
     @param length Duration -- The length of the cooldown
     @param options CooldownOptions? -- The options to use (defaults to `{ clock = os.clock, maxCharges = 1 }`)
     @return Cooldown<any> -- The new `Cooldown`
@@ -102,6 +115,20 @@ function Cooldown.new(
         _maxCharges = maxCharges,
         _entries = {},
     }, Cooldown)
+end
+
+--[=[
+    Returns whether the given value is a `Cooldown`.
+
+    Only values created by `Cooldown` functions are considered `Cooldown`s;
+    tables with the same fields are not.
+
+    @since [UNRELEASED]
+    @param value any -- The value to check
+    @return boolean -- Whether `value` is a `Cooldown`
+]=]
+function Cooldown.is(value: any): boolean
+    return getmetatable(value) == Cooldown
 end
 
 return table.freeze(Cooldown)
