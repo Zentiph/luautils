@@ -296,6 +296,22 @@ function Cooldown.resetAll<K>(self: Cooldown<K>): ()
 end
 
 --[=[
+    Removes all expired (ready) entries from the `Cooldown`'s table.
+
+    @method prune
+    @within Cooldown
+    @since [UNRELEASED]
+]=]
+function Cooldown.prune<K>(self: Cooldown<K>): ()
+    local now = self._clock()
+    for key, entry in self._entries do
+        if entry.readyAt <= now then
+            self._entries[key] = nil
+        end
+    end
+end
+
+--[=[
     Returns whether the cooldown is ready for the given key.
 
     This method should be used for display or branching.
