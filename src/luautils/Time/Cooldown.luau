@@ -285,6 +285,17 @@ function Cooldown.reset<K>(self: Cooldown<K>, key: K): ()
 end
 
 --[=[
+    Resets all cooldowns, making them ready.
+
+    @method resetAll
+    @within Cooldown
+    @since [UNRELEASED]
+]=]
+function Cooldown.resetAll<K>(self: Cooldown<K>): ()
+    self._entries = {}
+end
+
+--[=[
     Returns whether the cooldown is ready for the given key.
 
     This method should be used for display or branching.
