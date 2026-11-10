@@ -228,11 +228,12 @@ function Cooldown.isReady<K>(self: Cooldown<K>, key: K): boolean
 end
 
 --[=[
-    Returns the remaining time on the cooldown for the given key.
+    Returns the remaining time on the charge cooldown for the given key.
 
-    A return value of [Duration.ZERO] may not indicate that the cooldown is
-    ready, in the case of a cooldown with multiple charges.
-    Use [Cooldown.isReady] to check readiness.
+    A return value of [Duration.ZERO] may not be the only indication that the
+    cooldown is ready, as in the case of a cooldown with multiple charges.
+    Use [Cooldown.isReady] to check readiness, or [Cooldown.remainingUntilFull]
+    to check all charges at once.
 
     @method remaining
     @within Cooldown
@@ -246,6 +247,25 @@ function Cooldown.remaining<K>(self: Cooldown<K>, key: K): Duration
     return if entry
         then Duration.fromSeconds(entry.readyAt - now)
         else Duration.ZERO
+end
+
+--[=[
+    Returns the progress on the charge cooldown for the given key in a range
+    from 0.0 to 1.0.
+
+    A return value of 1.0 may not be the only indication that the cooldown is
+    ready, as in the case of a cooldown with multiple charges.
+    Use [Cooldown.isReady] to check readiness, or [Cooldown.progressUntilFull]
+    to check all charges at once.
+]=]
+function Cooldown.progress<K>(self: Cooldown<K>, key: K): number
+    local now = self._clock()
+    local entry = settle(self, key, now)
+    if entry == nil then
+        return 1
+    end
+    local interval = entry.readyAt - entry.startedAt
+    return math.clamp((now - entry.startedAt) / interval, 0, 1)
 end
 
 --[=[
