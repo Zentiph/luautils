@@ -76,6 +76,43 @@ type CooldownData<K> = {
 
 export type Cooldown<K> = typeof(setmetatable({} :: CooldownData<K>, Cooldown))
 
+-- Helper to bring `key`'s entry up to date at time `now`, adding every charge
+-- that finished recharging since it was last touched. Deletes the entry and
+-- returns nil once all charges are back.
+local function settle<K>(self: Cooldown<K>, key: K, now: number): CooldownEntry?
+    local entry = self._entries[key]
+    if entry == nil or now < entry.readyAt then
+        return entry
+    end
+
+    -- the charge in progress finished at readyAt, and each later charge took
+    -- the default length after that
+    local interval = self._length
+    local recovered = 1
+    if interval == 0 then
+        recovered = self._maxCharges
+    else
+        recovered += math.floor((now - entry.readyAt) / interval)
+    end
+
+    entry.charges += recovered
+    if entry.charges >= self._maxCharges then
+        self._entries[key] = nil
+        return nil
+    end
+
+    -- the next charge began when the last recovered one finished
+    -- skip the multiplication when nothing extra was recovered,
+    -- since 0 * inf is NaN
+    if recovered > 1 then
+        entry.startedAt = entry.readyAt + (recovered - 1) * interval
+    else
+        entry.startedAt = entry.readyAt
+    end
+    entry.readyAt = entry.startedAt + interval
+    return entry
+end
+
 --[=[
     Creates a new `Cooldown` with the given length and options.
 
@@ -95,6 +132,8 @@ export type Cooldown<K> = typeof(setmetatable({} :: CooldownData<K>, Cooldown))
     @param length Duration -- The length of the cooldown
     @param options CooldownOptions? -- The options to use (defaults to `{ clock = os.clock, maxCharges = 1 }`)
     @return Cooldown<any> -- The new `Cooldown`
+    @error "[Cooldown.new()]: Length cannot be negative" -- Thrown if `length` is negative
+    @error "[Cooldown.new()]: Max charges must be a positive integer" -- Thrown if `options.maxCharges` is not a positive integer
 ]=]
 function Cooldown.new(
     length: Duration,
@@ -115,6 +154,59 @@ function Cooldown.new(
         _maxCharges = maxCharges,
         _entries = {},
     }, Cooldown)
+end
+
+--[=[
+    Attempts to activate the cooldown for the given key, returning `true` if it
+    was ready and activated, or `false` if it was not and nothing happened.
+
+    An optional `length` parameter can be given to override the cooldown's
+    length for this one use.
+    This may be useful for special cases like a longer cooldown after a charged
+    attack.
+    An override only applies if it starts a recharge.
+    If a charge is already recharging, the use only spends a charge, and the
+    timer already running isn't changed.
+
+    Zero-length uses are free and don't spend a charge.
+
+    @method tryUse
+    @within Cooldown
+    @since [UNRELEASED]
+    @param key K -- The key of the cooldown
+    @param length Duration? -- The custom length to use (defaults to the cooldown's normal length)
+    @return boolean -- Whether the cooldown was activated
+    @error "[Cooldown.tryUse()]: Length cannot be negative" -- Thrown if `length` is negative
+]=]
+function Cooldown.tryUse<K>(self: Cooldown<K>, key: K, length: Duration?): boolean
+    if length and length:isNegative() then
+        fail("Length cannot be negative")
+    end
+
+    local now = self._clock()
+    local entry = settle(self, key, now)
+    local available = if entry then entry.charges else self._maxCharges
+    if available < 1 then
+        return false
+    end
+
+    local seconds = if length then length:toSeconds() else self._length
+    if seconds == 0 then
+        return true -- zero-length uses never start a cooldown
+    end
+
+    if entry == nil then
+        -- first use from full: this charge starts recharging now
+        self._entries[key] = {
+            charges = self._maxCharges - 1,
+            startedAt = now,
+            readyAt = now + seconds,
+        }
+    else
+        -- a charge is already recharging: spend one and leave the timer alone
+        entry.charges -= 1
+    end
+    return true
 end
 
 --[=[
