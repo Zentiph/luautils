@@ -210,6 +210,23 @@ function Cooldown.tryUse<K>(self: Cooldown<K>, key: K, length: Duration?): boole
 end
 
 --[=[
+    Returns whether the cooldown is ready for the given key.
+
+    This method should be used for display or branching.
+    To check and use a cooldown in one step, use [Cooldown.tryUse].
+
+    @method isReady
+    @within Cooldown
+    @since [UNRELEASED]
+    @param key K -- The key of the cooldown
+    @return boolean -- Whether the cooldown is ready
+]=]
+function Cooldown.isReady<K>(self: Cooldown<K>, key: K): boolean
+    local entry = settle(self, key, self._clock())
+    return entry == nil or entry.charges > 0
+end
+
+--[=[
     Returns whether the given value is a `Cooldown`.
 
     Only values created by `Cooldown` functions are considered `Cooldown`s;
