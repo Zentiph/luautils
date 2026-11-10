@@ -450,6 +450,33 @@ function Cooldown.setLength<K>(self: Cooldown<K>, length: Duration): ()
 end
 
 --[=[
+    Returns the number of charges available for the given key.
+
+    @method charges
+    @within Cooldown
+    @since [UNRELEASED]
+    @param key K -- The key of the cooldown
+    @return number -- The number of charges
+]=]
+function Cooldown.charges<K>(self: Cooldown<K>, key: K): number
+    local now = self._clock()
+    local entry = settle(self, key, now)
+    return if entry then entry.charges else self._maxCharges
+end
+
+--[=[
+    Returns the maximum number of charges for the cooldown.
+
+    @method maxCharges
+    @within Cooldown
+    @since [UNRELEASED]
+    @return number -- The maximum number of charges
+]=]
+function Cooldown.maxCharges<K>(self: Cooldown<K>): number
+    return self._maxCharges
+end
+
+--[=[
     Returns whether the given value is a `Cooldown`.
 
     Only values created by `Cooldown` functions are considered `Cooldown`s;
