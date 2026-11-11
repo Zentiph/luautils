@@ -823,7 +823,7 @@ export type function DeepReadOnly(t: type): type
     local seen: { { from: type, to: type } } = {}
 
     local function deep(ty: type): type
-        if ty:is("table") then
+        if ty:is("table") and ty:metatable() == nil then
             for _, entry in seen do
                 if entry.from == ty then
                     return entry.to
