@@ -21,6 +21,10 @@
       * `Parameter<F, I>` type function
       * `Return<F>` type function
       * `OmitSelf<F>` type function
+      * `Uppercase<T>` type function
+      * `Lowercase<T>` type function
+      * `Capitalize<T>` type function
+      * `Uncapitalize<T>` type function
   * Time
     * Changed Duration to use `TimeParts` and `Partial<TimeParts>` rather than
       `TimePartsI` and `TimePartsO`

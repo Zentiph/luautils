@@ -56,6 +56,10 @@ export type Merge<A, B> = typing.Merge<A, B>
 export type Parameter<F, I> = typing.Parameter<F, I>
 export type ReturnType<F> = typing.ReturnType<F>
 export type OmitSelf<F> = typing.OmitSelf<F>
+export type Uppercase<T> = typing.Uppercase<T>
+export type Lowercase<T> = typing.Lowercase<T>
+export type Capitalize<T> = typing.Capitalize<T>
+export type Uncapitalize<T> = typing.Uncapitalize<T>
 export type Disconnectable = typing.Disconnectable
 export type Destroyable = typing.Destroyable
 

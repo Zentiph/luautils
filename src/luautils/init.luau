@@ -73,6 +73,10 @@ export type Merge<A, B> = Core.Merge<A, B>
 export type Parameter<F, I> = Core.Parameter<F, I>
 export type ReturnType<F> = Core.ReturnType<F>
 export type OmitSelf<F> = Core.OmitSelf<F>
+export type Uppercase<T> = Core.Uppercase<T>
+export type Lowercase<T> = Core.Lowercase<T>
+export type Capitalize<T> = Core.Capitalize<T>
+export type Uncapitalize<T> = Core.Uncapitalize<T>
 export type Disconnectable = Core.Disconnectable
 export type Destroyable = Core.Destroyable
 

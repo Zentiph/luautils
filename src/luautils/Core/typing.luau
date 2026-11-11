@@ -1587,6 +1587,182 @@ export type function OmitSelf(f: type): type
     )
 end
 
+--[=[
+    A type function that converts a string singleton type to uppercase.
+
+    Unions are converted member by member, and `string` is left unchanged.
+    Only string singletons and `string` are accepted, so any other type is a
+    type error.
+    Only ASCII letters are converted, matching `string.upper`.
+
+    ```lua
+    type Direction = "north" | "south"
+
+    type DirectionKey = Uppercase<Direction>
+    -- "NORTH" | "SOUTH"
+    ```
+
+    @type Uppercase (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Uppercase(t: type): type
+    local function convert(ty: type): type
+        if ty:is("singleton") and typeof(ty:value()) == "string" then
+            return types.singleton(string.upper(ty:value() :: string))
+        elseif ty:is("string") then
+            return ty -- `string` stays `string`
+        else
+            error("Uppercase expects a string singleton or string")
+        end
+    end
+
+    if t:is("never") then
+        return t
+    elseif t:is("union") then
+        local parts = {}
+        for _, component in t:components() do
+            table.insert(parts, convert(component))
+        end
+        return types.unionof(table.unpack(parts))
+    end
+    return convert(t)
+end
+
+--[=[
+    A type function that converts a string singleton type to lowercase.
+
+    Unions are converted member by member, and `string` is left unchanged.
+    Only string singletons and `string` are accepted, so any other type is a
+    type error.
+    Only ASCII letters are converted, matching `string.lower`.
+
+    ```lua
+    type Rarity = "Common" | "Rare" | "Legendary"
+
+    type RarityId = Lowercase<Rarity>
+    -- "common" | "rare" | "legendary"
+    ```
+
+    @type Lowercase (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Lowercase(t: type): type
+    local function convert(ty: type): type
+        if ty:is("singleton") and typeof(ty:value()) == "string" then
+            return types.singleton(string.lower(ty:value() :: string))
+        elseif ty:is("string") then
+            return ty -- `string` stays `string`
+        else
+            error("Lowercase expects a string singleton or string")
+        end
+    end
+
+    if t:is("never") then
+        return t
+    elseif t:is("union") then
+        local parts = {}
+        for _, component in t:components() do
+            table.insert(parts, convert(component))
+        end
+        return types.unionof(table.unpack(parts))
+    end
+    return convert(t)
+end
+
+--[=[
+    A type function that converts the first character of a string singleton
+    type to uppercase.
+
+    Unions are converted member by member, and `string` is left unchanged.
+    Only string singletons and `string` are accepted, so any other type is a
+    type error.
+    Only ASCII letters are converted, matching `string.upper`.
+
+    ```lua
+    type Action = "jump" | "crouch"
+
+    type ActionName = Capitalize<Action>
+    -- "Jump" | "Crouch"
+    ```
+
+    @type Capitalize (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Capitalize(t: type): type
+    local function convert(ty: type): type
+        if ty:is("singleton") and typeof(ty:value()) == "string" then
+            local s = ty:value() :: string
+            return types.singleton(
+                string.upper(string.sub(s, 1, 1)) .. string.sub(s, 2)
+            )
+        elseif ty:is("string") then
+            return ty -- `string` stays `string`
+        else
+            error("Capitalize expects a string singleton or string")
+        end
+    end
+
+    if t:is("never") then
+        return t
+    elseif t:is("union") then
+        local parts = {}
+        for _, component in t:components() do
+            table.insert(parts, convert(component))
+        end
+        return types.unionof(table.unpack(parts))
+    end
+    return convert(t)
+end
+
+--[=[
+    A type function that converts the first character of a string singleton
+    type to lowercase.
+
+    Unions are converted member by member, and `string` is left unchanged.
+    Only string singletons and `string` are accepted, so any other type is a
+    type error.
+    Only ASCII letters are converted, matching `string.lower`.
+
+    ```lua
+    type ServiceName = "Players" | "Workspace"
+
+    type ServiceKey = Uncapitalize<ServiceName>
+    -- "players" | "workspace"
+    ```
+
+    @type Uncapitalize (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Uncapitalize(t: type): type
+    local function convert(ty: type): type
+        if ty:is("singleton") and typeof(ty:value()) == "string" then
+            local s = ty:value() :: string
+            return types.singleton(
+                string.lower(string.sub(s, 1, 1)) .. string.sub(s, 2)
+            )
+        elseif ty:is("string") then
+            return ty -- `string` stays `string`
+        else
+            error("Uncapitalize expects a string singleton or string")
+        end
+    end
+
+    if t:is("never") then
+        return t
+    elseif t:is("union") then
+        local parts = {}
+        for _, component in t:components() do
+            table.insert(parts, convert(component))
+        end
+        return types.unionof(table.unpack(parts))
+    end
+    return convert(t)
+end
+
 --[[ ROBLOX-compatible protocols ]]
 
 --[=[
