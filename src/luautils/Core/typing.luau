@@ -317,6 +317,8 @@ export type Iterable<Self, C, V...> = {
 export type function Nillable(t: type): type
     assert(t:is("table"), "Nillable expects a table type")
     local result = types.newtable()
+
+    -- make all named properties optional
     for key, prop in t:properties() do
         if prop.read then
             result:setreadproperty(key, types.optional(prop.read))
@@ -325,6 +327,24 @@ export type function Nillable(t: type): type
             result:setwriteproperty(key, types.optional(prop.write))
         end
     end
+
+    -- copy indexer unchanged
+    local idx = t:indexer()
+    if idx then
+        if idx.readresult then
+            result:setreadindexer(idx.index, idx.readresult)
+        end
+        if idx.writeresult then
+            result:setwriteindexer(idx.index, idx.writeresult)
+        end
+    end
+
+    -- copy metatable unchanged
+    local mt = t:metatable()
+    if mt then
+        result:setmetatable(mt)
+    end
+
     return result
 end
 
