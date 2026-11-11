@@ -34,6 +34,8 @@
   * Time
     * `Duration.fromParts()` takes `Partial<TimeParts>` instead of `TimePartsI`
     * `Duration:toParts()` returns `TimeParts` instead of `TimePartsO`
+    * `TimeParts` is exported through `Time` and `Luautils`
+    * `HumanStringOptions` is now readonly
 * Deprecations
   * Time
     * `Duration.TimePartsI` (use `Partial<TimeParts>` instead)
