@@ -315,6 +315,10 @@ export type Iterable<Self, C, V...> = {
         return data -- now string | number
     end
     ```
+
+    @type NonNil (t: type) -> type
+    @within typing
+    @since v0.1.0
 ]=]
 export type function NonNil(t: type): type
     if t:is("nil") then
