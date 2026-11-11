@@ -10,6 +10,9 @@
     This module has no runtime value. Every type is re-exported by `Core` and
     `Luautils`, so use them as `Luautils.Supplier<T>` or `Core.Map<K, V>`, etc.
 
+    The typing helpers ([typing.Partial], [typing.Required], and
+    [typing.ReadOnly]) are type functions, which need Luau's new type solver.
+
     @class typing
     @since v0.1.0
 ]=]
@@ -297,25 +300,33 @@ export type Iterable<Self, C, V...> = {
     iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?),
 }
 
--- [[ Typing helpers ]]
+--[[ Typing helpers ]]
 
 --[=[
-    A type that makes all of the properties of the wrapped type optional.
+    A type function that makes every property of a table type optional.
+
+    `read` and `write` modifiers are kept, and the indexer and metatable are
+    copied unchanged.
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
 
     ```lua
-    type Data = { -- full data schema
-        name: string,
-        age: number,
-    }
-    local function getDataFor(name: string): Nillable<Data> -- each prop may be nil
+    type Profile = { name: string, read level: number }
+
+    type ProfilePatch = Partial<Profile>
+    -- { name: string?, read level: number? }
+
+    local function applyPatch(profile: Profile, patch: ProfilePatch)
+        profile.name = patch.name or profile.name
+    end
     ```
 
-    @type Nillable (t: type) -> type
+    @type Partial (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
-export type function Nillable(t: type): type
-    assert(t:is("table"), "Nillable expects a table type")
+export type function Partial(t: type): type
+    assert(t:is("table"), "Partial expects a table type")
 
     -- make all named properties optional
     local result = types.newtable()
@@ -329,14 +340,11 @@ export type function Nillable(t: type): type
     end
 
     -- copy indexer unchanged
+    -- (luau doesn't support separate read/write indexer types yet, so
+    -- setreadindexer/setwriteindexer throw)
     local idx = t:indexer()
-    if idx then
-        if idx.readresult then
-            result:setreadindexer(idx.index, idx.readresult)
-        end
-        if idx.writeresult then
-            result:setwriteindexer(idx.index, idx.writeresult)
-        end
+    if idx and idx.readresult then
+        result:setindexer(idx.index, idx.readresult)
     end
 
     -- copy metatable unchanged
@@ -349,17 +357,33 @@ export type function Nillable(t: type): type
 end
 
 --[=[
-    A type that makes all of the properties of the wrapped type required.
+    A type function that removes `nil` from every property of a table type.
 
-    `unknown` and `any` remain unchanged.
-    A property typed exactly as `nil` becomes `never`.
+    Optional properties lose their `nil`, so `number?` becomes `number`, and a
+    property typed as just `nil` becomes `never`.
+    `unknown` and `any` are unchanged, since they cannot be split into a
+    union.
+    `read` and `write` modifiers are kept, and the indexer and metatable are
+    copied unchanged.
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
 
     ```lua
-    type Data = { -- data schema with optional props
-        name: string?,
-        age: number?,
-    }
-    local function fillData(data: Data): Required<Data> -- each prop is required
+    type Settings = { volume: number?, muted: boolean? }
+
+    type ResolvedSettings = Required<Settings>
+    -- { volume: number, muted: boolean }
+
+    local DEFAULTS: ResolvedSettings = { volume = 0.5, muted = false }
+
+    local function resolve(settings: Settings): ResolvedSettings
+        return {
+            volume = settings.volume or DEFAULTS.volume,
+            muted = if settings.muted == nil
+                then DEFAULTS.muted
+                else settings.muted,
+        }
+    end
     ```
 
     @type Required (t: type) -> type
@@ -370,7 +394,9 @@ export type function Required(t: type): type
     assert(t:is("table"), "Required expects a table type")
 
     local function stripNil(ty: type): type
-        if not ty:is("union") then
+        if ty:is("nil") then
+            return types.never -- the type was just `nil`
+        elseif not ty:is("union") then
             return ty
         end
 
@@ -382,7 +408,7 @@ export type function Required(t: type): type
         end
 
         if #kept == 0 then
-            return types.never -- the type was just `nil`
+            return types.never -- every component was `nil`
         elseif #kept == 1 then
             return kept[1] -- no need to keep the union
         else
@@ -402,14 +428,11 @@ export type function Required(t: type): type
     end
 
     -- copy indexer unchanged
+    -- (luau doesn't support separate read/write indexer types yet, so
+    -- setreadindexer/setwriteindexer throw)
     local idx = t:indexer()
-    if idx then
-        if idx.readresult then
-            result:setreadindexer(idx.index, idx.readresult)
-        end
-        if idx.writeresult then
-            result:setwriteindexer(idx.index, idx.writeresult)
-        end
+    if idx and idx.readresult then
+        result:setindexer(idx.index, idx.readresult)
     end
 
     -- copy metatable unchanged
@@ -422,11 +445,31 @@ export type function Required(t: type): type
 end
 
 --[=[
-    A type that makes all of the properties of the wrapped type read-only.
+    A type function that makes every property of a table type read-only, like
+    TypeScript's `Readonly`.
 
-    This type wrapper is shallow, so inner tables can still be modified.
+    This is shallow, so tables inside the properties can still be modified.
+    Write-only properties are dropped, since they cannot be read.
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
 
-    Write-only properties are dropped.
+    Luau does not yet support read-only indexers, so the indexer is copied
+    unchanged and stays writable.
+    Luau also does not report writes to read-only properties of a table with a
+    writable indexer, so only tables without an indexer are fully protected.
+
+    This only affects type checking.
+    To prevent writes at runtime, freeze the table with `table.freeze`.
+
+    ```lua
+    type Config = { maxPlayers: number, mode: string }
+
+    local CONFIG: ReadOnly<Config> = table.freeze({
+        maxPlayers = 10,
+        mode = "classic",
+    })
+    CONFIG.maxPlayers = 20 -- type error: maxPlayers is read-only
+    ```
 
     @type ReadOnly (t: type) -> type
     @within typing
@@ -443,10 +486,11 @@ export type function ReadOnly(t: type): type
         end
     end
 
-    -- only keep read side of the indexer
+    -- copy the indexer's read type
+    -- (luau doesn't support read-only indexers yet, so setreadindexer throws)
     local idx = t:indexer()
     if idx and idx.readresult then
-        result:setreadindexer(idx.index, idx.readresult)
+        result:setindexer(idx.index, idx.readresult)
     end
 
     -- preserve metatable
