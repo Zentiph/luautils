@@ -96,6 +96,7 @@ Luautils.Tables = Tables
 local Time = require("@self/Time")
 Luautils.Time = Time
 export type Duration = Time.Duration
+export type TimeParts = Time.TimeParts
 export type Stopwatch = Time.Stopwatch
 export type Cooldown<K> = Time.Cooldown<K>
 
