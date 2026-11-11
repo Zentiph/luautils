@@ -5,7 +5,7 @@
 
 local Core = require("../Core")
 type Map<K, V> = Core.Map<K, V>
-type Nillable<T> = Core.Nillable<T>
+type Partial<T> = Core.Partial<T>
 
 local Result = Core.Result
 type Result<T, E> = Core.Result<T, E>
@@ -91,7 +91,7 @@ export type TimeParts = {
     the same as `{ days = 1, hours = 12 }`, and they may be fractional or
     negative.
 
-    @deprecated [UNRELEASED] -- Use `Nillable<TimeParts>` instead
+    @deprecated [UNRELEASED] -- Use `Partial<TimeParts>` instead
 
     @interface TimePartsI
     @within Duration
@@ -693,12 +693,12 @@ end
     ```
 
     @since v0.1.0
-    @param parts Nillable<TimeParts> -- The table of parts
+    @param parts Partial<TimeParts> -- The table of parts
     @return Duration -- The new `Duration`
     @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if any part is `NaN`, or if `days`, `hours`, `minutes`, and `seconds`, or `millis`, `micros`, and `nanos`, include infinities with different signs
     @error "[Duration.new()]: Cannot build a Duration from infinities with different signs" -- Thrown if the whole-second parts (`days` to `seconds`) and the sub-second parts (`millis` to `nanos`) are infinities with different signs
 ]=]
-function Duration.fromParts(parts: Nillable<TimeParts>): Duration
+function Duration.fromParts(parts: Partial<TimeParts>): Duration
     local sign = parts.negative and -1 or 1
     local secs = sign
         * (
