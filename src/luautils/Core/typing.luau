@@ -1144,6 +1144,85 @@ export type function Omit(t: type, k: type): type
     return result
 end
 
+--[=[
+    A type function that merges two table types, with `B`'s properties
+    replacing `A`'s.
+
+    Properties only in `A` are kept, properties in `B` replace any property of
+    `A` with the same name, including its `read` and `write` modifiers.
+    Unlike `A & B`, conflicting properties do not become `never`.
+    `B`'s indexer and metatable are used if it has them, otherwise `A`'s are
+    copied unchanged.
+
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
+
+    ```lua
+    type Base = { id: number, name: string, tags: { string } }
+    type Patch = { name: string?, id: string }
+
+    type Patched = Merge<Base, Patch>
+    -- { id: string, name: string?, tags: { string } }
+
+    type Intersected = Base & Patch
+    -- `id` is `number & string`, which is `never`
+    ```
+
+    @type Merge (a: type, b: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Merge(a: type, b: type): type
+    assert(a:is("table"), "Merge expects a table type for A")
+    assert(b:is("table"), "Merge expects a table type for B")
+
+    local result = types.newtable()
+
+    -- collect B's keys so A's conflicting properties are skipped
+    local replaced: { [string]: boolean } = {}
+    for key in b:properties() do
+        replaced[key:value() :: string] = true
+    end
+
+    -- copy A's properties that B doesn't replace
+    for key, prop in a:properties() do
+        if not replaced[key:value() :: string] then
+            if prop.read then
+                result:setreadproperty(key, prop.read)
+            end
+            if prop.write then
+                result:setwriteproperty(key, prop.write)
+            end
+        end
+    end
+
+    -- copy all of B's properties
+    for key, prop in b:properties() do
+        if prop.read then
+            result:setreadproperty(key, prop.read)
+        end
+        if prop.write then
+            result:setwriteproperty(key, prop.write)
+        end
+    end
+
+    -- use B's indexer if it has one, otherwise A's
+    -- (luau doesn't support separate read/write indexer types yet, so
+    -- setreadindexer/setwriteindexer throw)
+    local idx = b:indexer() or a:indexer()
+    if idx and idx.readresult then
+        result:setindexer(idx.index, idx.readresult)
+    end
+
+    -- use B's metatable if it has one, otherwise A's
+    local mt = b:metatable() or a:metatable()
+    if mt then
+        result:setmetatable(mt)
+    end
+
+    return result
+end
+
 --[[ ROBLOX-compatible protocols ]]
 
 --[=[

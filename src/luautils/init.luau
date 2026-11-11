@@ -66,6 +66,7 @@ export type Writable<T> = Core.Writable<T>
 export type DeepWritable<T> = Core.DeepWritable<T>
 export type Pick<T, K> = Core.Pick<T, K>
 export type Omit<T, K> = Core.Omit<T, K>
+export type Merge<A, B> = Core.Merge<A, B>
 export type Disconnectable = Core.Disconnectable
 export type Destroyable = Core.Destroyable
 
