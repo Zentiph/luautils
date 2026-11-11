@@ -182,8 +182,8 @@ export type HumanStringUnit =
     @field smallestUnit HumanStringUnit? -- The smallest unit to show (defaults to "millis")
 ]=]
 export type HumanStringOptions = {
-    maxUnits: number?,
-    smallestUnit: HumanStringUnit?,
+    read maxUnits: number?,
+    read smallestUnit: HumanStringUnit?,
 }
 
 local NANOS_MIN = 0
