@@ -40,6 +40,7 @@ export type Serializable<Self, D> = typing.Serializable<Self, D>
 export type Deserializable<Self, D> = typing.Deserializable<Self, D>
 export type Iterable<Self, C, V...> = typing.Iterable<Self, C, V...>
 export type Nillable<T> = typing.Nillable<T>
+export type Required<T> = typing.Required<T>
 export type Disconnectable = typing.Disconnectable
 export type Destroyable = typing.Destroyable
 

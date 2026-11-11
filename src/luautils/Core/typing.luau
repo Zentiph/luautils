@@ -348,6 +348,64 @@ export type function Nillable(t: type): type
     return result
 end
 
+--[=[
+
+]=]
+export type function Required(t: type): type
+    assert(t:is("table"), "Required expects a table type")
+
+    local function stripNil(ty: type): type
+        if not ty:is("union") then
+            return ty
+        end
+
+        local kept = {}
+        for _, component in ty:components() do
+            if not component:is("nil") then
+                table.insert(kept, component)
+            end
+        end
+
+        if #kept == 0 then
+            return types.never -- the type was just `nil`
+        elseif #kept == 1 then
+            return kept[1] -- no need to keep the union
+        else
+            return types.unionof(table.unpack(kept))
+        end
+    end
+
+    -- make all named properties required
+    local result = types.newtable()
+    for key, prop in t:properties() do
+        if prop.read then
+            result:setreadproperty(key, stripNil(prop.read))
+        end
+        if prop.write then
+            result:setwriteproperty(key, stripNil(prop.write))
+        end
+    end
+
+    -- copy indexer unchanged
+    local idx = t:indexer()
+    if idx then
+        if idx.readresult then
+            result:setreadindexer(idx.index, idx.readresult)
+        end
+        if idx.writeresult then
+            result:setwriteindexer(idx.index, idx.writeresult)
+        end
+    end
+
+    -- copy metatable unchanged
+    local mt = t:metatable()
+    if mt then
+        result:setmetatable(mt)
+    end
+
+    return result
+end
+
 --[[ ROBLOX-compatible protocols ]]
 
 --[=[
