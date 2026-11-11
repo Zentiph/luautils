@@ -810,7 +810,7 @@ end
     type FrozenConfig = DeepReadOnly<Config>
     -- { read name: string,
     --   read window: { read width: number, read height: number },
-    --   read tags: { read string } }
+    --   read tags: { string } }
     ```
 
     @type DeepReadOnly (t: type) -> type
