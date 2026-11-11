@@ -58,19 +58,27 @@ type DurationData = {
 export type Duration = typeof(setmetatable({} :: DurationData, Duration))
 
 --[=[
-    A set of parts in a `Duration`.
+    A set of parts in a `Duration`, returned by [Duration:toParts].
+
+    All parts are non-negative and within their usual ranges (such as 0-23 for
+    `hours`), except `days`, which is unbounded. The sign of the `Duration` is
+    stored in `negative`. For infinite `Duration`s, `days` is `math.huge` and
+    every other part is 0.
+
+    [Duration.fromParts] takes a `Partial<TimeParts>` instead, where every part
+    is optional and may be outside its usual range, fractional, or negative.
 
     @interface TimeParts
     @within Duration
     @since [UNRELEASED]
     @field negative boolean -- Whether the `Duration` is negative
-    @field days number -- The days
-    @field hours number -- The hours
-    @field minutes number -- The minutes
-    @field seconds number -- The seconds
-    @field millis number -- The milliseconds
-    @field micros number -- The microseconds
-    @field nanos number -- The nanoseconds
+    @field days number -- The whole days
+    @field hours number -- The hours (0-23)
+    @field minutes number -- The minutes (0-59)
+    @field seconds number -- The seconds (0-59)
+    @field millis number -- The milliseconds (0-999)
+    @field micros number -- The microseconds (0-999)
+    @field nanos number -- The nanoseconds (0-999)
 ]=]
 export type TimeParts = {
     read negative: boolean,
