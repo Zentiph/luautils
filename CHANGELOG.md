@@ -10,6 +10,7 @@
       * `DeepRequired<T>` type function
       * `ReadOnly<T>` type function
       * `DeepReadOnly<T>` type function
+      * `Pick<T, K>` type function
   * Time
     * Changed Duration to use `TimeParts` and `Partial<TimeParts>` rather than
       `TimePartsI` and `TimePartsO`

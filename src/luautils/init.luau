@@ -62,6 +62,7 @@ export type Required<T> = Core.Required<T>
 export type DeepRequired<T> = Core.DeepRequired<T>
 export type ReadOnly<T> = Core.ReadOnly<T>
 export type DeepReadOnly<T> = Core.DeepReadOnly<T>
+export type Pick<T, K> = Core.Pick<T, K>
 export type Disconnectable = Core.Disconnectable
 export type Destroyable = Core.Destroyable
 

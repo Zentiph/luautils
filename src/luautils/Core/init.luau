@@ -45,6 +45,7 @@ export type Required<T> = typing.Required<T>
 export type DeepRequired<T> = typing.DeepRequired<T>
 export type ReadOnly<T> = typing.ReadOnly<T>
 export type DeepReadOnly<T> = typing.DeepReadOnly<T>
+export type Pick<T, K> = typing.Pick<T, K>
 export type Disconnectable = typing.Disconnectable
 export type Destroyable = typing.Destroyable
 

@@ -875,6 +875,67 @@ export type function DeepReadOnly(t: type): type
     return deep(t)
 end
 
+--[=[
+    A type function that keeps only the given named properties of a table type.
+
+    `K` is a string singleton or a union of string singletons.
+    Every key must be a property of `T`, otherwise it is a type error.
+
+    `read` and `write` modifiers are kept, and the metatable is copied
+    unchanged.
+    The indexer is dropped, since only named properties are picked.
+    Only tables are accepted, so unions and intersections of tables are a
+    type error.
+
+    ```lua
+    type Profile = { name: string, level: number, coins: number }
+
+    type ProfileCard = Pick<Profile, "name" | "level">
+    -- { name: string, level: number }
+    ```
+
+    @type Pick (t: type, k: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Pick(t: type, k: type): type
+    assert(t:is("table"), "Pick expects a table type")
+
+    local keys = if k:is("union")
+        then k:components()
+        elseif k:is("never") then {}
+        else { k }
+
+    local result = types.newtable()
+    for _, key in keys do
+        assert(
+            key:is("singleton") and typeof(key:value()) == "string",
+            "Pick expects string singleton keys"
+        )
+
+        local read = t:readproperty(key)
+        local write = t:writeproperty(key)
+        if not read and not write then
+            error(`Pick: property "{key:value()}" does not exist`)
+        end
+
+        if read then
+            result:setreadproperty(key, read)
+        end
+        if write then
+            result:setwriteproperty(key, write)
+        end
+    end
+
+    -- copy metatable unchanged
+    local mt = t:metatable()
+    if mt then
+        result:setmetatable(mt)
+    end
+
+    return result
+end
+
 --[[ ROBLOX-compatible protocols ]]
 
 --[=[
