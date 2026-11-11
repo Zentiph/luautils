@@ -156,16 +156,17 @@ end
     * `function() return workspace:GetServerTimeNow() end` for time
       synchronized between client and server
 
-    Because this constructor cannot be generic due to Luau limitations, it is
-    recommended to annotate your `Cooldown`s if you want to use generic type
-    checking.
+    Because this constructor's generic type cannot be inferred due to Luau
+    limitations, it is recommended to use generic type instantiation when
+    creating a `Cooldown` if you want to use generic type checking (see
+    the example).
 
     ```lua
-    local dashCd: Cooldown<Player> = Cooldown.new(
+    local dashCd = Cooldown.new<<Player>>(
         Duration.fromSeconds(3),
         { maxCharges = 2 }
     )
-    local synced = Cooldown.new(Duration.SECOND, {
+    local synced = Cooldown.new<<string>>(Duration.SECOND, {
         clock = function()
             return workspace:GetServerTimeNow()
         end,
@@ -175,14 +176,11 @@ end
     @since v0.1.3
     @param length Duration -- The time each charge takes to recharge
     @param options CooldownOptions? -- The options to use (defaults to `{ clock = os.clock, maxCharges = 1 }`)
-    @return Cooldown<any> -- The new `Cooldown`
+    @return Cooldown<K> -- The new `Cooldown`
     @error "[Cooldown.new()]: Length cannot be negative" -- Thrown if `length` is negative
     @error "[Cooldown.new()]: Max charges must be a positive integer" -- Thrown if `options.maxCharges` is not a positive integer
 ]=]
-function Cooldown.new(
-    length: Duration,
-    options: CooldownOptions?
-): Cooldown<any>
+function Cooldown.new<K>(length: Duration, options: CooldownOptions?): Cooldown<K>
     local clock = options and options.clock or os.clock
     local maxCharges = options and options.maxCharges or 1
 
