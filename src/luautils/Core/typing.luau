@@ -414,8 +414,7 @@ end
     Indexer values are recursed into but not made optional, so `{ T }` stays
     an array of non-nil values while each `T` becomes deeply partial.
 
-    `read` and `write` modifiers are kept, and the indexer and metatable are
-    copied unchanged.
+    `read` and `write` modifiers are kept, and metatable is copied unchanged.
     Recursive types are supported.
     Only table types are accepted, so unions and intersections of tables are a
     type error.
@@ -613,8 +612,8 @@ end
     Indexer values are recursed into but keep their `nil`, so `{ [string]: T? }`
     still allows missing keys while each `T` becomes deeply required.
 
-    `read` and `write` modifiers are kept, and the indexer and metatable are
-    copied unchanged.
+    `read` and `write` modifiers are kept, and the metatable is copied
+    unchanged.
     Recursive types are supported.
     Only table types are accepted, so unions and intersections of tables are a
     type error.
