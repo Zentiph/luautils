@@ -300,7 +300,7 @@ export type Iterable<Self, C, V...> = {
 }
 
 -- TODO: add union support to existing helpers
--- e.g. Nillable<A | B> -> Nillable<A> | Nillable<B>
+-- e.g. Partial<A | B> -> Partial<A> | Partial<B>
 
 --[[ Typing helpers ]]
 
@@ -314,8 +314,8 @@ export type Iterable<Self, C, V...> = {
     type MaybeData = string | number | nil
 
     local function expectData(data: MaybeData): NonNil<MaybeData>
-        -- handle stuff...
-        return data -- now string | number
+        assert(data ~= nil, "expected data")
+        return data -- refined to string | number
     end
     ```
 
@@ -432,7 +432,7 @@ end
     }
 
     type SettingsOverrides = DeepPartial<Settings>
-    -- { audio: { volume: number?, muted: boolean? }, ui: { scale: number? } }
+    -- { audio: { volume: number?, muted: boolean? }?, ui: { scale: number? }? }
 
     local function configure(overrides: SettingsOverrides)
         -- ...
@@ -795,7 +795,7 @@ end
     A type function that makes every property of a table type read-only,
     recursively.
 
-    This is deep, so tables inside the properties cannot be modified.
+    This is deep, so tables inside the properties are made read-only as well.
     Primitives, functions, and nested classes (tables with a metatable) are
     left as-is, but `T` itself is converted even if it has a metatable.
     Write-only properties are dropped, since they cannot be read.
@@ -808,8 +808,8 @@ end
     writable indexer, so only tables without an indexer are fully protected.
 
     This only affects type checking.
-    To prevent writes at runtime, freeze the table recursively with
-    `table.freeze`.
+    To prevent writes at runtime, freeze the table and every table inside it
+    with `table.freeze`.
 
     ```lua
     type Config = {
@@ -1037,7 +1037,7 @@ end
     Each string singleton in `K` becomes a named property of type `V`, so
     `Record<"wood" | "stone", number>` is `{ wood: number, stone: number }`.
     Every other key type in `K` (such as `string`, `number`, or `boolean`
-    singletons) become part of the indexer, so `Record<string, number>` is
+    singletons) becomes part of the indexer, so `Record<string, number>` is
     `{ [string]: number }`.
     Since a table only has one indexer, multiple non-singleton keys are
     combined into one, so `Record<"id" | number, V>` is
@@ -1092,8 +1092,10 @@ end
     A type function that removes the members of a union `T` that match `U`.
 
     A member matches if it is the same type as a member of `U`, if it is a
-    singleton whose primitive type is in `U`, (so `"a"` matches `string`), or
+    singleton whose primitive type is in `U` (so `"a"` matches `string`), or
     if `U` contains `unknown` or `any`.
+    `boolean` is treated as `true | false`, so `Exclude<boolean, true>` is
+    `false`.
     Tables, functions, and classes only match the exact same type, not
     structurally equal ones.
     If every member is removed, the result is `never`.
@@ -1136,7 +1138,16 @@ export type function Exclude(t: type, u: type): type
         return member == filter
     end
 
-    local members = if t:is("union") then t:components() else { t }
+    -- split `boolean` into `true | false` so singleton filters can match
+    local members = {}
+    for _, member in if t:is("union") then t:components() else { t } do
+        if member:is("boolean") then
+            table.insert(members, types.singleton(true))
+            table.insert(members, types.singleton(false))
+        else
+            table.insert(members, member)
+        end
+    end
     local filters = if u:is("union") then u:components() else { u }
 
     local kept = {}
@@ -1151,6 +1162,20 @@ export type function Exclude(t: type, u: type): type
         if not excluded then
             table.insert(kept, member)
         end
+    end
+
+    -- rejoin `true | false` into `boolean`
+    local trueAt, falseAt
+    for index, member in kept do
+        if member:is("singleton") and member:value() == true then
+            trueAt = index
+        elseif member:is("singleton") and member:value() == false then
+            falseAt = index
+        end
+    end
+    if trueAt and falseAt then
+        kept[trueAt] = types.boolean
+        table.remove(kept, falseAt)
     end
 
     if #kept == 0 then
@@ -1168,6 +1193,8 @@ end
     A member matches if it is the same type as a member of `U`, if it is a
     singleton whose primitive type is in `U` (so `"a"` matches `string`), or
     if `U` contains `unknown` or `any`.
+    `boolean` is treated as `true | false`, so `Extract<boolean, true>` is
+    `true`.
     Tables, functions, and classes only match the exact same type, not
     structurally equal ones.
     If no member matches, the result is `never`.
@@ -1210,7 +1237,16 @@ export type function Extract(t: type, u: type): type
         return member == filter
     end
 
-    local members = if t:is("union") then t:components() else { t }
+    -- split `boolean` into `true | false` so singleton filters can match
+    local members = {}
+    for _, member in if t:is("union") then t:components() else { t } do
+        if member:is("boolean") then
+            table.insert(members, types.singleton(true))
+            table.insert(members, types.singleton(false))
+        else
+            table.insert(members, member)
+        end
+    end
     local filters = if u:is("union") then u:components() else { u }
 
     local kept = {}
@@ -1221,6 +1257,20 @@ export type function Extract(t: type, u: type): type
                 break
             end
         end
+    end
+
+    -- rejoin `true | false` into `boolean`
+    local trueAt, falseAt
+    for index, member in kept do
+        if member:is("singleton") and member:value() == true then
+            trueAt = index
+        elseif member:is("singleton") and member:value() == false then
+            falseAt = index
+        end
+    end
+    if trueAt and falseAt then
+        kept[trueAt] = types.boolean
+        table.remove(kept, falseAt)
     end
 
     if #kept == 0 then
@@ -1241,7 +1291,7 @@ end
     `read` and `write` modifiers are kept, and the metatable is copied
     unchanged.
     The indexer is dropped, since only named properties are picked.
-    Only tables are accepted, so unions and intersections of tables are a
+    Only table types are accepted, so unions and intersections of tables are a
     type error.
 
     ```lua
@@ -1301,7 +1351,7 @@ end
 
     `read` and `write` modifiers are kept, and the indexer and metatable are
     copied unchanged.
-    Only tables are accepted, so unions and intersections of tables are a
+    Only table types are accepted, so unions and intersections of tables are a
     type error.
 
     ```lua
@@ -1452,6 +1502,11 @@ end
     If the function has no parameter at that position, or the position falls
     inside a generic type pack (`T...`), it is a type error.
 
+    Functions whose type is inferred from a `function` definition carry a
+    hidden `...any` parameter, so a position past their last parameter gives
+    `any` instead of a type error.
+    Use an explicit function type, such as a type alias, to avoid this.
+
     Methods count `self` as their first parameter.
     Only function types are accepted, so overloaded functions (intersections
     of functions) are a type error.
@@ -1563,10 +1618,11 @@ end
     Only function types are accepted, so overloaded functions (intersections
     of functions) are a type error.
 
-    Methods whose type is inferred from a `function` definition carry a hidden
-    `...any` parameter, so `OmitSelf<typeof<(Class.method)>` includes it in the
-    result.
-    Annotate the method type explicitly to avoid this.
+    Functions whose type is inferred from a `function` definition (including
+    methods) carry a hidden `...any` parameter, so
+    `OmitSelf<typeof(Class.method)>` keeps it in the result, even when every
+    parameter is annotated.
+    Use an explicit function type, such as a type alias, to avoid this.
 
     ```lua
     local Door = {}
@@ -1579,6 +1635,10 @@ end
 
     type OpenFn = OmitSelf<typeof(Door.open)>
     -- (number, ...any) -> boolean
+
+    type OpenMethod = (self: Door, speed: number) -> boolean
+    type ExactOpenFn = OmitSelf<OpenMethod>
+    -- (number) -> boolean
 
     local function bind(door: Door): OpenFn
         return function(speed)
