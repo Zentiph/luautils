@@ -297,6 +297,37 @@ export type Iterable<Self, C, V...> = {
     iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?),
 }
 
+-- [[ Typing helpers ]]
+
+--[=[
+    A type that makes all of the properties of the wrapped type optional.
+
+    ```lua
+    type Data = { -- full data schema
+        name: string,
+        age: number,
+    }
+    local function getDataFor(name: string): Nillable<Data> -- each prop may be nil
+    ```
+
+    @type Nillable (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Nillable(t: type): type
+    assert(t:is("table"), "Nillable expects a table type")
+    local result = types.newtable()
+    for key, prop in t:properties() do
+        if prop.read then
+            result:setreadproperty(key, types.optional(prop.read))
+        end
+        if prop.write then
+            result:setwriteproperty(key, types.optional(prop.write))
+        end
+    end
+    return result
+end
+
 --[[ ROBLOX-compatible protocols ]]
 
 --[=[
