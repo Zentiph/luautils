@@ -936,6 +936,75 @@ export type function Pick(t: type, k: type): type
     return result
 end
 
+--[=[
+    A type function that removes the given named properties of a table type.
+
+    `K` is a string singleton or a union of string singletons.
+    Keys that are not properties of `T` are ignored.
+
+    `read` and `write` modifiers are kept, and the indexer and metatable are
+    copied unchanged.
+    Only tables are accepted, so unions and intersections of tables are a
+    type error.
+
+    ```lua
+    type Profile = { name: string, level: number, coins: number }
+
+    type PublicProfile = Omit<Profile, "coins">
+    -- { name: string, level: number }
+    ```
+
+    @type Omit (t: type, k: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Omit(t: type, k: type): type
+    assert(t:is("table"), "Omit expects a table type")
+
+    local keys = if k:is("union")
+        then k:components()
+        elseif k:is("never") then {}
+        else { k }
+
+    local omitted: { [string]: boolean } = {}
+    for _, key in keys do
+        assert(
+            key:is("singleton") and typeof(key:value()) == "string",
+            "Omit expects string singleton keys"
+        )
+        omitted[key:value()] = true
+    end
+
+    -- copy every named property not in `K`
+    local result = types.newtable()
+    for key, prop in t:properties() do
+        if not omitted[key:value() :: string] then
+            if prop.read then
+                result:setreadproperty(key, prop.read)
+            end
+            if prop.write then
+                result:setwriteproperty(key, prop.write)
+            end
+        end
+    end
+
+    -- copy indexer unchanged
+    -- (luau doesn't support separate read/write indexer types yet, so
+    -- setreadindexer/setwriteindexer throw)
+    local idx = t:indexer()
+    if idx and idx.readresult then
+        result:setindexer(idx.index, idx.readresult)
+    end
+
+    -- copy metatable unchanged
+    local mt = t:metatable()
+    if mt then
+        result:setmetatable(mt)
+    end
+
+    return result
+end
+
 --[[ ROBLOX-compatible protocols ]]
 
 --[=[
