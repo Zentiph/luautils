@@ -240,7 +240,11 @@ Callers can still use colon syntax: `value:method()`.
 ### Types
 
 * Shared function and container types live in `Core/typing.luau` and are
-  re-exported from `Core`.
+  re-exported from `Core` and `Luautils`.
+* Typing helpers in `Core/typing.luau` (such as `Partial<T>`) are Luau type
+  functions, which only work with the new type solver.
+  They use the `types` library, which is declared as a global for selene in
+  `luau-extras.yml`.
 * Use string literal unions (`"floor" | "ceil"`) or tagged unions
   (`{ kind: "circle", radius: number } | { kind: "rect", ... }`) instead of enum
   objects.
