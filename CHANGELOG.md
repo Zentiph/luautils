@@ -1,6 +1,8 @@
 # Changelog for luautils
 
 ## [UNRELEASED]
+* > Note: `Duration:toParts()` now returns `TimeParts`, whose fields are
+  > read-only, so code that modifies the returned table no longer type checks
 * Features
   * Core
     * typing
@@ -20,16 +22,27 @@
       * `Omit<T, K>` type function
       * `Merge<A, B>` type function
       * `Parameter<F, I>` type function
-      * `Return<F>` type function
+      * `ReturnType<F>` type function
       * `OmitSelf<F>` type function
       * `Uppercase<T>` type function
       * `Lowercase<T>` type function
       * `Capitalize<T>` type function
       * `Uncapitalize<T>` type function
+  * Time
+    * `Duration.TimeParts` type
 * Changes
   * Time
-    * Changed Duration to use `TimeParts` and `Partial<TimeParts>` rather than
-      `TimePartsI` and `TimePartsO`
+    * `Duration.fromParts()` takes `Partial<TimeParts>` instead of `TimePartsI`
+    * `Duration:toParts()` returns `TimeParts` instead of `TimePartsO`
+* Deprecations
+  * Time
+    * `Duration.TimePartsI` (use `Partial<TimeParts>` instead)
+    * `Duration.TimePartsO` (use `TimeParts` instead)
+* Tooling
+  * Added the `types` library global to `luau-extras.yml` for selene
+* Documentation
+  * Documented in CONTRIBUTING that typing helpers are type functions, which
+    need the new type solver
 
 ## [v0.1.3] - 2026-11-10
 * Features
