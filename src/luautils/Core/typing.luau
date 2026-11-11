@@ -349,7 +349,22 @@ export type function Nillable(t: type): type
 end
 
 --[=[
+    A type that makes all of the properties of the wrapped type required.
 
+    `unknown` and `any` remain unchanged.
+    A property typed exactly as `nil` becomes `never`.
+
+    ```lua
+    type Data = { -- data schema with optional props
+        name: string?,
+        age: number?,
+    }
+    local function fillData(data: Data): Required<Data> -- each prop is required
+    ```
+
+    @type Required (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
 ]=]
 export type function Required(t: type): type
     assert(t:is("table"), "Required expects a table type")
