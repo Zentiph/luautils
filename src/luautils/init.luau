@@ -65,6 +65,7 @@ export type DeepReadOnly<T> = Core.DeepReadOnly<T>
 export type Writable<T> = Core.Writable<T>
 export type DeepWritable<T> = Core.DeepWritable<T>
 export type Record<K, V> = Core.Record<K, V>
+export type Exclude<T, U> = Core.Exclude<T, U>
 export type Pick<T, K> = Core.Pick<T, K>
 export type Omit<T, K> = Core.Omit<T, K>
 export type Merge<A, B> = Core.Merge<A, B>

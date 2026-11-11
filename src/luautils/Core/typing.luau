@@ -1077,6 +1077,80 @@ export type function Record(k: type, v: type): type
 end
 
 --[=[
+    A type function that removes the members of a union `T` that match `U`.
+
+    A member matches if it is the same type as a member of `U`, if it is a
+    singleton whose primitive type is in `U`, (so `"a"` matches `string`), or
+    if `U` contains `unknown` or `any`.
+    Tables, functions, and classes only match the exact same type, not
+    structurally equal ones.
+    If every member is removed, the result is `never`.
+
+    ```lua
+    type GameState = "Lobby" | "Playing" | "Ended"
+
+    type ActiveState = Exclude<GameState, "Lobby" | "Ended">
+    -- "Playing"
+
+    type NonString = Exclude<"a" | "b" | number | boolean, string>
+    -- number | boolean
+    ```
+
+    @type Exclude (t: type, u: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Exclude(t: type, u: type): type
+    local PRIMITIVES =
+        { "nil", "boolean", "number", "string", "thread", "buffer" }
+
+    local function matches(member: type, filter: type): boolean
+        if filter:is("unknown") or filter:is("any") then
+            return true
+        elseif member:is("singleton") then
+            if filter:is("singleton") then
+                return member:value() == filter:value()
+            end
+            -- "a" matches string, true matches boolean, etc.
+            return filter:is(typeof(member:value()))
+        end
+
+        for _, kind in PRIMITIVES do
+            if member:is(kind) then
+                return filter:is(kind)
+            end
+        end
+
+        return member == filter
+    end
+
+    local members = if t:is("union") then t:components() else { t }
+    local filters = if u:is("union") then u:components() else { u }
+
+    local kept = {}
+    for _, member in members do
+        local excluded = false
+        for _, filter in filters do
+            if matches(member, filter) then
+                excluded = true
+                break
+            end
+        end
+        if not excluded then
+            table.insert(kept, member)
+        end
+    end
+
+    if #kept == 0 then
+        return types.never -- all members were excluded
+    elseif #kept == 1 then
+        return kept[1] -- no need for a union
+    else
+        return types.unionof(table.unpack(kept))
+    end
+end
+
+--[=[
     A type function that keeps only the given named properties of a table type.
 
     `K` is a string singleton or a union of string singletons.

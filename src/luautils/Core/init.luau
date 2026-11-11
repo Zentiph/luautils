@@ -48,6 +48,7 @@ export type DeepReadOnly<T> = typing.DeepReadOnly<T>
 export type Writable<T> = typing.Writable<T>
 export type DeepWritable<T> = typing.DeepWritable<T>
 export type Record<K, V> = typing.Record<K, V>
+export type Exclude<T, U> = typing.Exclude<T, U>
 export type Pick<T, K> = typing.Pick<T, K>
 export type Omit<T, K> = typing.Omit<T, K>
 export type Merge<A, B> = typing.Merge<A, B>

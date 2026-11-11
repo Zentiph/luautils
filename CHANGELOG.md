@@ -13,6 +13,7 @@
       * `Writable<T>` type function
       * `DeepWritable<T>` type function
       * `Record<K, V>` type function
+      * `Extract<T, U>` type function
       * `Pick<T, K>` type function
       * `Omit<T, K>` type function
       * `Merge<A, B>` type function
