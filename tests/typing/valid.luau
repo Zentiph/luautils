@@ -9,7 +9,8 @@
 -- which means they are the same type, and that `actual` is not `any`, which
 -- would pass every assignment.
 -- (`==` on types ignores property names, and `tostring` treats `{ a: T }` and
--- `{ read a: T, write a: T }` as different, so neither is used here.)
+-- `{ read a: T, write a: T }` as different, so neither is used here.
+-- See https://github.com/luau-lang/luau/issues/3116)
 
 local typing = require("../../src/luautils/Core/typing")
 

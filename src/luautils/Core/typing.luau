@@ -477,6 +477,7 @@ export type function DeepPartial(t: type): type
         -- nested classes (tables with a metatable) are left as-is
         if ty:is("table") and (top or ty:metatable() == nil) then
             -- `==` ignores property names, so the printed type is compared too
+            -- (https://github.com/luau-lang/luau/issues/3116)
             local printed = tostring(ty)
             for _, entry in seen do
                 if entry.printed == printed and entry.from == ty then
@@ -752,6 +753,7 @@ export type function DeepRequired(t: type): type
         -- nested classes (tables with a metatable) are left as-is
         if ty:is("table") and (top or ty:metatable() == nil) then
             -- `==` ignores property names, so the printed type is compared too
+            -- (https://github.com/luau-lang/luau/issues/3116)
             local printed = tostring(ty)
             for _, entry in seen do
                 if entry.printed == printed and entry.from == ty then
@@ -955,6 +957,7 @@ export type function DeepReadOnly(t: type): type
         -- nested classes (tables with a metatable) are left as-is
         if ty:is("table") and (top or ty:metatable() == nil) then
             -- `==` ignores property names, so the printed type is compared too
+            -- (https://github.com/luau-lang/luau/issues/3116)
             local printed = tostring(ty)
             for _, entry in seen do
                 if entry.printed == printed and entry.from == ty then
@@ -1146,6 +1149,7 @@ export type function DeepWritable(t: type): type
         -- nested classes (tables with a metatable) are left as-is
         if ty:is("table") and (top or ty:metatable() == nil) then
             -- `==` ignores property names, so the printed type is compared too
+            -- (https://github.com/luau-lang/luau/issues/3116)
             local printed = tostring(ty)
             for _, entry in seen do
                 if entry.printed == printed and entry.from == ty then
@@ -1325,6 +1329,7 @@ export type function Exclude(t: type, u: type): type
         end
 
         -- `==` ignores property names, so the printed type is compared too
+        -- (https://github.com/luau-lang/luau/issues/3116)
         return member == filter and tostring(member) == tostring(filter)
     end
 
@@ -1425,6 +1430,7 @@ export type function Extract(t: type, u: type): type
         end
 
         -- `==` ignores property names, so the printed type is compared too
+        -- (https://github.com/luau-lang/luau/issues/3116)
         return member == filter and tostring(member) == tostring(filter)
     end
 
