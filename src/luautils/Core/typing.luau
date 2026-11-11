@@ -316,9 +316,9 @@ export type Iterable<Self, C, V...> = {
 ]=]
 export type function Nillable(t: type): type
     assert(t:is("table"), "Nillable expects a table type")
-    local result = types.newtable()
 
     -- make all named properties optional
+    local result = types.newtable()
     for key, prop in t:properties() do
         if prop.read then
             result:setreadproperty(key, types.optional(prop.read))
@@ -413,6 +413,43 @@ export type function Required(t: type): type
     end
 
     -- copy metatable unchanged
+    local mt = t:metatable()
+    if mt then
+        result:setmetatable(mt)
+    end
+
+    return result
+end
+
+--[=[
+    A type that makes all of the properties of the wrapped type read-only.
+
+    This type wrapper is shallow, so inner tables can still be modified.
+
+    Write-only properties are dropped.
+
+    @type ReadOnly (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function ReadOnly(t: type): type
+    assert(t:is("table"), "ReadOnly expects a table type")
+
+    -- only keep read properties
+    local result = types.newtable()
+    for key, prop in t:properties() do
+        if prop.read then
+            result:setreadproperty(key, prop.read)
+        end
+    end
+
+    -- only keep read side of the indexer
+    local idx = t:indexer()
+    if idx and idx.readresult then
+        result:setreadindexer(idx.index, idx.readresult)
+    end
+
+    -- preserve metatable
     local mt = t:metatable()
     if mt then
         result:setmetatable(mt)

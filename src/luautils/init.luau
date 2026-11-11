@@ -58,6 +58,7 @@ export type Deserializable<Self, D> = Core.Deserializable<Self, D>
 export type Iterable<Self, C, V...> = Core.Iterable<Self, C, V...>
 export type Nillable<T> = Core.Nillable<T>
 export type Required<T> = Core.Required<T>
+export type ReadOnly<T> = Core.ReadOnly<T>
 export type Disconnectable = Core.Disconnectable
 export type Destroyable = Core.Destroyable
 
