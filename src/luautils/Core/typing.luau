@@ -367,6 +367,7 @@ end
 
     `read` and `write` modifiers are kept, and the indexer and metatable are
     copied unchanged.
+    Recursive types are supported.
     Only table types are accepted, so unions and intersections of tables are a
     type error.
 
@@ -424,6 +425,126 @@ export type function DeepPartial(t: type): type
             -- recurse into the indexer's values without making them optional
             -- (luau doesn't support separate read/write indexer types yet,
             --  so setreadindexer/setwriteindexer throw)
+            local idx = ty:indexer()
+            if idx and idx.readresult then
+                result:setindexer(idx.index, deep(idx.readresult))
+            end
+
+            -- copy metatable unchanged
+            local mt = ty:metatable()
+            if mt then
+                result:setmetatable(mt)
+            end
+
+            return result
+        elseif ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        else
+            -- primitives, functions, classes, etc. are left as-is
+            return ty
+        end
+    end
+
+    return deep(t)
+end
+
+--[=[
+    A type function that removes `nil` from every property of a table type,
+    recursively.
+
+    Optional properties lose their `nil`, so `number?` becomes `number`, and a
+    property typed as just `nil` becomes `never`.
+    `unknown` is converted to `~nil`.
+    `any` is left unchanged, since `any` denotes disabling type checking.
+
+    Nested table types (including tables inside unions and intersections) are
+    made deeply required as well.
+    Indexer values are recursed into but keep their `nil`, so `{ [string]: T? }`
+    still allows missing keys while each `T` becomes deeply required.
+
+    `read` and `write` modifiers are kept, and the indexer and metatable are
+    copied unchanged.
+    Recursive types are supported.
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
+
+    ```lua
+    type PartialSettings = {
+        audio: { volume: number?, muted: boolean? }?,
+        ui: { scale: number? }?,
+    }
+
+    type ResolvedSettings = DeepRequired<PartialSettings>
+    -- { audio: { volume: number, muted: boolean }, ui: { scale: number } }
+    ```
+
+    @type DeepRequired (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function DeepRequired(t: type): type
+    assert(t:is("table"), "DeepRequired expects a table type")
+
+    local function stripNil(ty: type): type
+        if ty:is("nil") then
+            return types.never -- just `nil`
+        elseif ty:is("unknown") then
+            return types.negationof(types.singleton(nil)) -- ~nil
+        elseif not ty:is("union") then
+            return ty
+        end
+
+        local kept = {}
+        for _, component in ty:components() do
+            if not component:is("nil") then
+                table.insert(kept, component)
+            end
+        end
+
+        if #kept == 0 then
+            return types.never -- every component was `nil`
+        elseif #kept == 1 then
+            return kept[1] -- no need to keep the union
+        else
+            return types.unionof(table.unpack(kept))
+        end
+    end
+
+    -- tables already being converted, so recursive types terminate
+    local seen: { { from: type, to: type } } = {}
+
+    local function deep(ty: type): type
+        if ty:is("table") then
+            for _, entry in seen do
+                if entry.from == ty then
+                    return entry.to
+                end
+            end
+
+            local result = types.newtable()
+            -- register before recursing so cycles point back at result
+            table.insert(seen, { from = ty, to = result })
+
+            -- make all named properties required, recursively
+            -- (strip nil first so tables inside T? are reached)
+            for key, prop in ty:properties() do
+                if prop.read then
+                    result:setreadproperty(key, deep(stripNil(prop.read)))
+                end
+                if prop.write then
+                    result:setwriteproperty(key, deep(stripNil(prop.write)))
+                end
+            end
+
+            -- recurse into the indexer's values without removing their nil
+            -- (luau doesn't support separate read/write indexer types yet, so
+            -- setreadindexer/setwriteindexer throw)
             local idx = ty:indexer()
             if idx and idx.readresult then
                 result:setindexer(idx.index, deep(idx.readresult))
