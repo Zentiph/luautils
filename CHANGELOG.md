@@ -5,6 +5,7 @@
   * Core
     * typing
       * `Partial<T>` type function
+      * `DeepPartial<T>` type function
       * `Required<T>` type function
       * `ReadOnly<T>` type function
       * `DeepReadOnly<T>` type function

@@ -357,6 +357,98 @@ export type function Partial(t: type): type
 end
 
 --[=[
+    A type function that makes every property of a table type optional,
+    recursively.
+
+    `read` and `write` modifiers are kept, and the indexer and metatable are
+    copied unchanged.
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
+
+    ```lua
+    type Settings = {
+        audio: { volume: number, muted: boolean },
+        ui: { scale: number }
+    }
+
+    type SettingsPatch = DeepPartial<Settings>
+    -- { audio: { volume: number?, muted: boolean? }, ui: { scale: number? } }
+
+    local function applyPatch(settings: Settings, patch: SettingsPatch)
+        settings.audio.volume = patch.audio.volume or settings.audio.volume
+        settings.audio.muted = patch.audio.muted or settings.audio.muted
+        settings.ui.scale = patch.ui.scale or settings.ui.scale
+    end
+    ```
+
+    @type DeepPartial (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function DeepPartial(t: type): type
+    assert(t:is("table"), "DeepPartial expects a table type")
+
+    -- tables already being converted, so recursive types terminate
+    local seen: { { from: type, to: type } } = {}
+
+    local function deep(ty: type): type
+        if ty:is("table") then
+            for _, entry in seen do
+                if entry.from == ty then
+                    return entry.to
+                end
+            end
+
+            local result = types.newtable()
+            -- register before recursing so cycles point back at result
+            table.insert(seen, { from = ty, to = result })
+
+            -- make all named properties optional, recursively
+            for key, prop in ty:properties() do
+                if prop.read then
+                    result:setreadproperty(key, types.optional(deep(prop.read)))
+                end
+                if prop.write then
+                    result:setwriteproperty(
+                        key,
+                        types.optional(deep(prop.write))
+                    )
+                end
+            end
+
+            -- recurse into the indexer's values without making them optional
+            -- (luau doesn't support separate read/write indexer types yet,
+            --  so setreadindexer/setwriteindexer throw)
+            local idx = ty:indexer()
+            if idx and idx.readresult then
+                result:setindexer(idx.index, deep(idx.readresult))
+            end
+
+            -- copy metatable unchanged
+            local mt = ty:metatable()
+            if mt then
+                result:setmetatable(mt)
+            end
+
+            return result
+        elseif ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        else
+            -- primitives, functions, classes, etc. are left as-is
+            return ty
+        end
+    end
+
+    return deep(t)
+end
+
+--[=[
     A type function that removes `nil` from every property of a table type.
 
     Optional properties lose their `nil`, so `number?` becomes `number`, and a
@@ -504,7 +596,8 @@ export type function ReadOnly(t: type): type
 end
 
 --[=[
-    A type function that makes every property of a table type read-only.
+    A type function that makes every property of a table type read-only,
+    recursively.
 
     This is deep, so tables inside the properties cannot be modified.
     Primitives, functions, and classes (tables with a metatable) are left as-is.
@@ -546,7 +639,6 @@ export type function DeepReadOnly(t: type): type
     local function deep(ty: type): type
         if ty:is("table") then
             for _, entry in seen do
-                -- prevent infinite recursion
                 if entry.from == ty then
                     return entry.to
                 end

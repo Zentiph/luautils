@@ -40,6 +40,7 @@ export type Serializable<Self, D> = typing.Serializable<Self, D>
 export type Deserializable<Self, D> = typing.Deserializable<Self, D>
 export type Iterable<Self, C, V...> = typing.Iterable<Self, C, V...>
 export type Partial<T> = typing.Partial<T>
+export type DeepPartial<T> = typing.DeepPartial<T>
 export type Required<T> = typing.Required<T>
 export type ReadOnly<T> = typing.ReadOnly<T>
 export type DeepReadOnly<T> = typing.DeepReadOnly<T>
