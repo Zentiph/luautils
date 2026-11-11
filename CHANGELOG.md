@@ -1,9 +1,55 @@
 # Changelog for luautils
 
-<!--
 ## [UNRELEASED]
-*
--->
+* > Note: `Duration:toParts()` now returns `TimeParts`, whose fields are
+  > read-only, so code that modifies the returned table no longer type checks
+* Features
+  * Core
+    * typing
+      * `NonNil<T>` type function
+      * `Partial<T>` type function
+      * `DeepPartial<T>` type function
+      * `Required<T>` type function
+      * `DeepRequired<T>` type function
+      * `ReadOnly<T>` type function
+      * `DeepReadOnly<T>` type function
+      * `Writable<T>` type function
+      * `DeepWritable<T>` type function
+      * `Record<K, V>` type function
+      * `Exclude<T, U>` type function
+      * `Extract<T, U>` type function
+      * `Pick<T, K>` type function
+      * `Omit<T, K>` type function
+      * `Merge<A, B>` type function
+      * `Parameter<F, I>` type function
+      * `ReturnType<F>` type function
+      * `OmitSelf<F>` type function
+      * `Uppercase<T>` type function
+      * `Lowercase<T>` type function
+      * `Capitalize<T>` type function
+      * `Uncapitalize<T>` type function
+  * Time
+    * `Duration.TimeParts` type
+* Changes
+  * Time
+    * `Duration.fromParts()` takes `Partial<TimeParts>` instead of `TimePartsI`
+    * `Duration:toParts()` returns `TimeParts` instead of `TimePartsO`
+    * `TimeParts` is exported through `Time` and `Luautils`
+    * `HumanStringOptions` is now readonly
+* Deprecations
+  * Time
+    * `Duration.TimePartsI` (use `Partial<TimeParts>` instead)
+    * `Duration.TimePartsO` (use `TimeParts` instead)
+* Tests
+  * Added type-check tests for the typing type functions in `tests/typing`,
+    including cases that must fail to type check
+* CI
+  * Added a `typecheck (typing)` step that runs `.lute/typing.luau`
+* Tooling
+  * Added the `types` library global to `luau-extras.yml` for selene
+* Documentation
+  * Documented in CONTRIBUTING that typing helpers are type functions, which
+    need the new type solver
 
 ## [v0.1.3] - 2026-11-10
 * Features

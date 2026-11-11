@@ -5,6 +5,7 @@
 
 local Core = require("../Core")
 type Map<K, V> = Core.Map<K, V>
+type Partial<T> = Core.Partial<T>
 
 local Result = Core.Result
 type Result<T, E> = Core.Result<T, E>
@@ -57,12 +58,48 @@ type DurationData = {
 export type Duration = typeof(setmetatable({} :: DurationData, Duration))
 
 --[=[
+    A set of parts in a `Duration`, returned by [Duration:toParts].
+
+    All parts are non-negative and within their usual ranges (such as 0-23 for
+    `hours`), except `days`, which is unbounded. The sign of the `Duration` is
+    stored in `negative`. For infinite `Duration`s, `days` is `math.huge` and
+    every other part is 0.
+
+    [Duration.fromParts] takes a `Partial<TimeParts>` instead, where every part
+    is optional and may be outside its usual range, fractional, or negative.
+
+    @interface TimeParts
+    @within Duration
+    @since [UNRELEASED]
+    @field negative boolean -- Whether the `Duration` is negative
+    @field days number -- The whole days
+    @field hours number -- The hours (0-23)
+    @field minutes number -- The minutes (0-59)
+    @field seconds number -- The seconds (0-59)
+    @field millis number -- The milliseconds (0-999)
+    @field micros number -- The microseconds (0-999)
+    @field nanos number -- The nanoseconds (0-999)
+]=]
+export type TimeParts = {
+    read negative: boolean,
+    read days: number,
+    read hours: number,
+    read minutes: number,
+    read seconds: number,
+    read millis: number,
+    read micros: number,
+    read nanos: number,
+}
+
+--[=[
     An input set of parts in a `Duration`, used by [Duration.fromParts].
 
     All fields are optional, and will default to 0 (or false, in `negative`'s
     case). Parts are not limited to their usual ranges, so `{ hours = 36 }` is
     the same as `{ days = 1, hours = 12 }`, and they may be fractional or
     negative.
+
+    @deprecated [UNRELEASED] -- Use `Partial<TimeParts>` instead
 
     @interface TimePartsI
     @within Duration
@@ -94,6 +131,8 @@ export type TimePartsI = {
     `hours`), except `days`, which is unbounded. The sign of the `Duration` is
     stored in `negative`. For infinite `Duration`s, `days` is `math.huge` and
     every other part is 0.
+
+    @deprecated [UNRELEASED] -- Use `TimeParts` instead
 
     @interface TimePartsO
     @within Duration
@@ -143,8 +182,8 @@ export type HumanStringUnit =
     @field smallestUnit HumanStringUnit? -- The smallest unit to show (defaults to "millis")
 ]=]
 export type HumanStringOptions = {
-    maxUnits: number?,
-    smallestUnit: HumanStringUnit?,
+    read maxUnits: number?,
+    read smallestUnit: HumanStringUnit?,
 }
 
 local NANOS_MIN = 0
@@ -662,12 +701,12 @@ end
     ```
 
     @since v0.1.0
-    @param parts TimePartsI -- The table of parts
+    @param parts Partial<TimeParts> -- The table of parts
     @return Duration -- The new `Duration`
     @error "[Duration.new()]: Cannot create a Duration from NaN values" -- Thrown if any part is `NaN`, or if `days`, `hours`, `minutes`, and `seconds`, or `millis`, `micros`, and `nanos`, include infinities with different signs
     @error "[Duration.new()]: Cannot build a Duration from infinities with different signs" -- Thrown if the whole-second parts (`days` to `seconds`) and the sub-second parts (`millis` to `nanos`) are infinities with different signs
 ]=]
-function Duration.fromParts(parts: TimePartsI): Duration
+function Duration.fromParts(parts: Partial<TimeParts>): Duration
     local sign = parts.negative and -1 or 1
     local secs = sign
         * (
@@ -1086,9 +1125,9 @@ end
     @method toParts
     @within Duration
     @since v0.1.0
-    @return TimePartsO -- The parts
+    @return TimeParts -- The parts
 ]=]
-function Duration.toParts(self: Duration): TimePartsO
+function Duration.toParts(self: Duration): TimeParts
     return if self:isInf()
         then {
             negative = self:isNegative(),

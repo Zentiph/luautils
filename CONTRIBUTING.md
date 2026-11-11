@@ -69,7 +69,11 @@ luau-lsp analyze \
     --platform=standard \
     --flag:LuauSolverV2=true \
     --ignore="src/**" \
+    --ignore="tests/typing/**" \
     tests
+
+# type check the typing type function tests, including cases that must fail
+lute run .lute/typing.luau
 ```
 
 `--flag:LuauSolverV2=true` is required.
@@ -99,15 +103,16 @@ or the README.
 
 The script runs these steps in order and reports every failure at the end:
 
-| Step              | Command                                                 |
-| ----------------- | ------------------------------------------------------- |
-| version           | `lute run .lute/version.luau`                           |
-| format            | `stylua --check src tests`                              |
-| lint              | `selene src`                                            |
-| sourcemap         | `rojo sourcemap default.project.json -o sourcemap.json` |
-| typecheck (src)   | `luau-lsp analyze --platform=roblox ... src`            |
-| typecheck (tests) | `luau-lsp analyze --platform=standard ... tests`        |
-| test              | `lute test`                                             |
+| Step               | Command                                                 |
+| ------------------ | ------------------------------------------------------- |
+| version            | `lute run .lute/version.luau`                           |
+| format             | `stylua --check src tests`                              |
+| lint               | `selene src`                                            |
+| sourcemap          | `rojo sourcemap default.project.json -o sourcemap.json` |
+| typecheck (src)    | `luau-lsp analyze --platform=roblox ... src`            |
+| typecheck (tests)  | `luau-lsp analyze --platform=standard ... tests`        |
+| typecheck (typing) | `lute run .lute/typing.luau`                            |
+| test               | `lute test`                                             |
 
 `src` is type checked against ROBLOX's type definitions, because some modules
 use ROBLOX globals (such as `task.wait`). `tests` are checked without them,
@@ -115,6 +120,8 @@ because they run under Lute. Type checking `tests` also checks every `src`
 module they require, which would fail on those ROBLOX globals, so
 `--ignore="src/**"` hides `src` diagnostics there; `src` is already checked
 in the step before.
+`tests/typing` is also ignored there, since its type function tests run in the
+next step, and the files in `tests/typing/errors` are meant to fail.
 
 The separate docs job runs `moonwave build`, so broken doc comments or README
 links fail CI too, even when the script passes.
@@ -152,7 +159,7 @@ src/luautils/
 ├── Time/       -- time-related functionality
 ├── Tables/     -- table-related functionality
 └── ...         -- Collections, Math, Strings, Validation, Async, Events, Roblox
-tests/          -- mirrors src/
+tests/          -- mirrors src/, plus typing/ for the typing type functions
 ```
 
 Each sublibrary is a folder with an `init.luau` that re-exports its modules.
@@ -240,7 +247,11 @@ Callers can still use colon syntax: `value:method()`.
 ### Types
 
 * Shared function and container types live in `Core/typing.luau` and are
-  re-exported from `Core`.
+  re-exported from `Core` and `Luautils`.
+* Typing helpers in `Core/typing.luau` (such as `Partial<T>`) are Luau type
+  functions, which only work with the new type solver.
+  They use the `types` library, which is declared as a global for selene in
+  `luau-extras.yml`.
 * Use string literal unions (`"floor" | "ceil"`) or tagged unions
   (`{ kind: "circle", radius: number } | { kind: "rect", ... }`) instead of enum
   objects.
@@ -277,6 +288,13 @@ Callers can still use colon syntax: `value:method()`.
   The exception is `tests/Luautils.test.luau`, which checks that the root module
   loads outside ROBLOX.
 * Test error messages by their full `[Scope.function()]: ` prefix.
+* The typing type functions only run at type-check time, so they are tested in
+  `tests/typing` instead, by `.lute/typing.luau`:
+  * `tests/typing/valid.luau` must type check. Each case assigns the result to
+    the expected type and back, and checks the result is not `any`.
+  * Every file in `tests/typing/errors` must fail to type check with exactly the
+    expected errors. A `-- error: <text>` comment expects an error containing
+    `<text>` on the next line of code, and any other error fails the check.
 
 ## Package registries
 

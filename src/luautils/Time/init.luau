@@ -8,6 +8,7 @@ export type Cooldown<K> = Cooldown.Cooldown<K>
 
 local Duration = require("@self/Duration")
 export type Duration = Duration.Duration
+export type TimeParts = Duration.TimeParts
 
 local Stopwatch = require("@self/Stopwatch")
 export type Stopwatch = Stopwatch.Stopwatch

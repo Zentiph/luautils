@@ -10,6 +10,8 @@
     This module has no runtime value. Every type is re-exported by `Core` and
     `Luautils`, so use them as `Luautils.Supplier<T>` or `Core.Map<K, V>`, etc.
 
+    The typing helpers are type functions, which require Luau's new type solver.
+
     @class typing
     @since v0.1.0
 ]=]
@@ -296,6 +298,1976 @@ export type Deserializable<Self, D> = { deserialize: (data: D) -> Self }
 export type Iterable<Self, C, V...> = {
     iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?),
 }
+
+--[[ Typing helpers ]]
+
+--[=[
+    A type function that removes `nil` from any type.
+
+    `unknown` is converted to `~nil`.
+    `any` is left unchanged, since `any` denotes disabling type checking.
+
+    ```lua
+    type MaybeData = string | number | nil
+
+    local function expectData(data: MaybeData): NonNil<MaybeData>
+        assert(data ~= nil, "expected data")
+        return data -- refined to string | number
+    end
+    ```
+
+    @type NonNil (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function NonNil(t: type): type
+    if t:is("nil") then
+        return types.never -- the type was just `nil`
+    elseif t:is("unknown") then
+        return types.negationof(types.singleton(nil)) -- any value except `nil`
+    elseif not t:is("union") then
+        return t
+    end
+
+    local kept = {}
+    for _, component in t:components() do
+        if component:is("unknown") then
+            -- unknown absorbs the rest of the union, leaving just ~nil
+            return types.negationof(types.singleton(nil))
+        elseif component:is("any") then
+            -- any absorbs the rest of the union and is left unchanged
+            return types.any
+        elseif not component:is("nil") then
+            table.insert(kept, component)
+        end
+    end
+
+    if #kept == 0 then
+        return types.never -- every component was `nil`
+    elseif #kept == 1 then
+        return kept[1] -- no need to keep the union
+    else
+        return types.unionof(table.unpack(kept))
+    end
+end
+
+--[=[
+    A type function that makes every property of a table type optional.
+
+    `read` and `write` modifiers are kept, and the indexer and metatable are
+    copied unchanged.
+    Unions and intersections are converted member by member, keeping `nil` in
+    unions, so `Partial<A | B>` is `Partial<A> | Partial<B>` and `Partial<A?>`
+    is `Partial<A>?`.
+    Any other type that is not a table is a type error.
+
+    ```lua
+    type Profile = { name: string, read level: number }
+
+    type ProfilePatch = Partial<Profile>
+    -- { name: string?, read level: number? }
+
+    local function applyPatch(profile: Profile, patch: ProfilePatch)
+        profile.name = patch.name or profile.name
+    end
+    ```
+
+    @type Partial (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Partial(t: type): type
+    local function convert(tbl: type): type
+        -- make all named properties optional
+        local result = types.newtable()
+        for key, prop in tbl:properties() do
+            if prop.read then
+                result:setreadproperty(key, types.optional(prop.read))
+            end
+            if prop.write then
+                result:setwriteproperty(key, types.optional(prop.write))
+            end
+        end
+
+        -- copy indexer unchanged
+        -- (luau doesn't support separate read/write indexer types yet, so
+        -- setreadindexer/setwriteindexer throw)
+        local idx = tbl:indexer()
+        if idx and idx.readresult then
+            result:setindexer(idx.index, idx.readresult)
+        end
+
+        -- copy metatable unchanged
+        local mt = tbl:metatable()
+        if mt then
+            result:setmetatable(mt)
+        end
+
+        return result
+    end
+
+    -- convert each member of unions and intersections, keeping `nil` in
+    -- unions so `T?` stays optional
+    local function distribute(ty: type): type
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                if ty:is("union") and component:is("nil") then
+                    table.insert(parts, component)
+                else
+                    table.insert(parts, distribute(component))
+                end
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("table"), "Partial expects table types")
+        return convert(ty)
+    end
+
+    return distribute(t)
+end
+
+--[=[
+    A type function that makes every property of a table type optional,
+    recursively.
+
+    Every named property becomes optional, and nested table types (including
+    tables inside unions and intersections) are made deeply partial as well.
+    Indexer values are recursed into but not made optional, so `{ T }` stays
+    an array of non-nil values while each `T` becomes deeply partial.
+
+    `read` and `write` modifiers are kept, and the metatable is copied
+    unchanged.
+    Nested classes (tables with a metatable) are left as-is, but `T` itself is
+    converted even if it has a metatable.
+    Recursive types are supported.
+    Unions and intersections are converted member by member, keeping `nil` in
+    unions, so `DeepPartial<A | B>` is `DeepPartial<A> | DeepPartial<B>` and
+    `DeepPartial<A?>` is `DeepPartial<A>?`.
+    Any other type that is not a table is a type error.
+
+    ```lua
+    type Settings = {
+        audio: { volume: number, muted: boolean },
+        ui: { scale: number }
+    }
+
+    type SettingsOverrides = DeepPartial<Settings>
+    -- { audio: { volume: number?, muted: boolean? }?, ui: { scale: number? }? }
+
+    local function configure(overrides: SettingsOverrides)
+        -- ...
+    end
+
+    configure({ audio = { volume = 0.2 } }) -- everything else falls back
+    ```
+
+    @type DeepPartial (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function DeepPartial(t: type): type
+    -- tables already being converted, so recursive types terminate
+    local seen: { { from: type, to: type, printed: string } } = {}
+
+    local function deep(ty: type, top: boolean?): type
+        -- nested classes (tables with a metatable) are left as-is
+        if ty:is("table") and (top or ty:metatable() == nil) then
+            -- `==` ignores property names, so the printed type is compared too
+            -- (https://github.com/luau-lang/luau/issues/3116)
+            local printed = tostring(ty)
+            for _, entry in seen do
+                if entry.printed == printed and entry.from == ty then
+                    return entry.to
+                end
+            end
+
+            local result = types.newtable()
+            -- register before recursing so cycles point back at result
+            table.insert(seen, { from = ty, to = result, printed = printed })
+
+            -- make all named properties optional, recursively
+            for key, prop in ty:properties() do
+                if prop.read then
+                    result:setreadproperty(key, types.optional(deep(prop.read)))
+                end
+                if prop.write then
+                    result:setwriteproperty(
+                        key,
+                        types.optional(deep(prop.write))
+                    )
+                end
+            end
+
+            -- recurse into the indexer's values without making them optional
+            -- (luau doesn't support separate read/write indexer types yet,
+            --  so setreadindexer/setwriteindexer throw)
+            local idx = ty:indexer()
+            if idx and idx.readresult then
+                result:setindexer(idx.index, deep(idx.readresult))
+            end
+
+            -- copy metatable unchanged
+            local mt = ty:metatable()
+            if mt then
+                result:setmetatable(mt)
+            end
+
+            return result
+        elseif ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        else
+            -- primitives, functions, classes, etc. are left as-is
+            return ty
+        end
+    end
+
+    -- convert each member of unions and intersections, keeping `nil` in
+    -- unions so `T?` stays optional
+    local function distribute(ty: type): type
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                if ty:is("union") and component:is("nil") then
+                    table.insert(parts, component)
+                else
+                    table.insert(parts, distribute(component))
+                end
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("table"), "DeepPartial expects table types")
+        return deep(ty, true)
+    end
+
+    return distribute(t)
+end
+
+--[=[
+    A type function that removes `nil` from every property of a table type.
+
+    Optional properties lose their `nil`, so `number?` becomes `number`, and a
+    property typed as just `nil` becomes `never`.
+    `unknown` is converted to `~nil`.
+    `any` is left unchanged, since `any` denotes disabling type checking.
+    `read` and `write` modifiers are kept, and the indexer and metatable are
+    copied unchanged.
+    Unions and intersections are converted member by member, keeping `nil` in
+    unions, so `Required<A | B>` is `Required<A> | Required<B>` and
+    `Required<A?>` is `Required<A>?`.
+    Any other type that is not a table is a type error.
+
+    ```lua
+    type Settings = { volume: number?, muted: boolean? }
+
+    type ResolvedSettings = Required<Settings>
+    -- { volume: number, muted: boolean }
+
+    local DEFAULTS: ResolvedSettings = { volume = 0.5, muted = false }
+
+    local function resolve(settings: Settings): ResolvedSettings
+        return {
+            volume = settings.volume or DEFAULTS.volume,
+            muted = if settings.muted == nil
+                then DEFAULTS.muted
+                else settings.muted,
+        }
+    end
+    ```
+
+    @type Required (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Required(t: type): type
+    local function stripNil(ty: type): type
+        if ty:is("nil") then
+            return types.never -- the type was just `nil`
+        elseif ty:is("unknown") then
+            return types.negationof(types.singleton(nil)) -- ~nil
+        elseif not ty:is("union") then
+            return ty
+        end
+
+        local kept = {}
+        for _, component in ty:components() do
+            if component:is("unknown") then
+                -- unknown absorbs the rest of the union, leaving just ~nil
+                return types.negationof(types.singleton(nil))
+            elseif component:is("any") then
+                -- any absorbs the rest of the union and is left unchanged
+                return types.any
+            elseif not component:is("nil") then
+                table.insert(kept, component)
+            end
+        end
+
+        if #kept == 0 then
+            return types.never -- every component was `nil`
+        elseif #kept == 1 then
+            return kept[1] -- no need to keep the union
+        else
+            return types.unionof(table.unpack(kept))
+        end
+    end
+
+    local function convert(tbl: type): type
+        -- make all named properties required
+        local result = types.newtable()
+        for key, prop in tbl:properties() do
+            if prop.read then
+                result:setreadproperty(key, stripNil(prop.read))
+            end
+            if prop.write then
+                result:setwriteproperty(key, stripNil(prop.write))
+            end
+        end
+
+        -- copy indexer unchanged
+        -- (luau doesn't support separate read/write indexer types yet, so
+        -- setreadindexer/setwriteindexer throw)
+        local idx = tbl:indexer()
+        if idx and idx.readresult then
+            result:setindexer(idx.index, idx.readresult)
+        end
+
+        -- copy metatable unchanged
+        local mt = tbl:metatable()
+        if mt then
+            result:setmetatable(mt)
+        end
+
+        return result
+    end
+
+    -- convert each member of unions and intersections, keeping `nil` in
+    -- unions so `T?` stays optional
+    local function distribute(ty: type): type
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                if ty:is("union") and component:is("nil") then
+                    table.insert(parts, component)
+                else
+                    table.insert(parts, distribute(component))
+                end
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("table"), "Required expects table types")
+        return convert(ty)
+    end
+
+    return distribute(t)
+end
+
+--[=[
+    A type function that removes `nil` from every property of a table type,
+    recursively.
+
+    Optional properties lose their `nil`, so `number?` becomes `number`, and a
+    property typed as just `nil` becomes `never`.
+    `unknown` is converted to `~nil`.
+    `any` is left unchanged, since `any` denotes disabling type checking.
+
+    Nested table types (including tables inside unions and intersections) are
+    made deeply required as well.
+    Indexer values are recursed into but keep their `nil`, so `{ [string]: T? }`
+    still allows missing keys while each `T` becomes deeply required.
+
+    `read` and `write` modifiers are kept, and the metatable is copied
+    unchanged.
+    Nested classes (tables with a metatable) are left as-is, but `T` itself is
+    converted even if it has a metatable.
+    Recursive types are supported.
+    Unions and intersections are converted member by member, keeping `nil` in
+    unions, so `DeepRequired<A | B>` is `DeepRequired<A> | DeepRequired<B>` and
+    `DeepRequired<A?>` is `DeepRequired<A>?`.
+    Any other type that is not a table is a type error.
+
+    ```lua
+    type PartialSettings = {
+        audio: { volume: number?, muted: boolean? }?,
+        ui: { scale: number? }?,
+    }
+
+    type ResolvedSettings = DeepRequired<PartialSettings>
+    -- { audio: { volume: number, muted: boolean }, ui: { scale: number } }
+    ```
+
+    @type DeepRequired (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function DeepRequired(t: type): type
+    local function stripNil(ty: type): type
+        if ty:is("nil") then
+            return types.never -- just nil
+        elseif ty:is("unknown") then
+            return types.negationof(types.singleton(nil)) -- ~nil
+        elseif not ty:is("union") then
+            return ty
+        end
+
+        local kept = {}
+        for _, component in ty:components() do
+            if component:is("unknown") then
+                -- unknown absorbs the rest of the union, leaving just ~nil
+                return types.negationof(types.singleton(nil))
+            elseif component:is("any") then
+                -- any absorbs the rest of the union and is left unchanged
+                return types.any
+            elseif not component:is("nil") then
+                table.insert(kept, component)
+            end
+        end
+
+        if #kept == 0 then
+            return types.never -- every component was nil
+        elseif #kept == 1 then
+            return kept[1] -- no need to keep the union
+        else
+            return types.unionof(table.unpack(kept))
+        end
+    end
+
+    -- tables already being converted, so recursive types terminate
+    local seen: { { from: type, to: type, printed: string } } = {}
+
+    local function deep(ty: type, top: boolean?): type
+        -- nested classes (tables with a metatable) are left as-is
+        if ty:is("table") and (top or ty:metatable() == nil) then
+            -- `==` ignores property names, so the printed type is compared too
+            -- (https://github.com/luau-lang/luau/issues/3116)
+            local printed = tostring(ty)
+            for _, entry in seen do
+                if entry.printed == printed and entry.from == ty then
+                    return entry.to
+                end
+            end
+
+            local result = types.newtable()
+            -- register before recursing so cycles point back at result
+            table.insert(seen, { from = ty, to = result, printed = printed })
+
+            -- make all named properties required, recursively
+            -- (strip nil first so tables inside T? are reached)
+            for key, prop in ty:properties() do
+                if prop.read then
+                    result:setreadproperty(key, deep(stripNil(prop.read)))
+                end
+                if prop.write then
+                    result:setwriteproperty(key, deep(stripNil(prop.write)))
+                end
+            end
+
+            -- recurse into the indexer's values without removing their nil
+            -- (luau doesn't support separate read/write indexer types yet, so
+            -- setreadindexer/setwriteindexer throw)
+            local idx = ty:indexer()
+            if idx and idx.readresult then
+                result:setindexer(idx.index, deep(idx.readresult))
+            end
+
+            -- copy metatable unchanged
+            local mt = ty:metatable()
+            if mt then
+                result:setmetatable(mt)
+            end
+
+            return result
+        elseif ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        else
+            -- primitives, functions, classes, etc. are left as-is
+            return ty
+        end
+    end
+
+    -- convert each member of unions and intersections, keeping `nil` in
+    -- unions so `T?` stays optional
+    local function distribute(ty: type): type
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                if ty:is("union") and component:is("nil") then
+                    table.insert(parts, component)
+                else
+                    table.insert(parts, distribute(component))
+                end
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("table"), "DeepRequired expects table types")
+        return deep(ty, true)
+    end
+
+    return distribute(t)
+end
+
+--[=[
+    A type function that makes every property of a table type read-only.
+
+    This is shallow, so tables inside the properties can still be modified.
+    Write-only properties are dropped, since they cannot be read.
+    Unions and intersections are converted member by member, keeping `nil` in
+    unions, so `ReadOnly<A | B>` is `ReadOnly<A> | ReadOnly<B>` and
+    `ReadOnly<A?>` is `ReadOnly<A>?`.
+    Any other type that is not a table is a type error.
+
+    Luau does not yet support read-only indexers, so the indexer is copied
+    unchanged and stays writable.
+    Luau also does not report writes to read-only properties of a table with a
+    writable indexer, so only tables without an indexer are fully protected.
+
+    This only affects type checking.
+    To prevent writes at runtime, freeze the table with `table.freeze`.
+
+    ```lua
+    type Config = { maxPlayers: number, mode: string }
+
+    local CONFIG: ReadOnly<Config> = table.freeze({
+        maxPlayers = 10,
+        mode = "classic",
+    })
+    CONFIG.maxPlayers = 20 -- type error: maxPlayers is read-only
+    ```
+
+    @type ReadOnly (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function ReadOnly(t: type): type
+    local function convert(tbl: type): type
+        -- only keep read properties
+        local result = types.newtable()
+        for key, prop in tbl:properties() do
+            if prop.read then
+                result:setreadproperty(key, prop.read)
+            end
+        end
+
+        -- copy the indexer's read type
+        -- (luau doesn't support read-only indexers yet, so setreadindexer throws)
+        local idx = tbl:indexer()
+        if idx and idx.readresult then
+            result:setindexer(idx.index, idx.readresult)
+        end
+
+        -- preserve metatable
+        local mt = tbl:metatable()
+        if mt then
+            result:setmetatable(mt)
+        end
+
+        return result
+    end
+
+    -- convert each member of unions and intersections, keeping `nil` in
+    -- unions so `T?` stays optional
+    local function distribute(ty: type): type
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                if ty:is("union") and component:is("nil") then
+                    table.insert(parts, component)
+                else
+                    table.insert(parts, distribute(component))
+                end
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("table"), "ReadOnly expects table types")
+        return convert(ty)
+    end
+
+    return distribute(t)
+end
+
+--[=[
+    A type function that makes every property of a table type read-only,
+    recursively.
+
+    This is deep, so tables inside the properties are made read-only as well.
+    Primitives, functions, and nested classes (tables with a metatable) are
+    left as-is, but `T` itself is converted even if it has a metatable.
+    Write-only properties are dropped, since they cannot be read.
+    Unions and intersections are converted member by member, keeping `nil` in
+    unions, so `DeepReadOnly<A | B>` is `DeepReadOnly<A> | DeepReadOnly<B>` and
+    `DeepReadOnly<A?>` is `DeepReadOnly<A>?`.
+    Any other type that is not a table is a type error.
+
+    Luau does not yet support read-only indexers, so the indexer is copied
+    unchanged and stays writable.
+    Luau also does not report writes to read-only properties of a table with a
+    writable indexer, so only tables without an indexer are fully protected.
+
+    This only affects type checking.
+    To prevent writes at runtime, freeze the table and every table inside it
+    with `table.freeze`.
+
+    ```lua
+    type Config = {
+        name: string,
+        window: { width: number, height: number },
+        tags: { string },
+    }
+
+    type FrozenConfig = DeepReadOnly<Config>
+    -- { read name: string,
+    --   read window: { read width: number, read height: number },
+    --   read tags: { string } }
+    ```
+
+    @type DeepReadOnly (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function DeepReadOnly(t: type): type
+    local seen: { { from: type, to: type, printed: string } } = {}
+
+    local function deep(ty: type, top: boolean?): type
+        -- nested classes (tables with a metatable) are left as-is
+        if ty:is("table") and (top or ty:metatable() == nil) then
+            -- `==` ignores property names, so the printed type is compared too
+            -- (https://github.com/luau-lang/luau/issues/3116)
+            local printed = tostring(ty)
+            for _, entry in seen do
+                if entry.printed == printed and entry.from == ty then
+                    return entry.to
+                end
+            end
+
+            local result = types.newtable()
+            -- register before recursing so cycles point back at result
+            table.insert(seen, { from = ty, to = result, printed = printed })
+
+            -- only keep read properties, made deep read-only
+            for key, prop in ty:properties() do
+                if prop.read then
+                    result:setreadproperty(key, deep(prop.read))
+                end
+            end
+
+            -- copy the indexer's read type, made deep read-only
+            -- (luau doesn't support read-only indexers yet,
+            --  so setreadindexer throws)
+            local idx = ty:indexer()
+            if idx and idx.readresult then
+                result:setindexer(idx.index, deep(idx.readresult))
+            end
+
+            -- preserve metatable
+            local mt = ty:metatable()
+            if mt then
+                result:setmetatable(mt)
+            end
+
+            return result
+        elseif ty:is("union") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return types.unionof(table.unpack(parts))
+        elseif ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return types.intersectionof(table.unpack(parts))
+        else
+            -- primitives, functions, classes, etc. are left as-is
+            return ty
+        end
+    end
+
+    -- convert each member of unions and intersections, keeping `nil` in
+    -- unions so `T?` stays optional
+    local function distribute(ty: type): type
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                if ty:is("union") and component:is("nil") then
+                    table.insert(parts, component)
+                else
+                    table.insert(parts, distribute(component))
+                end
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("table"), "DeepReadOnly expects table types")
+        return deep(ty, true)
+    end
+
+    return distribute(t)
+end
+
+--[=[
+    A type function that makes every property of a table type readable and
+    writable, removing `read` and `write` modifiers.
+
+    Each property keeps its read type (or its write type, if it was
+    write-only) and becomes a normal property.
+
+    The indexer and metatable are copied unchanged.
+    Unions and intersections are converted member by member, keeping `nil` in
+    unions, so `Writable<A | B>` is `Writable<A> | Writable<B>` and
+    `Writable<A?>` is `Writable<A>?`.
+    Any other type that is not a table is a type error.
+
+    ```lua
+    type State = ReadOnly<{ score: number, alive: boolean }>
+    -- { read score: number, read alive: boolean }
+
+    type MutableState = Writable<State>
+    -- { score: number, alive: boolean }
+    ```
+
+    @type Writable (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Writable(t: type): type
+    local function convert(tbl: type): type
+        -- make every named property readable and writable
+        local result = types.newtable()
+        for key, prop in tbl:properties() do
+            local ty = prop.read or prop.write
+            if ty then
+                result:setreadproperty(key, ty)
+                result:setwriteproperty(key, ty)
+            end
+        end
+
+        -- copy indexer unchanged
+        -- (luau doesn't support separate read/write indexer types yet, so
+        -- setreadindexer/setwriteindexer throw)
+        local idx = tbl:indexer()
+        if idx and idx.readresult then
+            result:setindexer(idx.index, idx.readresult)
+        end
+
+        -- copy metatable unchanged
+        local mt = tbl:metatable()
+        if mt then
+            result:setmetatable(mt)
+        end
+
+        return result
+    end
+
+    -- convert each member of unions and intersections, keeping `nil` in
+    -- unions so `T?` stays optional
+    local function distribute(ty: type): type
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                if ty:is("union") and component:is("nil") then
+                    table.insert(parts, component)
+                else
+                    table.insert(parts, distribute(component))
+                end
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("table"), "Writable expects table types")
+        return convert(ty)
+    end
+
+    return distribute(t)
+end
+
+--[=[
+    A type function that makes every property of a table type readable and
+    writable, recursively, removing `read` and `write` modifiers.
+
+    Each property keeps its read type (or its write type, if it was
+    write-only) and becomes a normal property.
+    Nested table types (including tables inside unions, intersections, and
+    indexer values) are made deeply writable as well.
+
+    Metatables are copied unchanged.
+    Nested classes (tables with a metatable) are left as-is, but `T` itself is
+    converted even if it has a metatable.
+    Recursive types are supported.
+    Unions and intersections are converted member by member, keeping `nil` in
+    unions, so `DeepWritable<A | B>` is `DeepWritable<A> | DeepWritable<B>` and
+    `DeepWritable<A?>` is `DeepWritable<A>?`.
+    Any other type that is not a table is a type error.
+
+    ```lua
+    type Frozen = DeepReadOnly<{ name: string, window: { width: number } }>
+    -- { read name: string, read window: { read width: number } }
+
+    type Editable = DeepWritable<Frozen>
+    -- { name: string, window: { width: number } }
+    ```
+
+    @type DeepWritable (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function DeepWritable(t: type): type
+    -- tables already being converted, so recursive types terminate
+    local seen: { { from: type, to: type, printed: string } } = {}
+
+    local function deep(ty: type, top: boolean?): type
+        -- nested classes (tables with a metatable) are left as-is
+        if ty:is("table") and (top or ty:metatable() == nil) then
+            -- `==` ignores property names, so the printed type is compared too
+            -- (https://github.com/luau-lang/luau/issues/3116)
+            local printed = tostring(ty)
+            for _, entry in seen do
+                if entry.printed == printed and entry.from == ty then
+                    return entry.to
+                end
+            end
+
+            local result = types.newtable()
+            -- register before recursing so cycles point back at `result`
+            table.insert(seen, { from = ty, to = result, printed = printed })
+
+            -- make every named property readable and writable, recursively
+            for key, prop in ty:properties() do
+                local propType = prop.read or prop.write
+                if propType then
+                    local converted = deep(propType)
+                    result:setreadproperty(key, converted)
+                    result:setwriteproperty(key, converted)
+                end
+            end
+
+            -- recurse into the indexer's values
+            -- (luau doesn't support separate read/write indexer types yet, so
+            -- setreadindexer/setwriteindexer throw)
+            local idx = ty:indexer()
+            if idx and idx.readresult then
+                result:setindexer(idx.index, deep(idx.readresult))
+            end
+
+            -- copy metatable unchanged
+            local mt = ty:metatable()
+            if mt then
+                result:setmetatable(mt)
+            end
+
+            return result
+        elseif ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        else
+            -- primitives, functions, classes, etc. are left as-is
+            return ty
+        end
+    end
+
+    -- convert each member of unions and intersections, keeping `nil` in
+    -- unions so `T?` stays optional
+    local function distribute(ty: type): type
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                if ty:is("union") and component:is("nil") then
+                    table.insert(parts, component)
+                else
+                    table.insert(parts, distribute(component))
+                end
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("table"), "DeepWritable expects table types")
+        return deep(ty, true)
+    end
+
+    return distribute(t)
+end
+
+--[=[
+    A type function that builds a table type with keys `K` and values `V`.
+
+    Each string singleton in `K` becomes a named property of type `V`, so
+    `Record<"wood" | "stone", number>` is `{ wood: number, stone: number }`.
+    Every other key type in `K` (such as `string`, `number`, or `boolean`
+    singletons) becomes part of the indexer, so `Record<string, number>` is
+    `{ [string]: number }`.
+    Since a table only has one indexer, multiple non-singleton keys are
+    combined into one, so `Record<"id" | number, V>` is
+    `{ id: V, [number]: V }` and `Record<string | number, V>` is
+    `{ [string | number]: V }`.
+    `Record<never, V>` is an empty table.
+
+    ```lua
+    type Resource = "wood" | "stone" | "gold"
+
+    type Inventory = Record<Resource, number>
+    -- { wood: number, stone: number, gold: number }
+
+    local inventory: Inventory = { wood = 0, stone = 0, gold = 0 }
+    inventory.iron = 5 -- type error: iron is not a Resource
+    ```
+
+    @type Record (k: type, v: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Record(k: type, v: type): type
+    local keys = if k:is("union")
+        then k:components()
+        elseif k:is("never") then {}
+        else { k }
+
+    local result = types.newtable()
+    local indexKeys = {}
+
+    for _, key in keys do
+        if key:is("singleton") and typeof(key:value()) == "string" then
+            -- string singletons become named properties
+            result:setproperty(key, v)
+        else
+            -- everything else is collected in the indexer
+            table.insert(indexKeys, key)
+        end
+    end
+
+    -- a table only has one indexer, so combine the non-singleton keys
+    if #indexKeys == 1 then
+        result:setindexer(indexKeys[1], v)
+    elseif #indexKeys > 1 then
+        result:setindexer(types.unionof(table.unpack(indexKeys)), v)
+    end
+
+    return result
+end
+
+--[=[
+    A type function that removes the members of a union `T` that match `U`.
+
+    A member matches if it is the same type as a member of `U`, if it is a
+    singleton whose primitive type is in `U` (so `"a"` matches `string`), or
+    if `U` contains `unknown` or `any`.
+    `boolean` is treated as `true | false`, so `Exclude<boolean, true>` is
+    `false`.
+    Tables, functions, and classes only match a structurally identical type,
+    not a subtype or supertype.
+    If every member is removed, the result is `never`.
+
+    ```lua
+    type GameState = "Lobby" | "Playing" | "Ended"
+
+    type ActiveState = Exclude<GameState, "Lobby" | "Ended">
+    -- "Playing"
+
+    type NonString = Exclude<"a" | "b" | number | boolean, string>
+    -- number | boolean
+    ```
+
+    @type Exclude (t: type, u: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Exclude(t: type, u: type): type
+    local PRIMITIVES =
+        { "nil", "boolean", "number", "string", "thread", "buffer" }
+
+    local function matches(member: type, filter: type): boolean
+        if filter:is("unknown") or filter:is("any") then
+            return true
+        elseif member:is("singleton") then
+            if filter:is("singleton") then
+                return member:value() == filter:value()
+            end
+            -- "a" matches string, true matches boolean, etc.
+            return filter:is(typeof(member:value()))
+        end
+
+        for _, kind in PRIMITIVES do
+            if member:is(kind) then
+                return filter:is(kind)
+            end
+        end
+
+        -- `==` ignores property names, so the printed type is compared too
+        -- (https://github.com/luau-lang/luau/issues/3116)
+        return member == filter and tostring(member) == tostring(filter)
+    end
+
+    -- split `boolean` into `true | false` so singleton filters can match
+    local members = {}
+    for _, member in if t:is("union") then t:components() else { t } do
+        if member:is("boolean") then
+            table.insert(members, types.singleton(true))
+            table.insert(members, types.singleton(false))
+        else
+            table.insert(members, member)
+        end
+    end
+    local filters = if u:is("union") then u:components() else { u }
+
+    local kept = {}
+    for _, member in members do
+        local excluded = false
+        for _, filter in filters do
+            if matches(member, filter) then
+                excluded = true
+                break
+            end
+        end
+        if not excluded then
+            table.insert(kept, member)
+        end
+    end
+
+    -- rejoin `true | false` into `boolean`
+    local trueAt, falseAt
+    for index, member in kept do
+        if member:is("singleton") and member:value() == true then
+            trueAt = index
+        elseif member:is("singleton") and member:value() == false then
+            falseAt = index
+        end
+    end
+    if trueAt and falseAt then
+        kept[trueAt] = types.boolean
+        table.remove(kept, falseAt)
+    end
+
+    if #kept == 0 then
+        return types.never -- all members were excluded
+    elseif #kept == 1 then
+        return kept[1] -- no need for a union
+    else
+        return types.unionof(table.unpack(kept))
+    end
+end
+
+--[=[
+    A type function that keeps only the members of a union `T` that match `U`.
+
+    A member matches if it is the same type as a member of `U`, if it is a
+    singleton whose primitive type is in `U` (so `"a"` matches `string`), or
+    if `U` contains `unknown` or `any`.
+    `boolean` is treated as `true | false`, so `Extract<boolean, true>` is
+    `true`.
+    Tables, functions, and classes only match a structurally identical type,
+    not a subtype or supertype.
+    If no member matches, the result is `never`.
+
+    ```lua
+    type Input = "Jump" | "Crouch" | number | Vector3
+
+    type InputName = Extract<Input, string>
+    -- "Jump" | "Crouch"
+
+    type MovementInput = Extract<Input, "Jump" | "Crouch" | "Sprint">
+    -- "Jump" | "Crouch"
+    ```
+
+    @type Extract (t: type, u: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Extract(t: type, u: type): type
+    local PRIMITIVES =
+        { "nil", "boolean", "number", "string", "thread", "buffer" }
+
+    local function matches(member: type, filter: type): boolean
+        if filter:is("unknown") or filter:is("any") then
+            return true
+        elseif member:is("singleton") then
+            if filter:is("singleton") then
+                return member:value() == filter:value()
+            end
+            -- `"a"` matches string, true matches boolean
+            return filter:is(typeof(member:value()))
+        end
+
+        for _, kind in PRIMITIVES do
+            if member:is(kind) then
+                return filter:is(kind)
+            end
+        end
+
+        -- `==` ignores property names, so the printed type is compared too
+        -- (https://github.com/luau-lang/luau/issues/3116)
+        return member == filter and tostring(member) == tostring(filter)
+    end
+
+    -- split `boolean` into `true | false` so singleton filters can match
+    local members = {}
+    for _, member in if t:is("union") then t:components() else { t } do
+        if member:is("boolean") then
+            table.insert(members, types.singleton(true))
+            table.insert(members, types.singleton(false))
+        else
+            table.insert(members, member)
+        end
+    end
+    local filters = if u:is("union") then u:components() else { u }
+
+    local kept = {}
+    for _, member in members do
+        for _, filter in filters do
+            if matches(member, filter) then
+                table.insert(kept, member)
+                break
+            end
+        end
+    end
+
+    -- rejoin `true | false` into `boolean`
+    local trueAt, falseAt
+    for index, member in kept do
+        if member:is("singleton") and member:value() == true then
+            trueAt = index
+        elseif member:is("singleton") and member:value() == false then
+            falseAt = index
+        end
+    end
+    if trueAt and falseAt then
+        kept[trueAt] = types.boolean
+        table.remove(kept, falseAt)
+    end
+
+    if #kept == 0 then
+        return types.never -- no member matched
+    elseif #kept == 1 then
+        return kept[1] -- no need to keep the union
+    else
+        return types.unionof(table.unpack(kept))
+    end
+end
+
+--[=[
+    A type function that keeps only the given named properties of a table type.
+
+    `K` is a string singleton or a union of string singletons.
+    Every key must be a property of `T`, otherwise it is a type error.
+
+    `read` and `write` modifiers are kept, and the metatable is copied
+    unchanged.
+    The indexer is dropped, since only named properties are picked.
+    Unions are converted member by member, keeping `nil`, so every member must
+    have every key.
+    For intersections, each key only has to be in one member, and members
+    without any of the keys are dropped.
+    So if `a` is only in `A` and `b` is only in `B`,
+    `Pick<A & B, "a" | "b">` is `Pick<A, "a"> & Pick<B, "b">`.
+    Any other type that is not a table is a type error.
+
+    ```lua
+    type Profile = { name: string, level: number, coins: number }
+
+    type ProfileCard = Pick<Profile, "name" | "level">
+    -- { name: string, level: number }
+    ```
+
+    @type Pick (t: type, k: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Pick(t: type, k: type): type
+    local keys = if k:is("union")
+        then k:components()
+        elseif k:is("never") then {}
+        else { k }
+
+    for _, key in keys do
+        assert(
+            key:is("singleton") and typeof(key:value()) == "string",
+            "Pick expects string singleton keys"
+        )
+    end
+
+    -- picks `keys` from `ty`, returning the result and the keys it found
+    -- (`strict` errors on missing keys, otherwise they're skipped)
+    local function pick(ty: type, strict: boolean): (type, { [string]: true })
+        if ty:is("union") then
+            -- any member might be the value, so a key is only found if every
+            -- member has it
+            local parts = {}
+            local found: { [string]: true }? = nil
+            for _, component in ty:components() do
+                if component:is("nil") then
+                    table.insert(parts, component) -- keep `T?` optional
+                else
+                    local part, partFound = pick(component, strict)
+                    table.insert(parts, part)
+                    if found == nil then
+                        found = partFound
+                    else
+                        for key in found do
+                            if not partFound[key] then
+                                found[key] = nil
+                            end
+                        end
+                    end
+                end
+            end
+            return types.unionof(table.unpack(parts)), found or {}
+        elseif ty:is("intersection") then
+            -- a key only has to be in one of the members
+            local parts = {}
+            local found: { [string]: true } = {}
+            for _, component in ty:components() do
+                local part, partFound = pick(component, false)
+                if next(partFound) ~= nil then
+                    table.insert(parts, part)
+                end
+                for key in partFound do
+                    found[key] = true
+                end
+            end
+
+            if strict then
+                for _, key in keys do
+                    if not found[key:value() :: string] then
+                        error(`Pick: property "{key:value()}" does not exist`)
+                    end
+                end
+            end
+
+            if #parts == 0 then
+                return types.newtable(), found
+            elseif #parts == 1 then
+                return parts[1], found
+            else
+                return types.intersectionof(table.unpack(parts)), found
+            end
+        end
+
+        assert(ty:is("table"), "Pick expects table types")
+
+        local result = types.newtable()
+        local found: { [string]: true } = {}
+        for _, key in keys do
+            local read = ty:readproperty(key)
+            local write = ty:writeproperty(key)
+            if not read and not write then
+                if strict then
+                    error(`Pick: property "{key:value()}" does not exist`)
+                end
+                continue
+            end
+
+            found[key:value() :: string] = true
+            if read then
+                result:setreadproperty(key, read)
+            end
+            if write then
+                result:setwriteproperty(key, write)
+            end
+        end
+
+        -- copy metatable unchanged
+        local mt = ty:metatable()
+        if mt then
+            result:setmetatable(mt)
+        end
+
+        return result, found
+    end
+
+    return (pick(t, true))
+end
+
+--[=[
+    A type function that removes the given named properties of a table type.
+
+    `K` is a string singleton or a union of string singletons.
+    Keys that are not properties of `T` are ignored.
+
+    `read` and `write` modifiers are kept, and the indexer and metatable are
+    copied unchanged.
+    Unions and intersections are converted member by member, keeping `nil` in
+    unions, so `Omit<A | B>` is `Omit<A> | Omit<B>` and `Omit<A?>` is
+    `Omit<A>?`.
+    Any other type that is not a table is a type error.
+
+    ```lua
+    type Profile = { name: string, level: number, coins: number }
+
+    type PublicProfile = Omit<Profile, "coins">
+    -- { name: string, level: number }
+    ```
+
+    @type Omit (t: type, k: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Omit(t: type, k: type): type
+    local keys = if k:is("union")
+        then k:components()
+        elseif k:is("never") then {}
+        else { k }
+
+    local omitted: { [string]: boolean } = {}
+    for _, key in keys do
+        assert(
+            key:is("singleton") and typeof(key:value()) == "string",
+            "Omit expects string singleton keys"
+        )
+        omitted[key:value()] = true
+    end
+
+    local function convert(tbl: type): type
+        -- copy every named property not in `K`
+        local result = types.newtable()
+        for key, prop in tbl:properties() do
+            if not omitted[key:value() :: string] then
+                if prop.read then
+                    result:setreadproperty(key, prop.read)
+                end
+                if prop.write then
+                    result:setwriteproperty(key, prop.write)
+                end
+            end
+        end
+
+        -- copy indexer unchanged
+        -- (luau doesn't support separate read/write indexer types yet, so
+        -- setreadindexer/setwriteindexer throw)
+        local idx = tbl:indexer()
+        if idx and idx.readresult then
+            result:setindexer(idx.index, idx.readresult)
+        end
+
+        -- copy metatable unchanged
+        local mt = tbl:metatable()
+        if mt then
+            result:setmetatable(mt)
+        end
+
+        return result
+    end
+
+    -- convert each member of unions and intersections, keeping `nil` in
+    -- unions so `T?` stays optional
+    local function distribute(ty: type): type
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                if ty:is("union") and component:is("nil") then
+                    table.insert(parts, component)
+                else
+                    table.insert(parts, distribute(component))
+                end
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("table"), "Omit expects table types")
+        return convert(ty)
+    end
+
+    return distribute(t)
+end
+
+--[=[
+    A type function that merges two table types, with `B`'s properties
+    replacing `A`'s.
+
+    Properties only in `A` are kept, properties in `B` replace any property of
+    `A` with the same name, including its `read` and `write` modifiers.
+    Unlike `A & B`, conflicting properties do not become `never`.
+    `B`'s indexer and metatable are used if it has them, otherwise `A`'s are
+    copied unchanged.
+
+    Unions and intersections of `A`, and unions of `B`, are merged member by
+    member, so `Merge<A1 | A2, B>` is `Merge<A1, B> | Merge<A2, B>`.
+    If `B` is an intersection, `A`'s properties that any member of `B` has are
+    removed, and the result is intersected with each member of `B`.
+    Any other type that is not a table is a type error.
+
+    ```lua
+    type Base = { id: number, name: string, tags: { string } }
+    type Patch = { name: string?, id: string }
+
+    type Patched = Merge<Base, Patch>
+    -- { id: string, name: string?, tags: { string } }
+
+    type Intersected = Base & Patch
+    -- `id` is `number & string`, which is `never`
+    ```
+
+    @type Merge (a: type, b: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Merge(a: type, b: type): type
+    -- copies `from`'s properties into `result`, skipping `skip`'s keys
+    local function copyProperties(
+        result: type,
+        from: type,
+        skip: { [string]: boolean }
+    )
+        for key, prop in from:properties() do
+            if not skip[key:value() :: string] then
+                if prop.read then
+                    result:setreadproperty(key, prop.read)
+                end
+                if prop.write then
+                    result:setwriteproperty(key, prop.write)
+                end
+            end
+        end
+    end
+
+    local function merge(x: type, y: type): type
+        -- convert each member of unions and intersections of `A`
+        if x:is("union") or x:is("intersection") then
+            local parts = {}
+            for _, component in x:components() do
+                table.insert(parts, merge(component, y))
+            end
+            return if x:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+        assert(x:is("table"), "Merge expects table types for A")
+
+        -- convert each member of unions of `B`
+        if y:is("union") then
+            local parts = {}
+            for _, component in y:components() do
+                table.insert(parts, merge(x, component))
+            end
+            return types.unionof(table.unpack(parts))
+        end
+
+        -- for intersections of `B`, remove `A`'s properties that any member
+        -- replaces, then intersect with every member
+        if y:is("intersection") then
+            local replaced: { [string]: boolean } = {}
+            for _, component in y:components() do
+                assert(component:is("table"), "Merge expects table types for B")
+                for key in component:properties() do
+                    replaced[key:value() :: string] = true
+                end
+            end
+
+            local result = types.newtable()
+            copyProperties(result, x, replaced)
+
+            -- copy A's indexer and metatable unchanged
+            -- (luau doesn't support separate read/write indexer types yet, so
+            -- setreadindexer/setwriteindexer throw)
+            local idx = x:indexer()
+            if idx and idx.readresult then
+                result:setindexer(idx.index, idx.readresult)
+            end
+            local mt = x:metatable()
+            if mt then
+                result:setmetatable(mt)
+            end
+
+            return types.intersectionof(result, table.unpack(y:components()))
+        end
+        assert(y:is("table"), "Merge expects table types for B")
+
+        -- collect B's keys so A's conflicting properties are skipped
+        local replaced: { [string]: boolean } = {}
+        for key in y:properties() do
+            replaced[key:value() :: string] = true
+        end
+
+        -- copy A's properties that B doesn't replace, then all of B's
+        local result = types.newtable()
+        copyProperties(result, x, replaced)
+        copyProperties(result, y, {})
+
+        -- use B's indexer if it has one, otherwise A's
+        -- (luau doesn't support separate read/write indexer types yet, so
+        -- setreadindexer/setwriteindexer throw)
+        local idx = y:indexer() or x:indexer()
+        if idx and idx.readresult then
+            result:setindexer(idx.index, idx.readresult)
+        end
+
+        -- use B's metatable if it has one, otherwise A's
+        local mt = y:metatable() or x:metatable()
+        if mt then
+            result:setmetatable(mt)
+        end
+
+        return result
+    end
+
+    return merge(a, b)
+end
+
+--[=[
+    A type function that gets a parameter type of a function type by its
+    position.
+
+    `I` is a string singleton holding a 1-based index, such as `"1"` or `"2"`,
+    since Luau does not have number singleton types.
+    If the position falls inside a variadic parameter (`...T`), the result is
+    `T`.
+    If the function has no parameter at that position, or the position falls
+    inside a generic type pack (`T...`), it is a type error.
+
+    Functions whose type is inferred from a `function` definition carry a
+    hidden `...any` parameter, so a position past their last parameter gives
+    `any` instead of a type error.
+    Use an explicit function type, such as a type alias, to avoid this.
+
+    Methods count `self` as their first parameter.
+    For a union of functions, every member must have the parameter, and the
+    result is the intersection of their parameter types, since only a value
+    every member accepts can be passed.
+    For an overloaded function (an intersection of functions), overloads without
+    the parameter are skipped, and the result is the union of the rest, since a
+    value any overload accepts can be passed.
+    Any other type that is not a function is a type error.
+
+    ```lua
+    local function spawnEnemy(name: string, level: number): Model
+        -- ...
+    end
+
+    type EnemyName = Parameter<typeof(spawnEnemy), "1">
+    -- string
+
+    type EnemyLevel = Parameter<typeof(spawnEnemy), "2">
+    -- number
+    ```
+
+    @type Parameter (f: type, i: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Parameter(f: type, i: type): type
+    assert(
+        i:is("singleton") and typeof(i:value()) == "string",
+        `Parameter expects a string index like "1"`
+    )
+
+    local index = tonumber(i:value())
+    assert(
+        index and index >= 1 and index % 1 == 0,
+        `Parameter expects a positive integer index like "1"`
+    )
+
+    -- gets the parameter at `index` of `ty`, or `nil` if it has none there
+    local function param(ty: type): type?
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                local part = param(component)
+                if part then
+                    table.insert(parts, part)
+                elseif ty:is("union") then
+                    -- every member of a union might be the one called
+                    return nil
+                end
+            end
+
+            if #parts == 0 then
+                return nil
+            elseif #parts == 1 then
+                return parts[1]
+            end
+            -- a union of functions can only be called with a value every
+            -- member accepts, and an overloaded function with a value any
+            -- overload accepts
+            return if ty:is("union")
+                then types.intersectionof(table.unpack(parts))
+                else types.unionof(table.unpack(parts))
+        end
+
+        assert(ty:is("function"), "Parameter expects function types")
+
+        local params = ty:parameters()
+        local head = params.head or {}
+        if index <= #head then
+            return head[index]
+        elseif params.tail then
+            -- a generic pack (T...) is not a single type, so it can't be
+            -- returned
+            assert(
+                not (params.tail:is("generic") and params.tail:ispack()),
+                `Parameter: parameter {index} falls inside a generic type pack`
+            )
+            return params.tail -- the position falls inside ...T
+        else
+            return nil
+        end
+    end
+
+    local result = param(f)
+    if not result then
+        error(`Parameter: function has no parameter {index}`)
+    end
+    return result
+end
+
+--[=[
+    A type function that gets the first return type of a function type.
+
+    This is the type a caller gets from `local value = f()`.
+    If the function returns nothing, the result is `nil`.
+    If its first return is variadic (`...T`), the result is `T?`, since it may
+    return no values.
+    If its first return is a generic type pack (`T...`), it is a type error.
+
+    Luau type functions cannot return type packs, so only the first return
+    type is available.
+    For a union of functions or an overloaded function (an intersection of
+    functions), the result is the union of each member's return type.
+    Any other type that is not a function is a type error.
+
+    ```lua
+    local function spawnEnemy(name: string, level: number): Model
+        -- ...
+    end
+
+    type Enemy = ReturnType<typeof(spawnEnemy)>
+    -- Model
+    ```
+
+    @type ReturnType (f: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function ReturnType(f: type): type
+    local function returnType(ty: type): type
+        -- calling a union of functions or an overloaded function can return
+        -- the result of any member
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, returnType(component))
+            end
+            return types.unionof(table.unpack(parts))
+        end
+
+        assert(ty:is("function"), "ReturnType expects function types")
+
+        local returns = ty:returns()
+        local head = returns.head or {}
+        if #head > 0 then
+            return head[1]
+        elseif returns.tail then
+            -- a generic pack (T...) is not a single type, so it can't be
+            -- returned
+            assert(
+                not (returns.tail:is("generic") and returns.tail:ispack()),
+                "ReturnType: first return falls inside a generic type pack"
+            )
+            return types.optional(returns.tail) -- ...T may return no values
+        else
+            return types.singleton(nil) -- the function returns nothing
+        end
+    end
+
+    return returnType(f)
+end
+
+--[=[
+    A type function that removes the first parameter (`self`) from a function
+    type.
+
+    This turns a method's type into the type of a plain function, such as one
+    that has `self` bound with a closure.
+
+    Variadic parameters, return types, and generics are kept unchanged.
+    The first parameter is removed whatever its name, since Luau does not
+    track parameter names in types.
+    If a function has no fixed parameters, it is a type error.
+    Unions of functions and overloaded functions (intersections of functions)
+    are converted member by member.
+    Any other type that is not a function is a type error.
+
+    Functions whose type is inferred from a `function` definition (including
+    methods) carry a hidden `...any` parameter, so
+    `OmitSelf<typeof(Class.method)>` keeps it in the result, even when every
+    parameter is annotated.
+    Use an explicit function type, such as a type alias, to avoid this.
+
+    ```lua
+    local Door = {}
+    Door.__index = Door
+    type Door = typeof(setmetatable({}, Door))
+
+    function Door.open(self: Door, speed: number): boolean
+        -- ...
+    end
+
+    type OpenFn = OmitSelf<typeof(Door.open)>
+    -- (number, ...any) -> boolean
+
+    type OpenMethod = (self: Door, speed: number) -> boolean
+    type ExactOpenFn = OmitSelf<OpenMethod>
+    -- (number) -> boolean
+
+    local function bind(door: Door): OpenFn
+        return function(speed)
+            return door:open(speed)
+        end
+    end
+    ```
+
+    @type OmitSelf (f: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function OmitSelf(f: type): type
+    local function omitSelf(ty: type): type
+        -- convert each member of unions and overloaded functions
+        if ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, omitSelf(component))
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        end
+
+        assert(ty:is("function"), "OmitSelf expects function types")
+
+        local params = ty:parameters()
+        local head = params.head or {}
+        assert(
+            #head > 0,
+            "OmitSelf expects functions with at least one parameter"
+        )
+
+        -- drop the first parameter
+        local rest = {}
+        for index = 2, #head do
+            table.insert(rest, head[index] :: type)
+        end
+
+        return types.newfunction(
+            { head = rest, tail = params.tail },
+            ty:returns(),
+            ty:generics()
+        )
+    end
+
+    return omitSelf(f)
+end
+
+--[=[
+    A type function that converts a string singleton type to uppercase.
+
+    Unions are converted member by member, and `string` is left unchanged.
+    Only string singletons and `string` are accepted, so any other type is a
+    type error.
+    Only ASCII letters are converted, matching `string.upper`.
+
+    ```lua
+    type Direction = "north" | "south"
+
+    type DirectionKey = Uppercase<Direction>
+    -- "NORTH" | "SOUTH"
+    ```
+
+    @type Uppercase (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Uppercase(t: type): type
+    local function convert(ty: type): type
+        if ty:is("singleton") and typeof(ty:value()) == "string" then
+            return types.singleton(string.upper(ty:value() :: string))
+        elseif ty:is("string") then
+            return ty -- `string` stays `string`
+        else
+            error("Uppercase expects a string singleton or string")
+        end
+    end
+
+    if t:is("never") then
+        return t
+    elseif t:is("union") then
+        local parts = {}
+        for _, component in t:components() do
+            table.insert(parts, convert(component))
+        end
+        return types.unionof(table.unpack(parts))
+    end
+    return convert(t)
+end
+
+--[=[
+    A type function that converts a string singleton type to lowercase.
+
+    Unions are converted member by member, and `string` is left unchanged.
+    Only string singletons and `string` are accepted, so any other type is a
+    type error.
+    Only ASCII letters are converted, matching `string.lower`.
+
+    ```lua
+    type Rarity = "Common" | "Rare" | "Legendary"
+
+    type RarityId = Lowercase<Rarity>
+    -- "common" | "rare" | "legendary"
+    ```
+
+    @type Lowercase (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Lowercase(t: type): type
+    local function convert(ty: type): type
+        if ty:is("singleton") and typeof(ty:value()) == "string" then
+            return types.singleton(string.lower(ty:value() :: string))
+        elseif ty:is("string") then
+            return ty -- `string` stays `string`
+        else
+            error("Lowercase expects a string singleton or string")
+        end
+    end
+
+    if t:is("never") then
+        return t
+    elseif t:is("union") then
+        local parts = {}
+        for _, component in t:components() do
+            table.insert(parts, convert(component))
+        end
+        return types.unionof(table.unpack(parts))
+    end
+    return convert(t)
+end
+
+--[=[
+    A type function that converts the first character of a string singleton
+    type to uppercase.
+
+    Unions are converted member by member, and `string` is left unchanged.
+    Only string singletons and `string` are accepted, so any other type is a
+    type error.
+    Only ASCII letters are converted, matching `string.upper`.
+
+    ```lua
+    type Action = "jump" | "crouch"
+
+    type ActionName = Capitalize<Action>
+    -- "Jump" | "Crouch"
+    ```
+
+    @type Capitalize (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Capitalize(t: type): type
+    local function convert(ty: type): type
+        if ty:is("singleton") and typeof(ty:value()) == "string" then
+            local s = ty:value() :: string
+            return types.singleton(
+                string.upper(string.sub(s, 1, 1)) .. string.sub(s, 2)
+            )
+        elseif ty:is("string") then
+            return ty -- `string` stays `string`
+        else
+            error("Capitalize expects a string singleton or string")
+        end
+    end
+
+    if t:is("never") then
+        return t
+    elseif t:is("union") then
+        local parts = {}
+        for _, component in t:components() do
+            table.insert(parts, convert(component))
+        end
+        return types.unionof(table.unpack(parts))
+    end
+    return convert(t)
+end
+
+--[=[
+    A type function that converts the first character of a string singleton
+    type to lowercase.
+
+    Unions are converted member by member, and `string` is left unchanged.
+    Only string singletons and `string` are accepted, so any other type is a
+    type error.
+    Only ASCII letters are converted, matching `string.lower`.
+
+    ```lua
+    type ServiceName = "Players" | "Workspace"
+
+    type ServiceKey = Uncapitalize<ServiceName>
+    -- "players" | "workspace"
+    ```
+
+    @type Uncapitalize (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Uncapitalize(t: type): type
+    local function convert(ty: type): type
+        if ty:is("singleton") and typeof(ty:value()) == "string" then
+            local s = ty:value() :: string
+            return types.singleton(
+                string.lower(string.sub(s, 1, 1)) .. string.sub(s, 2)
+            )
+        elseif ty:is("string") then
+            return ty -- `string` stays `string`
+        else
+            error("Uncapitalize expects a string singleton or string")
+        end
+    end
+
+    if t:is("never") then
+        return t
+    elseif t:is("union") then
+        local parts = {}
+        for _, component in t:components() do
+            table.insert(parts, convert(component))
+        end
+        return types.unionof(table.unpack(parts))
+    end
+    return convert(t)
+end
 
 --[[ ROBLOX-compatible protocols ]]
 

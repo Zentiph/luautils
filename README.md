@@ -95,6 +95,9 @@ lute setup
 lute run .lute/ci.luau
 ```
 
+> Note: This library is built using the new Luau V2 type solver.
+> Using the old one will give type errors.
+
 ## Documentation
 
 The API documentation is hosted on GitHub Pages at

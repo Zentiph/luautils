@@ -12,3 +12,5 @@ globals:
     must_use: true
     args:
       - type: number
+  types:
+    any: true
