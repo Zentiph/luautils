@@ -42,6 +42,7 @@ export type Iterable<Self, C, V...> = typing.Iterable<Self, C, V...>
 export type Partial<T> = typing.Partial<T>
 export type Required<T> = typing.Required<T>
 export type ReadOnly<T> = typing.ReadOnly<T>
+export type DeepReadOnly<T> = typing.DeepReadOnly<T>
 export type Disconnectable = typing.Disconnectable
 export type Destroyable = typing.Destroyable
 

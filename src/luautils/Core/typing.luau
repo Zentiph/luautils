@@ -447,8 +447,7 @@ export type function Required(t: type): type
 end
 
 --[=[
-    A type function that makes every property of a table type read-only, like
-    TypeScript's `Readonly`.
+    A type function that makes every property of a table type read-only.
 
     This is shallow, so tables inside the properties can still be modified.
     Write-only properties are dropped, since they cannot be read.
@@ -502,6 +501,102 @@ export type function ReadOnly(t: type): type
     end
 
     return result
+end
+
+--[=[
+    A type function that makes every property of a table type read-only.
+
+    This is deep, so tables inside the properties cannot be modified.
+    Primitives, functions, and classes (tables with a metatable) are left as-is.
+    Write-only properties are dropped, since they cannot be read.
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
+
+    Luau does not yet support read-only indexers, so the indexer is copied
+    unchanged and stays writable.
+    Luau also does not report writes to read-only properties of a table with a
+    writable indexer, so only tables without an indexer are fully protected.
+
+    This only affects type checking.
+    To prevent writes at runtime, freeze the table recursively with
+    `table.freeze`.
+
+    ```lua
+    type Config = {
+        name: string,
+        window: { width: number, height: number },
+        tags: { string },
+    }
+
+    type FrozenConfig = DeepReadOnly<Config>
+    -- { read name: string,
+    --   read window: { read width: number, read height: number },
+    --   read tags: { read string } }
+    ```
+
+    @type DeepReadOnly (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function DeepReadOnly(t: type): type
+    assert(t:is("table"), "DeepReadOnly expects a table type")
+
+    local seen: { { from: type, to: type } } = {}
+
+    local function deep(ty: type): type
+        if ty:is("table") then
+            for _, entry in seen do
+                -- prevent infinite recursion
+                if entry.from == ty then
+                    return entry.to
+                end
+            end
+
+            local result = types.newtable()
+            -- register before recursing so cycles point back at result
+            table.insert(seen, { from = ty, to = result })
+
+            -- only keep read properties, made deep read-only
+            for key, prop in ty:properties() do
+                if prop.read then
+                    result:setreadproperty(key, deep(prop.read))
+                end
+            end
+
+            -- copy the indexer's read type, made deep read-only
+            -- (luau doesn't support read-only indexers yet,
+            --  so setreadindexer throws)
+            local idx = ty:indexer()
+            if idx and idx.readresult then
+                result:setindexer(idx.index, deep(idx.readresult))
+            end
+
+            -- preserve metatable
+            local mt = ty:metatable()
+            if mt then
+                result:setmetatable(mt)
+            end
+
+            return result
+        elseif ty:is("union") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return types.unionof(table.unpack(parts))
+        elseif ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return types.intersectionof(table.unpack(parts))
+        else
+            -- primitives, functions, classes, etc. are left as-is
+            return ty
+        end
+    end
+
+    return deep(t)
 end
 
 --[[ ROBLOX-compatible protocols ]]
