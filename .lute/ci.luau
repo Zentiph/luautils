@@ -94,6 +94,8 @@ local STEPS: { Step } = {
         -- tests run under Lute, so they are checked without ROBLOX globals
         -- src is ignored since it is checked above with ROBLOX globals, and
         -- would otherwise fail here on globals like task through requires
+        -- tests/typing is ignored since it is checked by the next step, and
+        -- some of its files are meant to fail
         name = "typecheck (tests)",
         args = {
             "luau-lsp",
@@ -101,8 +103,15 @@ local STEPS: { Step } = {
             "--platform=standard",
             "--flag:LuauSolverV2=true",
             "--ignore=src/**",
+            "--ignore=tests/typing/**",
             "tests",
         },
+    },
+    {
+        -- the typing type functions only run at type-check time, so their
+        -- tests are type checked, including cases that must fail
+        name = "typecheck (typing)",
+        args = { "lute", "run", ".lute/typing.luau" },
     },
     {
         name = "test",

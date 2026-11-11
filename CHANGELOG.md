@@ -38,6 +38,11 @@
   * Time
     * `Duration.TimePartsI` (use `Partial<TimeParts>` instead)
     * `Duration.TimePartsO` (use `TimeParts` instead)
+* Tests
+  * Added type-check tests for the typing type functions in `tests/typing`,
+    including cases that must fail to type check
+* CI
+  * Added a `typecheck (typing)` step that runs `.lute/typing.luau`
 * Tooling
   * Added the `types` library global to `luau-extras.yml` for selene
 * Documentation
