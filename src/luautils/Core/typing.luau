@@ -876,6 +876,145 @@ export type function DeepReadOnly(t: type): type
 end
 
 --[=[
+    A type function that makes every property of a table type readable and
+    writable, removing `read` and `write` modifiers.
+
+    Each property keeps its read type (or its write type, if it was
+    write-only) and becomes a normal property.
+
+    The indexer and metatable are copied unchanged.
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
+
+    ```lua
+    type State = ReadOnly<{ score: number, alive: boolean }>
+    -- { read score: number, read alive: boolean }
+
+    type MutableState = Writable<State>
+    -- { score: number, alive: boolean }
+    ```
+
+    @type Writable (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Writable(t: type): type
+    assert(t:is("table"), "Writable expects a table type")
+
+    -- make every named property readable and writable
+    local result = types.newtable()
+    for key, prop in t:properties() do
+        local ty = prop.read or prop.write
+        if ty then
+            result:setreadproperty(key, ty)
+            result:setwriteproperty(key, ty)
+        end
+    end
+
+    -- copy indexer unchanged
+    -- (luau doesn't support separate read/write indexer types yet, so
+    -- setreadindexer/setwriteindexer throw)
+    local idx = t:indexer()
+    if idx and idx.readresult then
+        result:setindexer(idx.index, idx.readresult)
+    end
+
+    -- copy metatable unchanged
+    local mt = t:metatable()
+    if mt then
+        result:setmetatable(mt)
+    end
+
+    return result
+end
+
+--[=[
+    A type function that makes every property of a table type readable and
+    writable, recursively, removing `read` and `write` modifiers.
+
+    Each property keeps its read type (or its write type, if it was
+    write-only) and becomes a normal property.
+    Nested table types (including tables inside unions, intersections, and
+    indexer values) are made deeply writable as well.
+
+    Metatables are copied unchanged.
+    Recursive types are supported.
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
+
+    ```lua
+    type Frozen = DeepReadOnly<{ name: string, window: { width: number } }>
+    -- { read name: string, read window: { read width: number } }
+
+    type Editable = DeepWritable<Frozen>
+    -- { name: string, window: { width: number } }
+    ```
+
+    @type DeepWritable (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function DeepWritable(t: type): type
+    assert(t:is("table"), "DeepWritable expects a table type")
+
+    -- tables already being converted, so recursive types terminate
+    local seen: { { from: type, to: type } } = {}
+
+    local function deep(ty: type): type
+        if ty:is("table") then
+            for _, entry in seen do
+                if entry.from == ty then
+                    return entry.to
+                end
+            end
+
+            local result = types.newtable()
+            -- register before recursing so cycles point back at `result`
+            table.insert(seen, { from = ty, to = result })
+
+            -- make every named property readable and writable, recursively
+            for key, prop in ty:properties() do
+                local propType = prop.read or prop.write
+                if propType then
+                    local converted = deep(propType)
+                    result:setreadproperty(key, converted)
+                    result:setwriteproperty(key, converted)
+                end
+            end
+
+            -- recurse into the indexer's values
+            -- (luau doesn't support separate read/write indexer types yet, so
+            -- setreadindexer/setwriteindexer throw)
+            local idx = ty:indexer()
+            if idx and idx.readresult then
+                result:setindexer(idx.index, deep(idx.readresult))
+            end
+
+            -- copy metatable unchanged
+            local mt = ty:metatable()
+            if mt then
+                result:setmetatable(mt)
+            end
+
+            return result
+        elseif ty:is("union") or ty:is("intersection") then
+            local parts = {}
+            for _, component in ty:components() do
+                table.insert(parts, deep(component))
+            end
+            return if ty:is("union")
+                then types.unionof(table.unpack(parts))
+                else types.intersectionof(table.unpack(parts))
+        else
+            -- primitives, functions, classes, etc. are left as-is
+            return ty
+        end
+    end
+
+    return deep(t)
+end
+
+--[=[
     A type function that keeps only the given named properties of a table type.
 
     `K` is a string singleton or a union of string singletons.

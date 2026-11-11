@@ -10,6 +10,8 @@
       * `DeepRequired<T>` type function
       * `ReadOnly<T>` type function
       * `DeepReadOnly<T>` type function
+      * `Writable<T>` type function
+      * `DeepWritable<T>` type function
       * `Pick<T, K>` type function
       * `Omit<T, K>` type function
   * Time
