@@ -56,6 +56,7 @@ export type Cloneable<Self> = Core.Cloneable<Self>
 export type Serializable<Self, D> = Core.Serializable<Self, D>
 export type Deserializable<Self, D> = Core.Deserializable<Self, D>
 export type Iterable<Self, C, V...> = Core.Iterable<Self, C, V...>
+export type Nillable<T> = Core.Nillable<T>
 export type Disconnectable = Core.Disconnectable
 export type Destroyable = Core.Destroyable
 
