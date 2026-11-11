@@ -299,6 +299,9 @@ export type Iterable<Self, C, V...> = {
     iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?),
 }
 
+-- TODO: add union support to existing helpers
+-- e.g. Nillable<A | B> -> Nillable<A> | Nillable<B>
+
 --[[ Typing helpers ]]
 
 --[=[
@@ -1014,6 +1017,63 @@ export type function DeepWritable(t: type): type
     end
 
     return deep(t)
+end
+
+--[=[
+    A type function that builds a table type with keys `K` and values `V`.
+
+    Each string singleton in `K` becomes a named property of type `V`, so
+    `Record<"wood" | "stone", number>` is `{ wood: number, stone: number }`.
+    Every other key type in `K` (such as `string`, `number`, or `boolean`
+    singletons) become part of the indexer, so `Record<string, number>` is
+    `{ [string]: number }`.
+    Since a table only has one indexer, multiple non-singleton keys are
+    combined into one, so `Record<"id" | number, V>` is
+    `{ id: V, [number]: V }` and `Record<string | number, V>` is
+    `{ [string | number]: V }`.
+    `Record<never, V>` is an empty table.
+
+    ```lua
+    type Resource = "wood" | "stone" | "gold"
+
+    type Inventory = Record<Resource, number>
+    -- { wood: number, stone: number, gold: number }
+
+    local inventory: Inventory = { wood = 0, stone = 0, gold = 0 }
+    inventory.iron = 5 -- type error: iron is not a Resource
+    ```
+
+    @type Record (k: type, v: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Record(k: type, v: type): type
+    local keys = if k:is("union")
+        then k:components()
+        elseif k:is("never") then {}
+        else { k }
+
+    local result = types.newtable()
+    local indexKeys = {}
+
+    for _, key in keys do
+        if key:is("singleton") and typeof(key:value()) == "string" then
+            -- string singletons become named properties
+            result:setproperty(key, v)
+        else
+            -- everything else is collected in the indexer
+            table.insert(indexKeys, key)
+        end
+    end
+
+    -- a table only has one indexer, so combine the non-singleton keys
+    if #indexKeys == 1 then
+        result:setindexer(indexKeys[1], v)
+    elseif #indexKeys > 1 then
+        result:setindexer(types.unionof(table.unpack(indexKeys)), v)
+    end
+
+    return result
 end
 
 --[=[
