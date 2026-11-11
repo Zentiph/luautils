@@ -53,6 +53,8 @@ export type Extract<T, U> = typing.Extract<T, U>
 export type Pick<T, K> = typing.Pick<T, K>
 export type Omit<T, K> = typing.Omit<T, K>
 export type Merge<A, B> = typing.Merge<A, B>
+export type Parameter<F, I> = typing.Parameter<F, I>
+export type ReturnType<F> = typing.ReturnType<F>
 export type Disconnectable = typing.Disconnectable
 export type Destroyable = typing.Destroyable
 

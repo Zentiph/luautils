@@ -18,6 +18,8 @@
       * `Pick<T, K>` type function
       * `Omit<T, K>` type function
       * `Merge<A, B>` type function
+      * `Parameter<F, I>` type function
+      * `Return<F>` type function
   * Time
     * Changed Duration to use `TimeParts` and `Partial<TimeParts>` rather than
       `TimePartsI` and `TimePartsO`

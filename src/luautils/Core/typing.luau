@@ -1429,6 +1429,102 @@ export type function Merge(a: type, b: type): type
     return result
 end
 
+--[=[
+    A type function that gets a parameter type of a function type by its
+    position.
+
+    `I` is a string singleton holding a 1-based index, such as `"1"` or `"2"`,
+    since Luau does not have number singleton types.
+    If the position falls inside a variadic parameter (`...T`), the result is
+    `T`.
+    If the function has no parameter at that position, it is a type error.
+
+    Methods count `self` as their first parameter.
+    Only function types are accepted, so overloaded functions (intersections
+    of functions) are a type error.
+
+    ```lua
+    local function spawnEnemy(name: string, level: number): Model
+        -- ...
+    end
+
+    type EnemyName = Parameter<typeof(spawnEnemy), "1">
+    -- string
+
+    type EnemyLevel = Parameter<typeof(spawnEnemy), "2">
+    -- number
+    ```
+
+    @type Parameter (f: type, i: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Parameter(f: type, i: type): type
+    assert(f:is("function"), "Parameter expects a function type")
+    assert(
+        i:is("singleton") and typeof(i:value()) == "string",
+        `Parameter expects a string index like "1"`
+    )
+
+    local index = tonumber(i:value())
+    assert(
+        index and index >= 1 and index % 1 == 0,
+        `Parameter expects a positive integer index like "1"`
+    )
+
+    local params = f:parameters()
+    local head = params.head or {}
+
+    if index <= #head then
+        return head[index]
+    elseif params.tail then
+        return params.tail -- the position falls inside ...T
+    else
+        error(`Parameter: function has no parameter {index}`)
+    end
+end
+
+--[=[
+    A type function that gets the first return type of a function type.
+
+    This is the type a caller gets from `local value = f()`.
+    If the function returns nothing, the result is `nil`.
+    If its first return is variadic (`...T`), the result is `T?`, since it may
+    return no values.
+
+    Luau type functions cannot return type packs, so only the first return
+    type is available.
+    Only function types are accepted, so overloaded functions (intersections
+    of functions) are a type error.
+
+    ```lua
+    local function spawnEnemy(name: string, level: number): Model
+        -- ...
+    end
+
+    type Enemy = ReturnType<typeof(spawnEnemy)>
+    -- Model
+    ```
+
+    @type ReturnType (f: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function ReturnType(f: type): type
+    assert(f:is("function"), "ReturnType expects a function type")
+
+    local returns = f:returns()
+    local head = returns.head or {}
+
+    if #head > 0 then
+        return head[1]
+    elseif returns.tail then
+        return types.optional(returns.tail) -- ...T may return no values
+    else
+        return types.singleton(nil) -- the function returns nothing
+    end
+end
+
 --[[ ROBLOX-compatible protocols ]]
 
 --[=[
