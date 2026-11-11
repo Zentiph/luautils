@@ -10,8 +10,7 @@
     This module has no runtime value. Every type is re-exported by `Core` and
     `Luautils`, so use them as `Luautils.Supplier<T>` or `Core.Map<K, V>`, etc.
 
-    The typing helpers ([typing.Partial], [typing.Required], and
-    [typing.ReadOnly]) are type functions, which need Luau's new type solver.
+    The typing helpers are type functions, which require Luau's new type solver.
 
     @class typing
     @since v0.1.0
@@ -547,7 +546,7 @@ export type function Required(t: type): type
         end
 
         local kept = {}
-        for _, component in t:components() do
+        for _, component in ty:components() do
             if component:is("unknown") then
                 -- unknown absorbs the rest of the union, leaving just ~nil
                 return types.negationof(types.singleton(nil))
@@ -643,7 +642,7 @@ export type function DeepRequired(t: type): type
         end
 
         local kept = {}
-        for _, component in t:components() do
+        for _, component in ty:components() do
             if component:is("unknown") then
                 -- unknown absorbs the rest of the union, leaving just ~nil
                 return types.negationof(types.singleton(nil))
