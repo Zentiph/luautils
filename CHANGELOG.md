@@ -1,9 +1,15 @@
 # Changelog for luautils
 
-<!--
 ## [UNRELEASED]
-*
--->
+* Features
+  * Core
+    * typing
+      * `Partial<T>` type function
+      * `Required<T>` type function
+      * `ReadOnly<T>` type function
+  * Time
+    * Changed Duration to use `TimeParts` and `Partial<TimeParts>` rather than
+      `TimePartsI` and `TimePartsO`
 
 ## [v0.1.3] - 2026-11-10
 * Features
