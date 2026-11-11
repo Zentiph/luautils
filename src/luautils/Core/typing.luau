@@ -417,7 +417,10 @@ end
     Indexer values are recursed into but not made optional, so `{ T }` stays
     an array of non-nil values while each `T` becomes deeply partial.
 
-    `read` and `write` modifiers are kept, and metatable is copied unchanged.
+    `read` and `write` modifiers are kept, and the metatable is copied
+    unchanged.
+    Nested classes (tables with a metatable) are left as-is, but `T` itself is
+    converted even if it has a metatable.
     Recursive types are supported.
     Only table types are accepted, so unions and intersections of tables are a
     type error.
@@ -448,8 +451,9 @@ export type function DeepPartial(t: type): type
     -- tables already being converted, so recursive types terminate
     local seen: { { from: type, to: type } } = {}
 
-    local function deep(ty: type): type
-        if ty:is("table") then
+    local function deep(ty: type, top: boolean?): type
+        -- nested classes (tables with a metatable) are left as-is
+        if ty:is("table") and (top or ty:metatable() == nil) then
             for _, entry in seen do
                 if entry.from == ty then
                     return entry.to
@@ -502,7 +506,7 @@ export type function DeepPartial(t: type): type
         end
     end
 
-    return deep(t)
+    return deep(t, true)
 end
 
 --[=[
@@ -617,6 +621,8 @@ end
 
     `read` and `write` modifiers are kept, and the metatable is copied
     unchanged.
+    Nested classes (tables with a metatable) are left as-is, but `T` itself is
+    converted even if it has a metatable.
     Recursive types are supported.
     Only table types are accepted, so unions and intersections of tables are a
     type error.
@@ -672,8 +678,9 @@ export type function DeepRequired(t: type): type
     -- tables already being converted, so recursive types terminate
     local seen: { { from: type, to: type } } = {}
 
-    local function deep(ty: type): type
-        if ty:is("table") then
+    local function deep(ty: type, top: boolean?): type
+        -- nested classes (tables with a metatable) are left as-is
+        if ty:is("table") and (top or ty:metatable() == nil) then
             for _, entry in seen do
                 if entry.from == ty then
                     return entry.to
@@ -724,7 +731,7 @@ export type function DeepRequired(t: type): type
         end
     end
 
-    return deep(t)
+    return deep(t, true)
 end
 
 --[=[
@@ -789,7 +796,8 @@ end
     recursively.
 
     This is deep, so tables inside the properties cannot be modified.
-    Primitives, functions, and classes (tables with a metatable) are left as-is.
+    Primitives, functions, and nested classes (tables with a metatable) are
+    left as-is, but `T` itself is converted even if it has a metatable.
     Write-only properties are dropped, since they cannot be read.
     Only table types are accepted, so unions and intersections of tables are a
     type error.
@@ -825,8 +833,9 @@ export type function DeepReadOnly(t: type): type
 
     local seen: { { from: type, to: type } } = {}
 
-    local function deep(ty: type): type
-        if ty:is("table") and ty:metatable() == nil then
+    local function deep(ty: type, top: boolean?): type
+        -- nested classes (tables with a metatable) are left as-is
+        if ty:is("table") and (top or ty:metatable() == nil) then
             for _, entry in seen do
                 if entry.from == ty then
                     return entry.to
@@ -877,7 +886,7 @@ export type function DeepReadOnly(t: type): type
         end
     end
 
-    return deep(t)
+    return deep(t, true)
 end
 
 --[=[
@@ -943,6 +952,8 @@ end
     indexer values) are made deeply writable as well.
 
     Metatables are copied unchanged.
+    Nested classes (tables with a metatable) are left as-is, but `T` itself is
+    converted even if it has a metatable.
     Recursive types are supported.
     Only table types are accepted, so unions and intersections of tables are a
     type error.
@@ -965,8 +976,9 @@ export type function DeepWritable(t: type): type
     -- tables already being converted, so recursive types terminate
     local seen: { { from: type, to: type } } = {}
 
-    local function deep(ty: type): type
-        if ty:is("table") then
+    local function deep(ty: type, top: boolean?): type
+        -- nested classes (tables with a metatable) are left as-is
+        if ty:is("table") and (top or ty:metatable() == nil) then
             for _, entry in seen do
                 if entry.from == ty then
                     return entry.to
@@ -1016,7 +1028,7 @@ export type function DeepWritable(t: type): type
         end
     end
 
-    return deep(t)
+    return deep(t, true)
 end
 
 --[=[
@@ -1437,7 +1449,8 @@ end
     since Luau does not have number singleton types.
     If the position falls inside a variadic parameter (`...T`), the result is
     `T`.
-    If the function has no parameter at that position, it is a type error.
+    If the function has no parameter at that position, or the position falls
+    inside a generic type pack (`T...`), it is a type error.
 
     Methods count `self` as their first parameter.
     Only function types are accepted, so overloaded functions (intersections
@@ -1478,6 +1491,11 @@ export type function Parameter(f: type, i: type): type
     if index <= #head then
         return head[index]
     elseif params.tail then
+        -- a generic pack (T...) is not a single type, so it can't be returned
+        assert(
+            not (params.tail:is("generic") and params.tail:ispack()),
+            `Parameter: parameter {index} falls inside a generic type pack`
+        )
         return params.tail -- the position falls inside ...T
     else
         error(`Parameter: function has no parameter {index}`)
@@ -1491,6 +1509,7 @@ end
     If the function returns nothing, the result is `nil`.
     If its first return is variadic (`...T`), the result is `T?`, since it may
     return no values.
+    If its first return is a generic type pack (`T...`), it is a type error.
 
     Luau type functions cannot return type packs, so only the first return
     type is available.
@@ -1519,6 +1538,11 @@ export type function ReturnType(f: type): type
     if #head > 0 then
         return head[1]
     elseif returns.tail then
+        -- a generic pack (T...) is not a single type, so it can't be returned
+        assert(
+            not (returns.tail:is("generic") and returns.tail:ispack()),
+            "ReturnType: first return falls inside a generic type pack"
+        )
         return types.optional(returns.tail) -- ...T may return no values
     else
         return types.singleton(nil) -- the function returns nothing
