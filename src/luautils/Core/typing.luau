@@ -360,6 +360,11 @@ end
     A type function that makes every property of a table type optional,
     recursively.
 
+    Every named property becomes optional, and nested table types (including
+    tables inside unions and intersections) are made deeply partial as well.
+    Indexer values are recursed into but not made optional, so `{ T }` stays
+    an array of non-nil values while each `T` becomes deeply partial.
+
     `read` and `write` modifiers are kept, and the indexer and metatable are
     copied unchanged.
     Only table types are accepted, so unions and intersections of tables are a
@@ -371,14 +376,14 @@ end
         ui: { scale: number }
     }
 
-    type SettingsPatch = DeepPartial<Settings>
+    type SettingsOverrides = DeepPartial<Settings>
     -- { audio: { volume: number?, muted: boolean? }, ui: { scale: number? } }
 
-    local function applyPatch(settings: Settings, patch: SettingsPatch)
-        settings.audio.volume = patch.audio.volume or settings.audio.volume
-        settings.audio.muted = patch.audio.muted or settings.audio.muted
-        settings.ui.scale = patch.ui.scale or settings.ui.scale
+    local function configure(overrides: SettingsOverrides)
+        -- ...
     end
+
+    configure({ audio = { volume = 0.2 } }) -- everything else falls back
     ```
 
     @type DeepPartial (t: type) -> type
