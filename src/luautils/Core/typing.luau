@@ -303,6 +303,52 @@ export type Iterable<Self, C, V...> = {
 --[[ Typing helpers ]]
 
 --[=[
+    A type function that removes `nil` from any type.
+
+    `unknown` is converted to `~nil`.
+    `any` is left unchanged, since `any` denotes disabling type checking.
+
+    ```lua
+    type MaybeData = string | number | nil
+
+    local function expectData(data: MaybeData): NonNil<MaybeData>
+        -- handle stuff...
+        return data -- now string | number
+    end
+    ```
+]=]
+export type function NonNil(t: type): type
+    if t:is("nil") then
+        return types.never -- the type was just `nil`
+    elseif t:is("unknown") then
+        return types.negationof(types.singleton(nil)) -- any value except `nil`
+    elseif not t:is("union") then
+        return t
+    end
+
+    local kept = {}
+    for _, component in t:components() do
+        if component:is("unknown") then
+            -- unknown absorbs the rest of the union, leaving just ~nil
+            return types.negationof(types.singleton(nil))
+        elseif component:is("any") then
+            -- any absorbs the rest of the union and is left unchanged
+            return types.any
+        elseif not component:is("nil") then
+            table.insert(kept, component)
+        end
+    end
+
+    if #kept == 0 then
+        return types.never -- every component was `nil`
+    elseif #kept == 1 then
+        return kept[1] -- no need to keep the union
+    else
+        return types.unionof(table.unpack(kept))
+    end
+end
+
+--[=[
     A type function that makes every property of a table type optional.
 
     `read` and `write` modifiers are kept, and the indexer and metatable are
@@ -455,6 +501,102 @@ export type function DeepPartial(t: type): type
 end
 
 --[=[
+    A type function that removes `nil` from every property of a table type.
+
+    Optional properties lose their `nil`, so `number?` becomes `number`, and a
+    property typed as just `nil` becomes `never`.
+    `unknown` is converted to `~nil`.
+    `any` is left unchanged, since `any` denotes disabling type checking.
+    `read` and `write` modifiers are kept, and the indexer and metatable are
+    copied unchanged.
+    Only table types are accepted, so unions and intersections of tables are a
+    type error.
+
+    ```lua
+    type Settings = { volume: number?, muted: boolean? }
+
+    type ResolvedSettings = Required<Settings>
+    -- { volume: number, muted: boolean }
+
+    local DEFAULTS: ResolvedSettings = { volume = 0.5, muted = false }
+
+    local function resolve(settings: Settings): ResolvedSettings
+        return {
+            volume = settings.volume or DEFAULTS.volume,
+            muted = if settings.muted == nil
+                then DEFAULTS.muted
+                else settings.muted,
+        }
+    end
+    ```
+
+    @type Required (t: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function Required(t: type): type
+    assert(t:is("table"), "Required expects a table type")
+
+    local function stripNil(ty: type): type
+        if ty:is("nil") then
+            return types.never -- the type was just `nil`
+        elseif ty:is("unknown") then
+            return types.negationof(types.singleton(nil)) -- ~nil
+        elseif not ty:is("union") then
+            return ty
+        end
+
+        local kept = {}
+        for _, component in t:components() do
+            if component:is("unknown") then
+                -- unknown absorbs the rest of the union, leaving just ~nil
+                return types.negationof(types.singleton(nil))
+            elseif component:is("any") then
+                -- any absorbs the rest of the union and is left unchanged
+                return types.any
+            elseif not component:is("nil") then
+                table.insert(kept, component)
+            end
+        end
+
+        if #kept == 0 then
+            return types.never -- every component was `nil`
+        elseif #kept == 1 then
+            return kept[1] -- no need to keep the union
+        else
+            return types.unionof(table.unpack(kept))
+        end
+    end
+
+    -- make all named properties required
+    local result = types.newtable()
+    for key, prop in t:properties() do
+        if prop.read then
+            result:setreadproperty(key, stripNil(prop.read))
+        end
+        if prop.write then
+            result:setwriteproperty(key, stripNil(prop.write))
+        end
+    end
+
+    -- copy indexer unchanged
+    -- (luau doesn't support separate read/write indexer types yet, so
+    -- setreadindexer/setwriteindexer throw)
+    local idx = t:indexer()
+    if idx and idx.readresult then
+        result:setindexer(idx.index, idx.readresult)
+    end
+
+    -- copy metatable unchanged
+    local mt = t:metatable()
+    if mt then
+        result:setmetatable(mt)
+    end
+
+    return result
+end
+
+--[=[
     A type function that removes `nil` from every property of a table type,
     recursively.
 
@@ -493,7 +635,7 @@ export type function DeepRequired(t: type): type
 
     local function stripNil(ty: type): type
         if ty:is("nil") then
-            return types.never -- just `nil`
+            return types.never -- just nil
         elseif ty:is("unknown") then
             return types.negationof(types.singleton(nil)) -- ~nil
         elseif not ty:is("union") then
@@ -501,14 +643,20 @@ export type function DeepRequired(t: type): type
         end
 
         local kept = {}
-        for _, component in ty:components() do
-            if not component:is("nil") then
+        for _, component in t:components() do
+            if component:is("unknown") then
+                -- unknown absorbs the rest of the union, leaving just ~nil
+                return types.negationof(types.singleton(nil))
+            elseif component:is("any") then
+                -- any absorbs the rest of the union and is left unchanged
+                return types.any
+            elseif not component:is("nil") then
                 table.insert(kept, component)
             end
         end
 
         if #kept == 0 then
-            return types.never -- every component was `nil`
+            return types.never -- every component was nil
         elseif #kept == 1 then
             return kept[1] -- no need to keep the union
         else
@@ -572,96 +720,6 @@ export type function DeepRequired(t: type): type
     end
 
     return deep(t)
-end
-
---[=[
-    A type function that removes `nil` from every property of a table type.
-
-    Optional properties lose their `nil`, so `number?` becomes `number`, and a
-    property typed as just `nil` becomes `never`.
-    `unknown` is converted to `~nil`.
-    `any` is left unchanged, since `any` denotes disabling type checking.
-    `read` and `write` modifiers are kept, and the indexer and metatable are
-    copied unchanged.
-    Only table types are accepted, so unions and intersections of tables are a
-    type error.
-
-    ```lua
-    type Settings = { volume: number?, muted: boolean? }
-
-    type ResolvedSettings = Required<Settings>
-    -- { volume: number, muted: boolean }
-
-    local DEFAULTS: ResolvedSettings = { volume = 0.5, muted = false }
-
-    local function resolve(settings: Settings): ResolvedSettings
-        return {
-            volume = settings.volume or DEFAULTS.volume,
-            muted = if settings.muted == nil
-                then DEFAULTS.muted
-                else settings.muted,
-        }
-    end
-    ```
-
-    @type Required (t: type) -> type
-    @within typing
-    @since [UNRELEASED]
-]=]
-export type function Required(t: type): type
-    assert(t:is("table"), "Required expects a table type")
-
-    local function stripNil(ty: type): type
-        if ty:is("nil") then
-            return types.never -- the type was just `nil`
-        elseif ty:is("unknown") then
-            return types.negationof(types.singleton(nil)) -- ~nil
-        elseif not ty:is("union") then
-            return ty
-        end
-
-        local kept = {}
-        for _, component in ty:components() do
-            if not component:is("nil") then
-                table.insert(kept, component)
-            end
-        end
-
-        if #kept == 0 then
-            return types.never -- every component was `nil`
-        elseif #kept == 1 then
-            return kept[1] -- no need to keep the union
-        else
-            return types.unionof(table.unpack(kept))
-        end
-    end
-
-    -- make all named properties required
-    local result = types.newtable()
-    for key, prop in t:properties() do
-        if prop.read then
-            result:setreadproperty(key, stripNil(prop.read))
-        end
-        if prop.write then
-            result:setwriteproperty(key, stripNil(prop.write))
-        end
-    end
-
-    -- copy indexer unchanged
-    -- (luau doesn't support separate read/write indexer types yet, so
-    -- setreadindexer/setwriteindexer throw)
-    local idx = t:indexer()
-    if idx and idx.readresult then
-        result:setindexer(idx.index, idx.readresult)
-    end
-
-    -- copy metatable unchanged
-    local mt = t:metatable()
-    if mt then
-        result:setmetatable(mt)
-    end
-
-    return result
 end
 
 --[=[
