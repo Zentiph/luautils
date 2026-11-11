@@ -361,8 +361,8 @@ end
 
     Optional properties lose their `nil`, so `number?` becomes `number`, and a
     property typed as just `nil` becomes `never`.
-    `unknown` and `any` are unchanged, since they cannot be split into a
-    union.
+    `unknown` is converted to `~nil`.
+    `any` is left unchanged, since `any` denotes disabling type checking.
     `read` and `write` modifiers are kept, and the indexer and metatable are
     copied unchanged.
     Only table types are accepted, so unions and intersections of tables are a
@@ -396,6 +396,8 @@ export type function Required(t: type): type
     local function stripNil(ty: type): type
         if ty:is("nil") then
             return types.never -- the type was just `nil`
+        elseif ty:is("unknown") then
+            return types.negationof(types.singleton(nil)) -- ~nil
         elseif not ty:is("union") then
             return ty
         end
