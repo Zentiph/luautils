@@ -1525,6 +1525,68 @@ export type function ReturnType(f: type): type
     end
 end
 
+--[=[
+    A type function that removes the first parameter (`self`) from a function
+    type.
+
+    This turns a method's type into the type of a plain function, such as one
+    that has `self` bound with a closure.
+
+    Variadic parameters, return types, and generics are kept unchanged.
+    The first parameter is removed whatever its name, since Luau does not
+    track parameter names in types.
+    If the function has no fixed parameters, it is a type error.
+    Only function types are accepted, so overloaded functions (intersections
+    of functions) are a type error.
+
+    Methods whose type is inferred from a `function` definition carry a hidden
+    `...any` parameter, so `OmitSelf<typeof<(Class.method)>` includes it in the
+    result.
+    Annotate the method type explicitly to avoid this.
+
+    ```lua
+    local Door = {}
+    Door.__index = Door
+    type Door = typeof(setmetatable({}, Door))
+
+    function Door.open(self: Door, speed: number): boolean
+        -- ...
+    end
+
+    type OpenFn = OmitSelf<typeof(Door.open)>
+    -- (number, ...any) -> boolean
+
+    local function bind(door: Door): OpenFn
+        return function(speed)
+            return door:open(speed)
+        end
+    end
+    ```
+
+    @type OmitSelf (f: type) -> type
+    @within typing
+    @since [UNRELEASED]
+]=]
+export type function OmitSelf(f: type): type
+    assert(f:is("function"), "OmitSelf expects a function type")
+
+    local params = f:parameters()
+    local head = params.head or {}
+    assert(#head > 0, "OmitSelf expects a function with at least one parameter")
+
+    -- drop the first parameter
+    local rest = {}
+    for i = 2, #head do
+        table.insert(rest, head[i] :: type)
+    end
+
+    return types.newfunction(
+        { head = rest, tail = params.tail },
+        f:returns(),
+        f:generics()
+    )
+end
+
 --[[ ROBLOX-compatible protocols ]]
 
 --[=[

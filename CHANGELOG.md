@@ -20,6 +20,7 @@
       * `Merge<A, B>` type function
       * `Parameter<F, I>` type function
       * `Return<F>` type function
+      * `OmitSelf<F>` type function
   * Time
     * Changed Duration to use `TimeParts` and `Partial<TimeParts>` rather than
       `TimePartsI` and `TimePartsO`

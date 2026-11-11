@@ -55,6 +55,7 @@ export type Omit<T, K> = typing.Omit<T, K>
 export type Merge<A, B> = typing.Merge<A, B>
 export type Parameter<F, I> = typing.Parameter<F, I>
 export type ReturnType<F> = typing.ReturnType<F>
+export type OmitSelf<F> = typing.OmitSelf<F>
 export type Disconnectable = typing.Disconnectable
 export type Destroyable = typing.Destroyable
 
