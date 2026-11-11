@@ -321,7 +321,7 @@ export type Iterable<Self, C, V...> = {
 
     @type NonNil (t: type) -> type
     @within typing
-    @since v0.1.0
+    @since [UNRELEASED]
 ]=]
 export type function NonNil(t: type): type
     if t:is("nil") then

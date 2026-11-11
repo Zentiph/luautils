@@ -39,6 +39,7 @@ export type Cloneable<Self> = typing.Cloneable<Self>
 export type Serializable<Self, D> = typing.Serializable<Self, D>
 export type Deserializable<Self, D> = typing.Deserializable<Self, D>
 export type Iterable<Self, C, V...> = typing.Iterable<Self, C, V...>
+export type NonNil<T> = typing.NonNil<T>
 export type Partial<T> = typing.Partial<T>
 export type DeepPartial<T> = typing.DeepPartial<T>
 export type Required<T> = typing.Required<T>

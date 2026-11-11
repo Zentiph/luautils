@@ -4,6 +4,7 @@
 * Features
   * Core
     * typing
+      * `NonNil<T>` type function
       * `Partial<T>` type function
       * `DeepPartial<T>` type function
       * `Required<T>` type function
@@ -25,6 +26,7 @@
       * `Lowercase<T>` type function
       * `Capitalize<T>` type function
       * `Uncapitalize<T>` type function
+* Changes
   * Time
     * Changed Duration to use `TimeParts` and `Partial<TimeParts>` rather than
       `TimePartsI` and `TimePartsO`

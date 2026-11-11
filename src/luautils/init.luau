@@ -56,6 +56,7 @@ export type Cloneable<Self> = Core.Cloneable<Self>
 export type Serializable<Self, D> = Core.Serializable<Self, D>
 export type Deserializable<Self, D> = Core.Deserializable<Self, D>
 export type Iterable<Self, C, V...> = Core.Iterable<Self, C, V...>
+export type NonNil<T> = Core.NonNil<T>
 export type Partial<T> = Core.Partial<T>
 export type DeepPartial<T> = Core.DeepPartial<T>
 export type Required<T> = Core.Required<T>
