@@ -72,6 +72,7 @@ export type Destroyable = typing.Destroyable
     @since v0.1.0
 ]=]
 return table.freeze({
+    Class = require("@self/Class"),
     Errors = require("@self/Errors"),
     Option = Option,
     Result = Result,
