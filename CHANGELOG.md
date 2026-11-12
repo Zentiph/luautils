@@ -1,8 +1,8 @@
 # Changelog for luautils
 
 ## [UNRELEASED]
-* > Note: `Duration:toParts()` now returns `TimeParts`, whose fields are
-  > read-only, so code that modifies the returned table no longer type checks
+> Note: `Duration:toParts()` now returns `TimeParts`, whose fields are
+> read-only, so code that modifies the returned table no longer type checks
 * Features
   * Core
     * typing
@@ -28,6 +28,8 @@
       * `Lowercase<T>` type function
       * `Capitalize<T>` type function
       * `Uncapitalize<T>` type function
+    * Values
+      * `hasMethod` function
   * Time
     * `Duration.TimeParts` type
 * Changes
@@ -86,7 +88,7 @@
   * Updated CONTRIBUTING to reflect new practices for publication
 
 ## [v0.1.1] - 2026-11-05
-* > Note: The Wally and pesde packages report `Luautils.VERSION` as `0.1.0`
+> Note: The Wally and pesde packages report `Luautils.VERSION` as `0.1.0`
 * Published to Wally and pesde
 * Made all tables returned from modules frozen to enforce read-only properties
 * Documentation fixes
