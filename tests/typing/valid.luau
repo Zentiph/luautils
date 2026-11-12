@@ -602,4 +602,82 @@ do -- string stays string
     local _notAny: false = isAny
 end
 
+--[[ Class.IsA and Class.cast ]]
+
+local Class = require("../../src/luautils/Core/Class")
+
+local Animal = {}
+
+function Animal.new(name: string)
+    return Class.new(Animal, { name = name })
+end
+
+function Animal.speak(_self): string
+    return "..."
+end
+
+local Dog = setmetatable({}, Class.extends(Animal))
+
+function Dog.new(name: string, breed: string)
+    return Class.new(Dog, { name = name, breed = breed })
+end
+
+function Dog.speak(_self): string
+    return "Woof!"
+end
+
+function Dog.fetch(_self): string
+    return "ball"
+end
+
+local Puppy = setmetatable({}, Class.extends(Dog))
+
+function Puppy.new(name: string)
+    return Class.new(Puppy, { name = name, breed = "mutt", age = 0 })
+end
+
+do -- has the constructor's fields and every method, without new or __ keys
+    local actual: Class.IsA<typeof(Animal)> = nil :: any
+    local expected: { name: string, read speak: (any, ...any) -> string } =
+        actual
+    local _: typeof(actual) = expected
+    local isAny: IsAny<typeof(actual)> = nil :: any
+    local _notAny: false = isAny
+end
+
+do -- includes inherited methods, keeping the nearest override
+    local actual: Class.IsA<typeof(Dog)> = nil :: any
+    local expected: {
+        name: string,
+        breed: string,
+        read speak: (any, ...any) -> string,
+        read fetch: (any, ...any) -> string,
+    } =
+        actual
+    local _: typeof(actual) = expected
+    local isAny: IsAny<typeof(actual)> = nil :: any
+    local _notAny: false = isAny
+end
+
+do -- base class instances can be passed directly
+    local _: Class.IsA<typeof(Animal)> = Animal.new("Generic")
+end
+
+do -- cast lets subclass instances be passed, at any depth
+    local animals: { Class.IsA<typeof(Animal)> } = {
+        Animal.new("Generic"),
+        Class.cast(Dog.new("Rex", "Labrador"), Animal),
+        Class.cast(Puppy.new("Bit"), Animal),
+    }
+    local _name: string = animals[1].name
+    local _speak: string = animals[1]:speak()
+    animals[1].name = "Renamed"
+end
+
+do -- cast to a class in between keeps its members
+    local dog = Class.cast(Puppy.new("Bit"), Dog)
+    local _fetch: string = dog:fetch()
+    local _breed: string = dog.breed
+end
+
 return nil

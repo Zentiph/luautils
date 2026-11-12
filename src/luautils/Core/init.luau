@@ -6,6 +6,9 @@
 local Option = require("@self/Option")
 export type Option<T> = Option.Option<T>
 
+local Class = require("@self/Class")
+export type IsA<C> = Class.IsA<C>
+
 local Result = require("@self/Result")
 export type Result<T, E> = Result.Result<T, E>
 
@@ -66,13 +69,14 @@ export type Destroyable = typing.Destroyable
 
 --[=[
     The foundation of the library: `Option` and `Result` for explicit absence
-    and failure, error handling utilities, and shared type aliases.
+    and failure, error handling utilities, protocol-aware value operations,
+    object-oriented class helpers, and shared type aliases.
 
     @class Core
     @since v0.1.0
 ]=]
 return table.freeze({
-    Class = require("@self/Class"),
+    Class = Class,
     Errors = require("@self/Errors"),
     Option = Option,
     Result = Result,

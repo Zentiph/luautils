@@ -5,6 +5,14 @@
 > read-only, so code that modifies the returned table no longer type checks
 * Features
   * Core
+    * Class (new module)
+      * Utilities for object-oriented design in Luau
+      * `sealed`/`isSealed` for enforcing/checking immutability
+      * `extends`/`isA` for inheritance
+      * `new` for creating instances, setting up `__index` and inherited
+        metamethods automatically
+      * `IsA<C>` type function and `cast` for passing subclass instances where
+        a base class instance is expected
     * typing
       * `NonNil<T>` type function
       * `Partial<T>` type function
