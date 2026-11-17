@@ -7,12 +7,20 @@
   * Core
     * Class (new module)
       * Utilities for object-oriented design in Luau
-      * `sealed`/`isSealed` for enforcing/checking immutability
-      * `extends`/`isA` for inheritance
+      * `sealed`/`isSealed` for making classes immutable and final, and checking
+        it; instances of sealed classes can still be frozen
+      * `extends`/`isA`/`isSubclassOf` for inheritance
+      * `parentOf`/`classOf` for finding a class's base class and a value's
+        class
       * `new` for creating instances, setting up `__index` and inherited
-        metamethods automatically
+        metamethods automatically, optionally building on fields made by a
+        base class to reuse its constructor logic
+      * `merge` for building a subclass's fields on its base class's fields
       * `IsA<C>` type function and `cast` for passing subclass instances where
         a base class instance is expected
+      * `tryCast` for checking and typing a value in one step, since `isA`
+        cannot narrow types
+      * `Metatable<C>` type
     * typing
       * `NonNil<T>` type function
       * `Partial<T>` type function
@@ -42,6 +50,8 @@
     * `Duration.TimeParts` type
 * Changes
   * Time
+    * `Stopwatch.new()` and `Cooldown.new()` no longer show type errors under
+      Studio's Luau flags
     * `Duration.fromParts()` takes `Partial<TimeParts>` instead of `TimePartsI`
     * `Duration:toParts()` returns `TimeParts` instead of `TimePartsO`
     * `TimeParts` is exported through `Time` and `Luautils`
@@ -55,6 +65,9 @@
     including cases that must fail to type check
 * CI
   * Added a `typecheck (typing)` step that runs `.lute/typing.luau`
+  * Every typecheck step also runs with `--no-flags-enabled`, matching the
+    Luau flags Studio and the editor use, since `luau-lsp analyze` enables
+    every flag by default
 * Tooling
   * Added the `types` library global to `luau-extras.yml` for selene
 * Documentation
