@@ -50,6 +50,39 @@ end
 
 local definitions = ensureDefinitions()
 
+-- `luau-lsp analyze` enables every Luau FFlag by default, but Studio and the
+-- editor extension only enable released ones, so code that type checks with
+-- the defaults can still show errors to users. Each typecheck step also runs
+-- with `--no-flags-enabled` (plus the new solver) to match Studio
+local STUDIO_FLAGS = "--no-flags-enabled"
+
+-- `args` for a `luau-lsp analyze` step, with Studio's flags
+local function withStudioFlags(args: { string }): { string }
+    local result = table.clone(args)
+    table.insert(result, 3, STUDIO_FLAGS)
+    return result
+end
+
+local SRC_ARGS = {
+    "luau-lsp",
+    "analyze",
+    "--platform=roblox",
+    "--sourcemap=sourcemap.json",
+    `--definitions={definitions}`,
+    "--flag:LuauSolverV2=true",
+    "src",
+}
+
+local TESTS_ARGS = {
+    "luau-lsp",
+    "analyze",
+    "--platform=standard",
+    "--flag:LuauSolverV2=true",
+    "--ignore=src/**",
+    "--ignore=tests/typing/**",
+    "tests",
+}
+
 -- Keep this list in sync with the CI section of CONTRIBUTING.md
 -- CI runs this script, plus a separate docs job (moonwave build) that this
 -- script does not cover
@@ -80,15 +113,11 @@ local STEPS: { Step } = {
         -- src uses ROBLOX globals so it is checked
         -- against ROBLOX's type definitions
         name = "typecheck (src)",
-        args = {
-            "luau-lsp",
-            "analyze",
-            "--platform=roblox",
-            "--sourcemap=sourcemap.json",
-            `--definitions={definitions}`,
-            "--flag:LuauSolverV2=true",
-            "src",
-        },
+        args = SRC_ARGS,
+    },
+    {
+        name = "typecheck (src, Studio flags)",
+        args = withStudioFlags(SRC_ARGS),
     },
     {
         -- tests run under Lute, so they are checked without ROBLOX globals
@@ -97,21 +126,21 @@ local STEPS: { Step } = {
         -- tests/typing is ignored since it is checked by the next step, and
         -- some of its files are meant to fail
         name = "typecheck (tests)",
-        args = {
-            "luau-lsp",
-            "analyze",
-            "--platform=standard",
-            "--flag:LuauSolverV2=true",
-            "--ignore=src/**",
-            "--ignore=tests/typing/**",
-            "tests",
-        },
+        args = TESTS_ARGS,
+    },
+    {
+        name = "typecheck (tests, Studio flags)",
+        args = withStudioFlags(TESTS_ARGS),
     },
     {
         -- the typing type functions only run at type-check time, so their
         -- tests are type checked, including cases that must fail
         name = "typecheck (typing)",
         args = { "lute", "run", ".lute/typing.luau" },
+    },
+    {
+        name = "typecheck (typing, Studio flags)",
+        args = { "lute", "run", ".lute/typing.luau", STUDIO_FLAGS },
     },
     {
         name = "test",
