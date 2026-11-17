@@ -72,7 +72,7 @@ export type Stopwatch = typeof(setmetatable({} :: StopwatchData, Stopwatch))
 function Stopwatch.new(clock: Supplier<number>?): Stopwatch
     return setmetatable({
         _clock = clock or os.clock,
-        _startedAt = nil,
+        _startedAt = nil :: number?,
         _accumulated = Duration.ZERO,
         _lapMark = Duration.ZERO,
     }, Stopwatch)
