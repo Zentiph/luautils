@@ -9,9 +9,9 @@ local fail = require("./Errors").errorWithScope("Values")
     Protocol-aware operations that work on any value, similar to Java's
     `Objects` utility class.
 
-    Each function dispatches to the matching protocol method when the value is
-    a table that has it (such as [typing.Equatable] or [typing.Comparable]),
-    and otherwise falls back to the built-in operator or function. This lets one
+    Each function dispatches to the matching protocol method when the value is a
+    table that has it (such as [typing.Equatable] or [typing.Comparable]), and
+    otherwise falls back to the built-in operator or function. This lets one
     function signature accept both primitives and classes:
 
     ```lua
@@ -44,10 +44,6 @@ end
 
 function Internal.nanFail(functionName: string): never
     return fail("Cannot meaningfully compare NaN values", 3, functionName)
-end
-
-local function isTableAndHasMethod(v: any, method: string): boolean
-    return type(v) == "table" and type(v[method]) == "function"
 end
 
 --[=[
@@ -122,8 +118,8 @@ end
     * `"vector"` (including ROBLOX's `Vector3`)
     * `"function"`
 
-    Tables, threads, userdata, and buffers are not considered immutable, even
-    if they are frozen or have no methods that modify them.
+    Tables, threads, userdata, and buffers are not considered immutable, even if
+    they are frozen or have no methods that modify them.
 
     Immutable values are safe to share instead of copying, which is how
     [Values.clone] treats them.
@@ -152,12 +148,45 @@ function Values.isImmutable(v: any): boolean
 end
 
 --[=[
+    Returns `true` if the value has a method with the given name. In this case,
+    a value is considered to have a method if `v:name()` would find a function.
+
+    Tables and strings are indexed directly, while userdata and vectors go
+    through `pcall`, meaning a table whose `__index` throws still throws.
+    Callable tables (those with a `__call` metamethod) are not counted, since
+    their `type` is `"function"`.
+
+    ```lua
+    Values.hasMethod({ method = function() end }, "method") -- true
+    Values.hasMethod({}, "method") -- false
+    Values.hasMethod(part, "Destroy") -- true
+    ```
+
+    @since [UNRELEASED]
+    @param v any -- The value to check
+    @param name string -- The name of the method to check for
+    @return boolean -- Whether the value has the method
+]=]
+function Values.hasMethod(v: any, name: string): boolean
+    local t = type(v)
+    if t == "table" or t == "string" then
+        return type(v[name]) == "function"
+    elseif t == "userdata" or t == "vector" then
+        local ok, member = pcall(function()
+            return v[name]
+        end)
+        return ok and type(member) == "function"
+    end
+    return false
+end
+
+--[=[
     Returns `true` if the values are of types that can be compared with
     [Values.compare].
 
     This is `true` if `type(a) == type(b)` and either:
     * `a` and `b` are both tables with a `compareTo` method
-    ([typing.Comparable]), or
+      ([typing.Comparable]), or
     * `a` and `b` are both numbers or both strings.
 
     Only the types are checked: `NaN` counts as comparable here, but the
@@ -180,8 +209,8 @@ function Values.isComparable<T>(a: T, b: T): boolean
     return type(a) == type(b)
         and (
             (
-                isTableAndHasMethod(a, "compareTo")
-                and isTableAndHasMethod(b, "compareTo")
+                Values.hasMethod(a, "compareTo")
+                and Values.hasMethod(b, "compareTo")
             )
             or (type(a) == "number" or type(a) == "string")
         )
@@ -193,7 +222,7 @@ end
     Equality is checked in this order:
     1. If `rawequal(a, b)` is `true`, `true` is returned.
     2. If `a` is a table with an `equals` method ([typing.Equatable]),
-    `a:equals(b)` is returned.
+       `a:equals(b)` is returned.
     3. Otherwise, `a == b` is returned.
 
     This means [typing.Equatable] classes compare by value even if they do not
@@ -216,7 +245,7 @@ end
 function Values.equals<T>(a: T, b: T): boolean
     return if rawequal(a, b)
         then true
-        elseif isTableAndHasMethod(a, "equals") then (a :: any):equals(b)
+        elseif Values.hasMethod(a, "equals") then (a :: any):equals(b)
         else a == b
 end
 
@@ -257,7 +286,7 @@ function Values.compare<T>(a: T, b: T): number
         Internal.nanFail("compare")
     end
 
-    if isTableAndHasMethod(a, "compareTo") then
+    if Values.hasMethod(a, "compareTo") then
         return (a :: any):compareTo(b)
     else
         return if (a :: any) < b then -1 elseif a == b then 0 else 1
@@ -434,15 +463,15 @@ function Values.toKey(v: any): any
         fail("Cannot use nil as a table key")
     end
 
-    return if isTableAndHasMethod(v, "toKey") then (v :: any):toKey() else v
+    return if Values.hasMethod(v, "toKey") then (v :: any):toKey() else v
 end
 
 --[=[
     Returns a string representation of `v`.
 
     If `v` is a table with a `toString` method ([typing.Stringable]),
-    `v:toString()` is returned. Otherwise, `tostring(v)` is returned, which
-    uses a `__tostring` metamethod if `v` has one.
+    `v:toString()` is returned. Otherwise, `tostring(v)` is returned, which uses
+    a `__tostring` metamethod if `v` has one.
 
     Matches the [typing.Mapper] signature, so it can be passed directly to
     mapping functions.
@@ -458,7 +487,7 @@ end
     @return string -- The string representation
 ]=]
 function Values.toString(v: any): string
-    return if isTableAndHasMethod(v, "toString")
+    return if Values.hasMethod(v, "toString")
         then (v :: any):toString()
         else tostring(v)
 end
@@ -485,7 +514,7 @@ end
     @error "[Values.clone()]: Cannot clone value of type {type(v)}. (...)" -- Thrown if `v` is not immutable and has no `clone` method. The message continues with a hint to add a `clone` method, or to use `table.clone()` or [Tables.deepCopy]
 ]=]
 function Values.clone<T>(v: T): T
-    return if isTableAndHasMethod(v, "clone")
+    return if Values.hasMethod(v, "clone")
         then (v :: any):clone()
         elseif Values.isImmutable(v) then v
         else fail(

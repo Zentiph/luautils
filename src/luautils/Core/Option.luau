@@ -17,8 +17,8 @@ local repr = require("../_internal").repr
 local fail = require("./Errors").errorWithScope("Option")
 
 --[=[
-    An optional value: an `Option` is either "some" and holds a value, or
-    "none" and does not.
+    An optional value: an `Option` is either "some" and holds a value, or "none"
+    and does not.
 
     A "some" cannot hold `nil`; an `Option` is "none" exactly when its value is
     `nil`. `Option`s are frozen and cannot be modified.
@@ -238,8 +238,8 @@ function Option.unwrapOrElse<T>(self: Option<T>, supplier: Supplier<T>): T
 end
 
 --[=[
-    Returns the contained value, or throws the error computed by
-    `errorSupplier` if the `Option` is "none".
+    Returns the contained value, or throws the error computed by `errorSupplier`
+    if the `Option` is "none".
 
     `errorSupplier` is only called if the `Option` is "none". Its return value
     is thrown as-is, so tables and other values keep their data. String errors
@@ -263,8 +263,8 @@ function Option.unwrapOrThrow<T>(self: Option<T>, errorSupplier: Supplier<any>):
 end
 
 --[=[
-    Returns `true` if the `Option` is "some" and the contained value is equal
-    to `value`.
+    Returns `true` if the `Option` is "some" and the contained value is equal to
+    `value`.
 
     Values are compared with `==`.
 
@@ -284,8 +284,8 @@ function Option.contains<T>(self: Option<T>, value: T): boolean
 end
 
 --[=[
-    Creates a "some" holding `value` if `condition` is `true`, otherwise
-    returns "none".
+    Creates a "some" holding `value` if `condition` is `true`, otherwise returns
+    "none".
 
     `value` is evaluated even if `condition` is `false`; use [Option.whenThen]
     if the value is expensive to create.
@@ -459,8 +459,8 @@ function Option.andOption<T, U>(self: Option<T>, other: Option<U>): Option<U>
 end
 
 --[=[
-    Calls `mapper` with the contained value if the `Option` is "some",
-    otherwise returns "none".
+    Calls `mapper` with the contained value if the `Option` is "some", otherwise
+    returns "none".
 
     This operation is also known as "flatmap".
 
@@ -550,8 +550,8 @@ function Option.orElse<T>(
 end
 
 --[=[
-    Calls `ifSome` with the contained value if the `Option` is "some",
-    otherwise calls `ifNone`.
+    Calls `ifSome` with the contained value if the `Option` is "some", otherwise
+    calls `ifNone`.
 
     Returns nothing; the return values of `ifSome` and `ifNone` are discarded.
     Use [Option:mapOrElse] to produce a value instead.

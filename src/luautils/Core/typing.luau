@@ -30,7 +30,7 @@ export type Action = () -> ()
 --[=[
     A function that takes any arguments and returns nothing.
 
-    @type Callback (A...) -> ()
+    @type Callback<A...> (A...) -> ()
     @within typing
     @since v0.1.0
 ]=]
@@ -39,7 +39,7 @@ export type Callback<A...> = (A...) -> ()
 --[=[
     A function that takes no arguments and returns a value.
 
-    @type Supplier () -> T
+    @type Supplier<T> () -> T
     @within typing
     @since v0.1.0
 ]=]
@@ -48,7 +48,7 @@ export type Supplier<T> = () -> T
 --[=[
     A function that builds a value from arguments.
 
-    @type Factory (A...) -> T
+    @type Factory<T,A...> (A...) -> T
     @within typing
     @since v0.1.0
 ]=]
@@ -57,7 +57,7 @@ export type Factory<T, A...> = (A...) -> T
 --[=[
     A function that builds a tuple from arguments.
 
-    @type TupleFactory (A...) -> T...
+    @type TupleFactory<T...,A...> (A...) -> T...
     @within typing
     @since v0.1.0
 ]=]
@@ -66,7 +66,7 @@ export type TupleFactory<T..., A...> = (A...) -> T...
 --[=[
     A function that takes one value and returns nothing.
 
-    @type Consumer (value: T) -> ()
+    @type Consumer<T> (value: T) -> ()
     @within typing
     @since v0.1.0
 ]=]
@@ -75,7 +75,7 @@ export type Consumer<T> = (value: T) -> ()
 --[=[
     A function that takes two values and returns nothing.
 
-    @type BiConsumer (a: T, b: U) -> ()
+    @type BiConsumer<T,U> (a: T, b: U) -> ()
     @within typing
     @since v0.1.0
 ]=]
@@ -84,7 +84,7 @@ export type BiConsumer<T, U> = (a: T, b: U) -> ()
 --[=[
     A function that tests one value.
 
-    @type Predicate (value: T) -> boolean
+    @type Predicate<T> (value: T) -> boolean
     @within typing
     @since v0.1.0
 ]=]
@@ -93,7 +93,7 @@ export type Predicate<T> = (value: T) -> boolean
 --[=[
     A function that tests two values.
 
-    @type BiPredicate (a: T, b: U) -> boolean
+    @type BiPredicate<T,U> (a: T, b: U) -> boolean
     @within typing
     @since v0.1.0
 ]=]
@@ -102,7 +102,7 @@ export type BiPredicate<T, U> = (a: T, b: U) -> boolean
 --[=[
     A function that transforms one value.
 
-    @type Mapper (value: T) -> U
+    @type Mapper<T,U> (value: T) -> U
     @within typing
     @since v0.1.0
 ]=]
@@ -111,7 +111,7 @@ export type Mapper<T, U> = (value: T) -> U
 --[=[
     A function that combines two values.
 
-    @type BiMapper (a: T, b: U) -> R
+    @type BiMapper<T,U,R> (a: T, b: U) -> R
     @within typing
     @since v0.1.0
 ]=]
@@ -120,7 +120,7 @@ export type BiMapper<T, U, R> = (a: T, b: U) -> R
 --[=[
     A function that transforms a value into the same type.
 
-    @type UnaryOperator (value: T) -> T
+    @type UnaryOperator<T> (value: T) -> T
     @within typing
     @since v0.1.0
 ]=]
@@ -129,7 +129,7 @@ export type UnaryOperator<T> = (value: T) -> T
 --[=[
     A function that combines two values of the same type.
 
-    @type BinaryOperator (a: T, b: T) -> T
+    @type BinaryOperator<T> (a: T, b: T) -> T
     @within typing
     @since v0.1.0
 ]=]
@@ -138,7 +138,7 @@ export type BinaryOperator<T> = (a: T, b: T) -> T
 --[=[
     A function that folds a value into an accumulator.
 
-    @type Reducer (accumulator: A, value: T) -> A
+    @type Reducer<T,A> (accumulator: A, value: T) -> A
     @within typing
     @since v0.1.0
 ]=]
@@ -150,7 +150,7 @@ export type Reducer<T, A> = (accumulator: A, value: T) -> A
     Returns a negative `number` if `a < b`, zero if `a == b`, and a positive
     `number` if `a > b`.
 
-    @type Comparator (a: T, b: T) -> number
+    @type Comparator<T> (a: T, b: T) -> number
     @within typing
     @since v0.1.0
 ]=]
@@ -161,7 +161,7 @@ export type Comparator<T> = (a: T, b: T) -> number
 --[=[
     A sequential, 1-indexed table.
 
-    @type Array { T }
+    @type Array<T> { T }
     @within typing
     @since v0.1.0
 ]=]
@@ -170,7 +170,7 @@ export type Array<T> = { T }
 --[=[
     A keyed table.
 
-    @type Map { [K]: V }
+    @type Map<K,V> { [K]: V }
     @within typing
     @since v0.1.0
 ]=]
@@ -179,7 +179,7 @@ export type Map<K, V> = { [K]: V }
 --[=[
     A membership table.
 
-    @type Set { [T]: true }
+    @type Set<T> { [T]: true }
     @within typing
     @since v0.1.0
 ]=]
@@ -201,7 +201,7 @@ export type PackedTable = { n: number, [number]: any }
 
     Usable as `for v in gen do`.
 
-    @type Generator () -> T?
+    @type Generator<T> () -> T?
     @within typing
     @since v0.1.0
 ]=]
@@ -212,7 +212,7 @@ export type Generator<T> = () -> T?
 
     Iteration stops when the returned control value is `nil`.
 
-    @type Iterator (state: S, control: C?) -> (C?, V...)
+    @type Iterator<S,C,V...> (state: S, control: C?) -> (C?, V...)
     @within typing
     @since v0.1.0
 ]=]
@@ -223,7 +223,7 @@ export type Iterator<S, C, V...> = (state: S, control: C?) -> (C?, V...)
 --[=[
     A type that supports value equality.
 
-    @type Equatable { equals: (self: Self, other: Self) -> boolean }
+    @type Equatable<Self> { equals: (self: Self, other: Self) -> boolean }
     @within typing
     @since v0.1.0
 ]=]
@@ -235,7 +235,7 @@ export type Equatable<Self> = { equals: (self: Self, other: Self) -> boolean }
     Its ordering function should return a negative `number` if `a < b`, zero if
     `a == b`, and a positive `number` if `a > b`.
 
-    @type Comparable { compareTo: (self: Self, other: Self) -> number }
+    @type Comparable<Self> { compareTo: (self: Self, other: Self) -> number }
     @within typing
     @since v0.1.0
 ]=]
@@ -245,17 +245,17 @@ export type Comparable<Self> =
 --[=[
     A type that can be converted to a string.
 
-    @type Stringable { toString: (self: Self) -> string }
+    @type Stringable<Self> { toString: (self: Self) -> string }
     @within typing
     @since v0.1.0
 ]=]
 export type Stringable<Self> = { toString: (self: Self) -> string }
 
 --[=[
-    A type that can produce a stable key, allowing for value-equal objects
-    to share a table slot.
+    A type that can produce a stable key, allowing for value-equal objects to
+    share a table slot.
 
-    @type Keyable { toKey: (self: Self) -> string }
+    @type Keyable<Self> { toKey: (self: Self) -> string }
     @within typing
     @since v0.1.0
 ]=]
@@ -264,7 +264,7 @@ export type Keyable<Self> = { toKey: (self: Self) -> string }
 --[=[
     A type that can make an independent copy of itself.
 
-    @type Cloneable { clone: (self: Self) -> Self }
+    @type Cloneable<Self> { clone: (self: Self) -> Self }
     @within typing
     @since v0.1.0
 ]=]
@@ -273,7 +273,7 @@ export type Cloneable<Self> = { clone: (self: Self) -> Self }
 --[=[
     A type that can convert itself to plain, DataStore-safe data.
 
-    @type Serializable { serialize: (self: Self) -> D }
+    @type Serializable<Self,D> { serialize: (self: Self) -> D }
     @within typing
     @since v0.1.0
 ]=]
@@ -282,7 +282,7 @@ export type Serializable<Self, D> = { serialize: (self: Self) -> D }
 --[=[
     A type that can be statically converted from plain, DataStore-safe data.
 
-    @type Deserializable { deserialize: (data: D) -> Self }
+    @type Deserializable<Self,D> { deserialize: (data: D) -> Self }
     @within typing
     @since v0.1.0
 ]=]
@@ -291,7 +291,7 @@ export type Deserializable<Self, D> = { deserialize: (data: D) -> Self }
 --[=[
     A type that can be iterated with a `for ... in obj:iter()` loop.
 
-    @type Iterable { iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?) }
+    @type Iterable<Self,C,V...> { iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?) }
     @within typing
     @since v0.1.0
 ]=]
@@ -304,8 +304,8 @@ export type Iterable<Self, C, V...> = {
 --[=[
     A type function that removes `nil` from any type.
 
-    `unknown` is converted to `~nil`.
-    `any` is left unchanged, since `any` denotes disabling type checking.
+    `unknown` is converted to `~nil`. `any` is left unchanged, since `any`
+    denotes disabling type checking.
 
     ```lua
     type MaybeData = string | number | nil
@@ -316,7 +316,7 @@ export type Iterable<Self, C, V...> = {
     end
     ```
 
-    @type NonNil (t: type) -> type
+    @type NonNil<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -355,11 +355,10 @@ end
     A type function that makes every property of a table type optional.
 
     `read` and `write` modifiers are kept, and the indexer and metatable are
-    copied unchanged.
-    Unions and intersections are converted member by member, keeping `nil` in
-    unions, so `Partial<A | B>` is `Partial<A> | Partial<B>` and `Partial<A?>`
-    is `Partial<A>?`.
-    Any other type that is not a table is a type error.
+    copied unchanged. Unions and intersections are converted member by member,
+    keeping `nil` in unions, so `Partial<A | B>` is `Partial<A> | Partial<B>`
+    and `Partial<A?>` is `Partial<A>?`. Any other type that is not a table is a
+    type error.
 
     ```lua
     type Profile = { name: string, read level: number }
@@ -372,7 +371,7 @@ end
     end
     ```
 
-    @type Partial (t: type) -> type
+    @type Partial<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -436,18 +435,16 @@ end
 
     Every named property becomes optional, and nested table types (including
     tables inside unions and intersections) are made deeply partial as well.
-    Indexer values are recursed into but not made optional, so `{ T }` stays
-    an array of non-nil values while each `T` becomes deeply partial.
+    Indexer values are recursed into but not made optional, so `{ T }` stays an
+    array of non-nil values while each `T` becomes deeply partial.
 
     `read` and `write` modifiers are kept, and the metatable is copied
-    unchanged.
-    Nested classes (tables with a metatable) are left as-is, but `T` itself is
-    converted even if it has a metatable.
-    Recursive types are supported.
-    Unions and intersections are converted member by member, keeping `nil` in
-    unions, so `DeepPartial<A | B>` is `DeepPartial<A> | DeepPartial<B>` and
-    `DeepPartial<A?>` is `DeepPartial<A>?`.
-    Any other type that is not a table is a type error.
+    unchanged. Nested classes (tables with a metatable) are left as-is, but `T`
+    itself is converted even if it has a metatable. Recursive types are
+    supported. Unions and intersections are converted member by member, keeping
+    `nil` in unions, so `DeepPartial<A | B>` is
+    `DeepPartial<A> | DeepPartial<B>` and `DeepPartial<A?>` is
+    `DeepPartial<A>?`. Any other type that is not a table is a type error.
 
     ```lua
     type Settings = {
@@ -465,7 +462,7 @@ end
     configure({ audio = { volume = 0.2 } }) -- everything else falls back
     ```
 
-    @type DeepPartial (t: type) -> type
+    @type DeepPartial<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -559,15 +556,13 @@ end
     A type function that removes `nil` from every property of a table type.
 
     Optional properties lose their `nil`, so `number?` becomes `number`, and a
-    property typed as just `nil` becomes `never`.
-    `unknown` is converted to `~nil`.
-    `any` is left unchanged, since `any` denotes disabling type checking.
-    `read` and `write` modifiers are kept, and the indexer and metatable are
-    copied unchanged.
-    Unions and intersections are converted member by member, keeping `nil` in
-    unions, so `Required<A | B>` is `Required<A> | Required<B>` and
-    `Required<A?>` is `Required<A>?`.
-    Any other type that is not a table is a type error.
+    property typed as just `nil` becomes `never`. `unknown` is converted to
+    `~nil`. `any` is left unchanged, since `any` denotes disabling type
+    checking. `read` and `write` modifiers are kept, and the indexer and
+    metatable are copied unchanged. Unions and intersections are converted
+    member by member, keeping `nil` in unions, so `Required<A | B>` is
+    `Required<A> | Required<B>` and `Required<A?>` is `Required<A>?`. Any other
+    type that is not a table is a type error.
 
     ```lua
     type Settings = { volume: number?, muted: boolean? }
@@ -587,7 +582,7 @@ end
     end
     ```
 
-    @type Required (t: type) -> type
+    @type Required<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -681,24 +676,22 @@ end
     recursively.
 
     Optional properties lose their `nil`, so `number?` becomes `number`, and a
-    property typed as just `nil` becomes `never`.
-    `unknown` is converted to `~nil`.
-    `any` is left unchanged, since `any` denotes disabling type checking.
+    property typed as just `nil` becomes `never`. `unknown` is converted to
+    `~nil`. `any` is left unchanged, since `any` denotes disabling type
+    checking.
 
     Nested table types (including tables inside unions and intersections) are
-    made deeply required as well.
-    Indexer values are recursed into but keep their `nil`, so `{ [string]: T? }`
-    still allows missing keys while each `T` becomes deeply required.
+    made deeply required as well. Indexer values are recursed into but keep
+    their `nil`, so `{ [string]: T? }` still allows missing keys while each `T`
+    becomes deeply required.
 
     `read` and `write` modifiers are kept, and the metatable is copied
-    unchanged.
-    Nested classes (tables with a metatable) are left as-is, but `T` itself is
-    converted even if it has a metatable.
-    Recursive types are supported.
-    Unions and intersections are converted member by member, keeping `nil` in
-    unions, so `DeepRequired<A | B>` is `DeepRequired<A> | DeepRequired<B>` and
-    `DeepRequired<A?>` is `DeepRequired<A>?`.
-    Any other type that is not a table is a type error.
+    unchanged. Nested classes (tables with a metatable) are left as-is, but `T`
+    itself is converted even if it has a metatable. Recursive types are
+    supported. Unions and intersections are converted member by member, keeping
+    `nil` in unions, so `DeepRequired<A | B>` is
+    `DeepRequired<A> | DeepRequired<B>` and `DeepRequired<A?>` is
+    `DeepRequired<A>?`. Any other type that is not a table is a type error.
 
     ```lua
     type PartialSettings = {
@@ -710,7 +703,7 @@ end
     -- { audio: { volume: number, muted: boolean }, ui: { scale: number } }
     ```
 
-    @type DeepRequired (t: type) -> type
+    @type DeepRequired<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -833,19 +826,18 @@ end
     A type function that makes every property of a table type read-only.
 
     This is shallow, so tables inside the properties can still be modified.
-    Write-only properties are dropped, since they cannot be read.
-    Unions and intersections are converted member by member, keeping `nil` in
-    unions, so `ReadOnly<A | B>` is `ReadOnly<A> | ReadOnly<B>` and
-    `ReadOnly<A?>` is `ReadOnly<A>?`.
-    Any other type that is not a table is a type error.
+    Write-only properties are dropped, since they cannot be read. Unions and
+    intersections are converted member by member, keeping `nil` in unions, so
+    `ReadOnly<A | B>` is `ReadOnly<A> | ReadOnly<B>` and `ReadOnly<A?>` is
+    `ReadOnly<A>?`. Any other type that is not a table is a type error.
 
     Luau does not yet support read-only indexers, so the indexer is copied
-    unchanged and stays writable.
-    Luau also does not report writes to read-only properties of a table with a
-    writable indexer, so only tables without an indexer are fully protected.
+    unchanged and stays writable. Luau also does not report writes to read-only
+    properties of a table with a writable indexer, so only tables without an
+    indexer are fully protected.
 
-    This only affects type checking.
-    To prevent writes at runtime, freeze the table with `table.freeze`.
+    This only affects type checking. To prevent writes at runtime, freeze the
+    table with `table.freeze`.
 
     ```lua
     type Config = { maxPlayers: number, mode: string }
@@ -857,7 +849,7 @@ end
     CONFIG.maxPlayers = 20 -- type error: maxPlayers is read-only
     ```
 
-    @type ReadOnly (t: type) -> type
+    @type ReadOnly<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -916,22 +908,21 @@ end
     recursively.
 
     This is deep, so tables inside the properties are made read-only as well.
-    Primitives, functions, and nested classes (tables with a metatable) are
-    left as-is, but `T` itself is converted even if it has a metatable.
-    Write-only properties are dropped, since they cannot be read.
-    Unions and intersections are converted member by member, keeping `nil` in
-    unions, so `DeepReadOnly<A | B>` is `DeepReadOnly<A> | DeepReadOnly<B>` and
-    `DeepReadOnly<A?>` is `DeepReadOnly<A>?`.
-    Any other type that is not a table is a type error.
+    Primitives, functions, and nested classes (tables with a metatable) are left
+    as-is, but `T` itself is converted even if it has a metatable. Write-only
+    properties are dropped, since they cannot be read. Unions and intersections
+    are converted member by member, keeping `nil` in unions, so
+    `DeepReadOnly<A | B>` is `DeepReadOnly<A> | DeepReadOnly<B>` and
+    `DeepReadOnly<A?>` is `DeepReadOnly<A>?`. Any other type that is not a table
+    is a type error.
 
     Luau does not yet support read-only indexers, so the indexer is copied
-    unchanged and stays writable.
-    Luau also does not report writes to read-only properties of a table with a
-    writable indexer, so only tables without an indexer are fully protected.
+    unchanged and stays writable. Luau also does not report writes to read-only
+    properties of a table with a writable indexer, so only tables without an
+    indexer are fully protected.
 
-    This only affects type checking.
-    To prevent writes at runtime, freeze the table and every table inside it
-    with `table.freeze`.
+    This only affects type checking. To prevent writes at runtime, freeze the
+    table and every table inside it with `table.freeze`.
 
     ```lua
     type Config = {
@@ -946,7 +937,7 @@ end
     --   read tags: { string } }
     ```
 
-    @type DeepReadOnly (t: type) -> type
+    @type DeepReadOnly<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1037,14 +1028,13 @@ end
     A type function that makes every property of a table type readable and
     writable, removing `read` and `write` modifiers.
 
-    Each property keeps its read type (or its write type, if it was
-    write-only) and becomes a normal property.
+    Each property keeps its read type (or its write type, if it was write-only)
+    and becomes a normal property.
 
-    The indexer and metatable are copied unchanged.
-    Unions and intersections are converted member by member, keeping `nil` in
-    unions, so `Writable<A | B>` is `Writable<A> | Writable<B>` and
-    `Writable<A?>` is `Writable<A>?`.
-    Any other type that is not a table is a type error.
+    The indexer and metatable are copied unchanged. Unions and intersections are
+    converted member by member, keeping `nil` in unions, so `Writable<A | B>` is
+    `Writable<A> | Writable<B>` and `Writable<A?>` is `Writable<A>?`. Any other
+    type that is not a table is a type error.
 
     ```lua
     type State = ReadOnly<{ score: number, alive: boolean }>
@@ -1054,7 +1044,7 @@ end
     -- { score: number, alive: boolean }
     ```
 
-    @type Writable (t: type) -> type
+    @type Writable<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1115,19 +1105,16 @@ end
     A type function that makes every property of a table type readable and
     writable, recursively, removing `read` and `write` modifiers.
 
-    Each property keeps its read type (or its write type, if it was
-    write-only) and becomes a normal property.
-    Nested table types (including tables inside unions, intersections, and
-    indexer values) are made deeply writable as well.
+    Each property keeps its read type (or its write type, if it was write-only)
+    and becomes a normal property. Nested table types (including tables inside
+    unions, intersections, and indexer values) are made deeply writable as well.
 
-    Metatables are copied unchanged.
-    Nested classes (tables with a metatable) are left as-is, but `T` itself is
-    converted even if it has a metatable.
-    Recursive types are supported.
-    Unions and intersections are converted member by member, keeping `nil` in
-    unions, so `DeepWritable<A | B>` is `DeepWritable<A> | DeepWritable<B>` and
-    `DeepWritable<A?>` is `DeepWritable<A>?`.
-    Any other type that is not a table is a type error.
+    Metatables are copied unchanged. Nested classes (tables with a metatable)
+    are left as-is, but `T` itself is converted even if it has a metatable.
+    Recursive types are supported. Unions and intersections are converted member
+    by member, keeping `nil` in unions, so `DeepWritable<A | B>` is
+    `DeepWritable<A> | DeepWritable<B>` and `DeepWritable<A?>` is
+    `DeepWritable<A>?`. Any other type that is not a table is a type error.
 
     ```lua
     type Frozen = DeepReadOnly<{ name: string, window: { width: number } }>
@@ -1137,7 +1124,7 @@ end
     -- { name: string, window: { width: number } }
     ```
 
-    @type DeepWritable (t: type) -> type
+    @type DeepWritable<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1231,12 +1218,10 @@ end
     `Record<"wood" | "stone", number>` is `{ wood: number, stone: number }`.
     Every other key type in `K` (such as `string`, `number`, or `boolean`
     singletons) becomes part of the indexer, so `Record<string, number>` is
-    `{ [string]: number }`.
-    Since a table only has one indexer, multiple non-singleton keys are
-    combined into one, so `Record<"id" | number, V>` is
+    `{ [string]: number }`. Since a table only has one indexer, multiple
+    non-singleton keys are combined into one, so `Record<"id" | number, V>` is
     `{ id: V, [number]: V }` and `Record<string | number, V>` is
-    `{ [string | number]: V }`.
-    `Record<never, V>` is an empty table.
+    `{ [string | number]: V }`. `Record<never, V>` is an empty table.
 
     ```lua
     type Resource = "wood" | "stone" | "gold"
@@ -1248,7 +1233,7 @@ end
     inventory.iron = 5 -- type error: iron is not a Resource
     ```
 
-    @type Record (k: type, v: type) -> type
+    @type Record<K,V> (k: type, v: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1285,13 +1270,11 @@ end
     A type function that removes the members of a union `T` that match `U`.
 
     A member matches if it is the same type as a member of `U`, if it is a
-    singleton whose primitive type is in `U` (so `"a"` matches `string`), or
-    if `U` contains `unknown` or `any`.
-    `boolean` is treated as `true | false`, so `Exclude<boolean, true>` is
-    `false`.
-    Tables, functions, and classes only match a structurally identical type,
-    not a subtype or supertype.
-    If every member is removed, the result is `never`.
+    singleton whose primitive type is in `U` (so `"a"` matches `string`), or if
+    `U` contains `unknown` or `any`. `boolean` is treated as `true | false`, so
+    `Exclude<boolean, true>` is `false`. Tables, functions, and classes only
+    match a structurally identical type, not a subtype or supertype. If every
+    member is removed, the result is `never`.
 
     ```lua
     type GameState = "Lobby" | "Playing" | "Ended"
@@ -1303,7 +1286,7 @@ end
     -- number | boolean
     ```
 
-    @type Exclude (t: type, u: type) -> type
+    @type Exclude<T,U> (t: type, u: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1386,13 +1369,11 @@ end
     A type function that keeps only the members of a union `T` that match `U`.
 
     A member matches if it is the same type as a member of `U`, if it is a
-    singleton whose primitive type is in `U` (so `"a"` matches `string`), or
-    if `U` contains `unknown` or `any`.
-    `boolean` is treated as `true | false`, so `Extract<boolean, true>` is
-    `true`.
-    Tables, functions, and classes only match a structurally identical type,
-    not a subtype or supertype.
-    If no member matches, the result is `never`.
+    singleton whose primitive type is in `U` (so `"a"` matches `string`), or if
+    `U` contains `unknown` or `any`. `boolean` is treated as `true | false`, so
+    `Extract<boolean, true>` is `true`. Tables, functions, and classes only
+    match a structurally identical type, not a subtype or supertype. If no
+    member matches, the result is `never`.
 
     ```lua
     type Input = "Jump" | "Crouch" | number | Vector3
@@ -1404,7 +1385,7 @@ end
     -- "Jump" | "Crouch"
     ```
 
-    @type Extract (t: type, u: type) -> type
+    @type Extract<T,U> (t: type, u: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1482,19 +1463,17 @@ end
 --[=[
     A type function that keeps only the given named properties of a table type.
 
-    `K` is a string singleton or a union of string singletons.
-    Every key must be a property of `T`, otherwise it is a type error.
+    `K` is a string singleton or a union of string singletons. Every key must be
+    a property of `T`, otherwise it is a type error.
 
     `read` and `write` modifiers are kept, and the metatable is copied
-    unchanged.
-    The indexer is dropped, since only named properties are picked.
+    unchanged. The indexer is dropped, since only named properties are picked.
     Unions are converted member by member, keeping `nil`, so every member must
-    have every key.
-    For intersections, each key only has to be in one member, and members
-    without any of the keys are dropped.
-    So if `a` is only in `A` and `b` is only in `B`,
-    `Pick<A & B, "a" | "b">` is `Pick<A, "a"> & Pick<B, "b">`.
-    Any other type that is not a table is a type error.
+    have every key. For intersections, each key only has to be in one member,
+    and members without any of the keys are dropped. So if `a` is only in `A`
+    and `b` is only in `B`, `Pick<A & B, "a" | "b">` is
+    `Pick<A, "a"> & Pick<B, "b">`. Any other type that is not a table is a type
+    error.
 
     ```lua
     type Profile = { name: string, level: number, coins: number }
@@ -1503,7 +1482,7 @@ end
     -- { name: string, level: number }
     ```
 
-    @type Pick (t: type, k: type) -> type
+    @type Pick<T,K> (t: type, k: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1615,15 +1594,14 @@ end
 --[=[
     A type function that removes the given named properties of a table type.
 
-    `K` is a string singleton or a union of string singletons.
-    Keys that are not properties of `T` are ignored.
+    `K` is a string singleton or a union of string singletons. Keys that are not
+    properties of `T` are ignored.
 
     `read` and `write` modifiers are kept, and the indexer and metatable are
-    copied unchanged.
-    Unions and intersections are converted member by member, keeping `nil` in
-    unions, so `Omit<A | B>` is `Omit<A> | Omit<B>` and `Omit<A?>` is
-    `Omit<A>?`.
-    Any other type that is not a table is a type error.
+    copied unchanged. Unions and intersections are converted member by member,
+    keeping `nil` in unions, so `Omit<A | B>` is `Omit<A> | Omit<B>` and
+    `Omit<A?>` is `Omit<A>?`. Any other type that is not a table is a type
+    error.
 
     ```lua
     type Profile = { name: string, level: number, coins: number }
@@ -1632,7 +1610,7 @@ end
     -- { name: string, level: number }
     ```
 
-    @type Omit (t: type, k: type) -> type
+    @type Omit<T,K> (t: type, k: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1707,20 +1685,19 @@ export type function Omit(t: type, k: type): type
 end
 
 --[=[
-    A type function that merges two table types, with `B`'s properties
-    replacing `A`'s.
+    A type function that merges two table types, with `B`'s properties replacing
+    `A`'s.
 
     Properties only in `A` are kept, properties in `B` replace any property of
-    `A` with the same name, including its `read` and `write` modifiers.
-    Unlike `A & B`, conflicting properties do not become `never`.
-    `B`'s indexer and metatable are used if it has them, otherwise `A`'s are
-    copied unchanged.
+    `A` with the same name, including its `read` and `write` modifiers. Unlike
+    `A & B`, conflicting properties do not become `never`. `B`'s indexer and
+    metatable are used if it has them, otherwise `A`'s are copied unchanged.
 
     Unions and intersections of `A`, and unions of `B`, are merged member by
-    member, so `Merge<A1 | A2, B>` is `Merge<A1, B> | Merge<A2, B>`.
-    If `B` is an intersection, `A`'s properties that any member of `B` has are
-    removed, and the result is intersected with each member of `B`.
-    Any other type that is not a table is a type error.
+    member, so `Merge<A1 | A2, B>` is `Merge<A1, B> | Merge<A2, B>`. If `B` is
+    an intersection, `A`'s properties that any member of `B` has are removed,
+    and the result is intersected with each member of `B`. Any other type that
+    is not a table is a type error.
 
     ```lua
     type Base = { id: number, name: string, tags: { string } }
@@ -1733,7 +1710,7 @@ end
     -- `id` is `number & string`, which is `never`
     ```
 
-    @type Merge (a: type, b: type) -> type
+    @type Merge<A,B> (a: type, b: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1844,25 +1821,23 @@ end
     position.
 
     `I` is a string singleton holding a 1-based index, such as `"1"` or `"2"`,
-    since Luau does not have number singleton types.
-    If the position falls inside a variadic parameter (`...T`), the result is
-    `T`.
-    If the function has no parameter at that position, or the position falls
-    inside a generic type pack (`T...`), it is a type error.
+    since Luau does not have number singleton types. If the position falls
+    inside a variadic parameter (`...T`), the result is `T`. If the function has
+    no parameter at that position, or the position falls inside a generic type
+    pack (`T...`), it is a type error.
 
-    Functions whose type is inferred from a `function` definition carry a
-    hidden `...any` parameter, so a position past their last parameter gives
-    `any` instead of a type error.
-    Use an explicit function type, such as a type alias, to avoid this.
+    Functions whose type is inferred from a `function` definition carry a hidden
+    `...any` parameter, so a position past their last parameter gives `any`
+    instead of a type error. Use an explicit function type, such as a type
+    alias, to avoid this.
 
-    Methods count `self` as their first parameter.
-    For a union of functions, every member must have the parameter, and the
-    result is the intersection of their parameter types, since only a value
-    every member accepts can be passed.
-    For an overloaded function (an intersection of functions), overloads without
-    the parameter are skipped, and the result is the union of the rest, since a
-    value any overload accepts can be passed.
-    Any other type that is not a function is a type error.
+    Methods count `self` as their first parameter. For a union of functions,
+    every member must have the parameter, and the result is the intersection of
+    their parameter types, since only a value every member accepts can be
+    passed. For an overloaded function (an intersection of functions), overloads
+    without the parameter are skipped, and the result is the union of the rest,
+    since a value any overload accepts can be passed. Any other type that is not
+    a function is a type error.
 
     ```lua
     local function spawnEnemy(name: string, level: number): Model
@@ -1876,7 +1851,7 @@ end
     -- number
     ```
 
-    @type Parameter (f: type, i: type) -> type
+    @type Parameter<F,I> (f: type, i: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -1948,17 +1923,15 @@ end
 --[=[
     A type function that gets the first return type of a function type.
 
-    This is the type a caller gets from `local value = f()`.
-    If the function returns nothing, the result is `nil`.
-    If its first return is variadic (`...T`), the result is `T?`, since it may
-    return no values.
-    If its first return is a generic type pack (`T...`), it is a type error.
+    This is the type a caller gets from `local value = f()`. If the function
+    returns nothing, the result is `nil`. If its first return is variadic
+    (`...T`), the result is `T?`, since it may return no values. If its first
+    return is a generic type pack (`T...`), it is a type error.
 
-    Luau type functions cannot return type packs, so only the first return
-    type is available.
-    For a union of functions or an overloaded function (an intersection of
-    functions), the result is the union of each member's return type.
-    Any other type that is not a function is a type error.
+    Luau type functions cannot return type packs, so only the first return type
+    is available. For a union of functions or an overloaded function (an
+    intersection of functions), the result is the union of each member's return
+    type. Any other type that is not a function is a type error.
 
     ```lua
     local function spawnEnemy(name: string, level: number): Model
@@ -1969,7 +1942,7 @@ end
     -- Model
     ```
 
-    @type ReturnType (f: type) -> type
+    @type ReturnType<F> (f: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -2014,19 +1987,18 @@ end
     This turns a method's type into the type of a plain function, such as one
     that has `self` bound with a closure.
 
-    Variadic parameters, return types, and generics are kept unchanged.
-    The first parameter is removed whatever its name, since Luau does not
-    track parameter names in types.
-    If a function has no fixed parameters, it is a type error.
-    Unions of functions and overloaded functions (intersections of functions)
-    are converted member by member.
-    Any other type that is not a function is a type error.
+    Variadic parameters, return types, and generics are kept unchanged. The
+    first parameter is removed whatever its name, since Luau does not track
+    parameter names in types. If a function has no fixed parameters, it is a
+    type error. Unions of functions and overloaded functions (intersections of
+    functions) are converted member by member. Any other type that is not a
+    function is a type error.
 
     Functions whose type is inferred from a `function` definition (including
     methods) carry a hidden `...any` parameter, so
     `OmitSelf<typeof(Class.method)>` keeps it in the result, even when every
-    parameter is annotated.
-    Use an explicit function type, such as a type alias, to avoid this.
+    parameter is annotated. Use an explicit function type, such as a type alias,
+    to avoid this.
 
     ```lua
     local Door = {}
@@ -2051,7 +2023,7 @@ end
     end
     ```
 
-    @type OmitSelf (f: type) -> type
+    @type OmitSelf<F> (f: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -2096,10 +2068,9 @@ end
 --[=[
     A type function that converts a string singleton type to uppercase.
 
-    Unions are converted member by member, and `string` is left unchanged.
-    Only string singletons and `string` are accepted, so any other type is a
-    type error.
-    Only ASCII letters are converted, matching `string.upper`.
+    Unions are converted member by member, and `string` is left unchanged. Only
+    string singletons and `string` are accepted, so any other type is a type
+    error. Only ASCII letters are converted, matching `string.upper`.
 
     ```lua
     type Direction = "north" | "south"
@@ -2108,7 +2079,7 @@ end
     -- "NORTH" | "SOUTH"
     ```
 
-    @type Uppercase (t: type) -> type
+    @type Uppercase<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -2138,10 +2109,9 @@ end
 --[=[
     A type function that converts a string singleton type to lowercase.
 
-    Unions are converted member by member, and `string` is left unchanged.
-    Only string singletons and `string` are accepted, so any other type is a
-    type error.
-    Only ASCII letters are converted, matching `string.lower`.
+    Unions are converted member by member, and `string` is left unchanged. Only
+    string singletons and `string` are accepted, so any other type is a type
+    error. Only ASCII letters are converted, matching `string.lower`.
 
     ```lua
     type Rarity = "Common" | "Rare" | "Legendary"
@@ -2150,7 +2120,7 @@ end
     -- "common" | "rare" | "legendary"
     ```
 
-    @type Lowercase (t: type) -> type
+    @type Lowercase<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -2178,13 +2148,12 @@ export type function Lowercase(t: type): type
 end
 
 --[=[
-    A type function that converts the first character of a string singleton
-    type to uppercase.
+    A type function that converts the first character of a string singleton type
+    to uppercase.
 
-    Unions are converted member by member, and `string` is left unchanged.
-    Only string singletons and `string` are accepted, so any other type is a
-    type error.
-    Only ASCII letters are converted, matching `string.upper`.
+    Unions are converted member by member, and `string` is left unchanged. Only
+    string singletons and `string` are accepted, so any other type is a type
+    error. Only ASCII letters are converted, matching `string.upper`.
 
     ```lua
     type Action = "jump" | "crouch"
@@ -2193,7 +2162,7 @@ end
     -- "Jump" | "Crouch"
     ```
 
-    @type Capitalize (t: type) -> type
+    @type Capitalize<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]
@@ -2224,13 +2193,12 @@ export type function Capitalize(t: type): type
 end
 
 --[=[
-    A type function that converts the first character of a string singleton
-    type to lowercase.
+    A type function that converts the first character of a string singleton type
+    to lowercase.
 
-    Unions are converted member by member, and `string` is left unchanged.
-    Only string singletons and `string` are accepted, so any other type is a
-    type error.
-    Only ASCII letters are converted, matching `string.lower`.
+    Unions are converted member by member, and `string` is left unchanged. Only
+    string singletons and `string` are accepted, so any other type is a type
+    error. Only ASCII letters are converted, matching `string.lower`.
 
     ```lua
     type ServiceName = "Players" | "Workspace"
@@ -2239,7 +2207,7 @@ end
     -- "players" | "workspace"
     ```
 
-    @type Uncapitalize (t: type) -> type
+    @type Uncapitalize<T> (t: type) -> type
     @within typing
     @since [UNRELEASED]
 ]=]

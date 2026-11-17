@@ -316,8 +316,8 @@ function Result.mapOr<T, E, U>(self: Result<T, E>, default: U, mapper: Mapper<T,
 end
 
 --[=[
-    Maps a `Result<T, E>` to `U` by applying `mapper` to a contained "ok"
-    value, or the fallback function `default` to a contained "err" value.
+    Maps a `Result<T, E>` to `U` by applying `mapper` to a contained "ok" value,
+    or the fallback function `default` to a contained "err" value.
 
     ```lua
     local function double(x: number): number
@@ -939,9 +939,8 @@ end
 --[=[
     Transposes an [Option] of a `Result` into a `Result` of an [Option].
 
-    A "some" with an "ok" is mapped to an "ok" with the "some". A "some" with
-    an "err" is mapped to an "err". A "none" is mapped to an "ok" with a
-    "none".
+    A "some" with an "ok" is mapped to an "ok" with the "some". A "some" with an
+    "err" is mapped to an "err". A "none" is mapped to an "ok" with a "none".
 
     ```lua
     Result.transposeOption(Option.some(Result.ok(1))) -- Ok(Some(1))

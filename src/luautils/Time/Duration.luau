@@ -23,25 +23,25 @@ local fail = Core.Errors.errorWithScope("Duration")
     precision beyond ~104 days. Splitting into seconds and nanoseconds gives
     exact time arithmetic at both scales without any practical upper limit.
     Arithmetic is exact as long as the whole seconds stay below 2^53, and
-    conversions to a single `number`, such as [Duration:toNanos], are subject
-    to the usual float64 precision limits.
+    conversions to a single `number`, such as [Duration:toNanos], are subject to
+    the usual float64 precision limits.
 
     A `Duration` may also be positive or negative infinity (see
-    [Duration.INFINITE]). Infinite `Duration`s have no sub-second component,
-    and operations whose result would be undefined, such as adding infinities
-    with different signs or multiplying infinity by zero, throw. `NaN` is never
-    a valid input.
+    [Duration.INFINITE]). Infinite `Duration`s have no sub-second component, and
+    operations whose result would be undefined, such as adding infinities with
+    different signs or multiplying infinity by zero, throw. `NaN` is never a
+    valid input.
 
     `Duration`s are frozen and cannot be modified.
 
-    Supports `==`, `~=`, `<`, `<=`, `>`, and `>=` comparison, `tostring()`,
-    `+`, `-`, `//`, and `%` arithmetic with other `Duration`s, `*` and `/`
-    arithmetic with a scalar, and `-` negation.
+    Supports `==`, `~=`, `<`, `<=`, `>`, and `>=` comparison, `tostring()`, `+`,
+    `-`, `//`, and `%` arithmetic with other `Duration`s, `*` and `/` arithmetic
+    with a scalar, and `-` negation.
 
-    Error messages thrown by `Duration` functions are prefixed with the
-    function that threw them, such as `[Duration.plus()]: `, after the usual
-    position prefix added by `error()`. Operators report the method that backs
-    them, so `a + b` reports `[Duration.plus()]`.
+    Error messages thrown by `Duration` functions are prefixed with the function
+    that threw them, such as `[Duration.plus()]: `, after the usual position
+    prefix added by `error()`. Operators report the method that backs them, so
+    `a + b` reports `[Duration.plus()]`.
 
     @tag immutable
     @class Duration
@@ -431,8 +431,8 @@ local function parseErrMsg(input: string, pos: number?, reason: string): string
 end
 
 --[=[
-    Creates a new `Duration` from the specified number of seconds and
-    additional nanoseconds.
+    Creates a new `Duration` from the specified number of seconds and additional
+    nanoseconds.
 
     Fractional seconds will be split into seconds and nanoseconds. Fractional
     nanoseconds will be rounded to the nearest nanosecond, with halves rounded
@@ -727,10 +727,9 @@ end
 --[=[
     Returns the total number of nanoseconds contained by this `Duration`.
 
-    The result is a single `number`, so it is subject to float64 precision
-    loss beyond ~104 days. Use [Duration:toSecondsAndNanos]
-    for exact values. Returns `math.huge` or `-math.huge` for infinite
-    `Duration`s.
+    The result is a single `number`, so it is subject to float64 precision loss
+    beyond ~104 days. Use [Duration:toSecondsAndNanos] for exact values. Returns
+    `math.huge` or `-math.huge` for infinite `Duration`s.
 
     @method toNanos
     @within Duration
@@ -1087,8 +1086,8 @@ end
     Returns the days component of this `Duration`.
 
     Days are the largest component, so the magnitude is unbounded. The result
-    has the same sign as the `Duration`. Returns `math.huge` or `-math.huge`
-    for infinite `Duration`s.
+    has the same sign as the `Duration`. Returns `math.huge` or `-math.huge` for
+    infinite `Duration`s.
 
     Unlike the smaller `*Part` methods, which are exact at any magnitude, this
     is a float division and may be off by rounding past 2^53 seconds.
@@ -1414,8 +1413,8 @@ end
 
     The result is exact for integer scalars of any size, as long as it stays
     below 2^53 seconds. Fractional scalars are rounded to the nearest
-    nanosecond. Multiplying an infinite `Duration`, or multiplying
-    by an infinite scalar, returns an infinite `Duration` with the sign of the
+    nanosecond. Multiplying an infinite `Duration`, or multiplying by an
+    infinite scalar, returns an infinite `Duration` with the sign of the
     product.
 
     Also used for the `*` operator, in either order (`duration * 2` or
@@ -1472,9 +1471,10 @@ end
 
     For integer scalars of any size, the division is exact before rounding as
     long as this `Duration` is below 2^53 seconds, and halves are rounded away
-    from zero. Fractional scalars are rounded through float arithmetic. Dividing an infinite `Duration` returns an infinite `Duration`
-    with the sign of the quotient, and dividing a finite `Duration` by an
-    infinity returns [Duration.ZERO].
+    from zero. Fractional scalars are rounded through float arithmetic. Dividing
+    an infinite `Duration` returns an infinite `Duration` with the sign of the
+    quotient, and dividing a finite `Duration` by an infinity returns
+    [Duration.ZERO].
 
     To divide by another `Duration`, use [Duration:floorDividedBy],
     [Duration:truncatedDividedBy], or [Duration:ratio].
@@ -1573,10 +1573,9 @@ Duration.__div = Duration.dividedBy
 --[=[
     Returns how many times another whole `Duration` can fit into this one.
 
-    The quotient is exact and floored toward negative infinity, so
-    `-3s // 2s` is `-2`. Pairs with [Duration:mod], such that
-    `self == other * q + r`. Use [Duration:truncatedDividedBy] to truncate
-    toward zero instead.
+    The quotient is exact and floored toward negative infinity, so `-3s // 2s`
+    is `-2`. Pairs with [Duration:mod], such that `self == other * q + r`. Use
+    [Duration:truncatedDividedBy] to truncate toward zero instead.
 
     Also used for the `//` operator.
 
@@ -2018,8 +2017,8 @@ end
 --[=[
     Returns `true` if both `Duration`s represent the same span of time.
 
-    Returns `false` if `other` is not a `Duration`. Infinities are only equal
-    to infinities with the same sign.
+    Returns `false` if `other` is not a `Duration`. Infinities are only equal to
+    infinities with the same sign.
 
     Also used for the `==` and `~=` operators.
 
@@ -2136,9 +2135,8 @@ end
     Creates a new `Duration` from an ISO 8601 duration string, such as
     `"PT1H30M"`.
 
-    The accepted format is `PnWnDTnHnMnS`, where every component is optional
-    but at least one must be present, and components must appear in that
-    order:
+    The accepted format is `PnWnDTnHnMnS`, where every component is optional but
+    at least one must be present, and components must appear in that order:
     * An optional leading `-` or `+` sign applies to the whole `Duration`
     * `W` (weeks) and `D` (days) must come before the `T` separator
     * `H` (hours), `M` (minutes), and `S` (seconds) must come after it
@@ -2146,9 +2144,9 @@ end
       separator; digits past nanosecond precision are truncated
     * Letters are case-insensitive
 
-    Years and months are rejected, since they have no fixed length. The
-    strings `Infinity`, `+Infinity`, and `-Infinity` (also case-insensitive)
-    are accepted for infinite `Duration`s.
+    Years and months are rejected, since they have no fixed length. The strings
+    `Infinity`, `+Infinity`, and `-Infinity` (also case-insensitive) are
+    accepted for infinite `Duration`s.
 
     Strings totaling more than 2^53 seconds (about 285 million years) are
     rejected, since they cannot be represented exactly. Below that limit, every
@@ -2185,9 +2183,8 @@ end
     Tries to create a new `Duration` from an ISO 8601 duration string, such as
     `"PT1H30M"`.
 
-    The accepted format is `PnWnDTnHnMnS`, where every component is optional
-    but at least one must be present, and components must appear in that
-    order:
+    The accepted format is `PnWnDTnHnMnS`, where every component is optional but
+    at least one must be present, and components must appear in that order:
     * An optional leading `-` or `+` sign applies to the whole `Duration`
     * `W` (weeks) and `D` (days) must come before the `T` separator
     * `H` (hours), `M` (minutes), and `S` (seconds) must come after it
@@ -2195,9 +2192,9 @@ end
       separator; digits past nanosecond precision are truncated
     * Letters are case-insensitive
 
-    Years and months are rejected, since they have no fixed length. The
-    strings `Infinity`, `+Infinity`, and `-Infinity` (also case-insensitive)
-    are accepted for infinite `Duration`s.
+    Years and months are rejected, since they have no fixed length. The strings
+    `Infinity`, `+Infinity`, and `-Infinity` (also case-insensitive) are
+    accepted for infinite `Duration`s.
 
     Strings totaling more than 2^53 seconds (about 285 million years) are
     rejected, since they cannot be represented exactly. Below that limit, every
@@ -2206,9 +2203,9 @@ end
 
     Returns an "ok" [Result] holding the `Duration`, or an "err" [Result]
     holding a message in the form
-    `Invalid ISO-8601 duration: "{input}" ({reason} at position {pos})`.
-    The too-large error has no position, since it applies to the whole string.
-    Never throws.
+    `Invalid ISO-8601 duration: "{input}" ({reason} at position {pos})`. The
+    too-large error has no position, since it applies to the whole string. Never
+    throws.
 
     ```lua
     Duration.tryParse("PT1H") -- Ok(PT1H)
@@ -2341,11 +2338,11 @@ end
     a zero `Duration` is `"PT0S"`. Negative `Duration`s are prefixed with `-`.
     Infinite `Duration`s are `"Infinity"` or `"-Infinity"`.
 
-    The hours, minutes, and seconds are exact at any magnitude, but the days
-    are a float division and may be off by rounding past 2^53 seconds. The
-    result can be parsed back into an equal `Duration` with [Duration.parse]
-    only if the `Duration` is below 2^53 seconds (about 285 million years),
-    since [Duration.parse] rejects anything larger.
+    The hours, minutes, and seconds are exact at any magnitude, but the days are
+    a float division and may be off by rounding past 2^53 seconds. The result
+    can be parsed back into an equal `Duration` with [Duration.parse] only if
+    the `Duration` is below 2^53 seconds (about 285 million years), since
+    [Duration.parse] rejects anything larger.
 
     Also used by `tostring()`.
 
@@ -2427,11 +2424,11 @@ Duration.__tostring = Duration.toString
     * %f - milliseconds (0-999)
     * %% - literal '%'
 
-    An optional zero-pad width of at most two digits may follow the '%'
-    (e.g. '%02H'). Wider widths, such as '%100S', are rejected by
-    `string.format` with a raw Luau error. Values are truncated, not rounded,
-    and are always non-negative; negative `Duration`s are prefixed with a
-    single '-' instead. A trailing '%' with no specifier is kept as-is.
+    An optional zero-pad width of at most two digits may follow the '%' (e.g.
+    '%02H'). Wider widths, such as '%100S', are rejected by `string.format` with
+    a raw Luau error. Values are truncated, not rounded, and are always
+    non-negative; negative `Duration`s are prefixed with a single '-' instead. A
+    trailing '%' with no specifier is kept as-is.
 
     `%H`, `%M`, `%S`, and `%f` are exact at any magnitude. `%d` is a float
     division, so like [Duration:toString], it may be off by rounding for
@@ -2491,17 +2488,16 @@ function Duration.format(self: Duration, pattern: string): string
 end
 
 --[=[
-    Converts this `Duration` to a human-readable string, like
-    '2d 12h 18m 5s 123ms'.
+    Converts this `Duration` to a human-readable string, like '2d 12h 18m 5s
+    123ms'.
 
     Units smaller than `options.smallestUnit` are omitted, not rounded.
 
     Zero-valued components are not included, but still count toward
-    `options.maxUnits` once the largest non-zero unit is reached, so
-    `1d 0h 5m` with `maxUnits = 2` becomes `"1d"`. A `Duration` with no
-    components to show returns zero of the smallest unit, such as `"0ms"`.
-    Negative `Duration`s are prefixed with `-`, and infinite `Duration`s return
-    `"∞"` or `"-∞"`.
+    `options.maxUnits` once the largest non-zero unit is reached, so `1d 0h 5m`
+    with `maxUnits = 2` becomes `"1d"`. A `Duration` with no components to show
+    returns zero of the smallest unit, such as `"0ms"`. Negative `Duration`s are
+    prefixed with `-`, and infinite `Duration`s return `"∞"` or `"-∞"`.
 
     ```lua
     local d = Duration.fromSeconds(93_784.567)
@@ -2650,9 +2646,8 @@ end
     guaranteed to work with deserialization.
 
     Returns an "ok" [Result] holding the `Duration`, or an "err" [Result]
-    holding a message describing the first problem found, such as a missing
-    key, a non-integer value, or `nanos` outside of [0, 999_999_999]. Never
-    throws.
+    holding a message describing the first problem found, such as a missing key,
+    a non-integer value, or `nanos` outside of [0, 999_999_999]. Never throws.
 
     ```lua
     Duration.tryDeserialize({ secs = 1, nanos = 0 }) -- Ok(PT1S)

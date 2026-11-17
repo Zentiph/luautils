@@ -602,4 +602,175 @@ do -- string stays string
     local _notAny: false = isAny
 end
 
+--[[ Class ]]
+
+local Class = require("../../src/luautils/Core/Class")
+
+local Animal = {}
+Animal.MAX_HEALTH = 10
+
+export type AnimalFields = { name: string, health: number }
+
+function Animal.fields(name: string): AnimalFields
+    return { name = name, health = Animal.MAX_HEALTH }
+end
+
+function Animal.new(name: string)
+    return Class.new(Animal, Animal.fields(name))
+end
+
+function Animal.count(): number
+    return 0
+end
+
+function Animal.speak(_self): string
+    return "..."
+end
+
+function Animal.hurt(self: AnimalFields, amount: number)
+    self.health -= amount
+end
+
+local Dog = setmetatable({}, Class.extends(Animal))
+
+export type DogFields = AnimalFields & { breed: string }
+
+function Dog.fields(name: string, breed: string): DogFields
+    return Class.merge(Animal.fields(name), { breed = breed })
+end
+
+function Dog.new(name: string, breed: string)
+    return Class.new(Dog, Dog.fields(name, breed))
+end
+
+function Dog.speak(self): string
+    return Animal.speak(self) .. "Woof!"
+end
+
+function Dog.fetch(self: DogFields): string
+    return `{self.name} fetches the ball`
+end
+
+local Puppy = setmetatable({}, Class.extends(Dog))
+
+function Puppy.new(name: string)
+    return Class.new(Puppy, Dog.fields(name, "mutt"), { age = 0 })
+end
+
+do -- IsA has the constructor's fields, methods, and other values, without
+    -- new, __ keys, or static functions
+    local actual: Class.IsA<typeof(Animal)> = nil :: any
+    local expected: {
+        name: string,
+        health: number,
+        read MAX_HEALTH: number,
+        read speak: (any, ...any) -> string,
+        read hurt: (any, number, ...any) -> (),
+    } =
+        actual
+    local _: typeof(actual) = expected
+    local isAny: IsAny<typeof(actual)> = nil :: any
+    local _notAny: false = isAny
+end
+
+do -- IsA includes inherited methods, keeping the nearest override
+    local actual: Class.IsA<typeof(Dog)> = nil :: any
+    local expected: {
+        name: string,
+        health: number,
+        breed: string,
+        read MAX_HEALTH: number,
+        read speak: (any, ...any) -> string,
+        read hurt: (any, number, ...any) -> (),
+        read fetch: (any, ...any) -> string,
+    } =
+        actual
+    local _: typeof(actual) = expected
+    local isAny: IsAny<typeof(actual)> = nil :: any
+    local _notAny: false = isAny
+end
+
+do -- base class instances can be passed directly
+    local _: Class.IsA<typeof(Animal)> = Animal.new("Generic")
+end
+
+do -- cast lets subclass instances be passed, at any depth
+    local animals: { Class.IsA<typeof(Animal)> } = {
+        Animal.new("Generic"),
+        Class.cast(Dog.new("Rex", "Labrador"), Animal),
+        Class.cast(Puppy.new("Bit"), Animal),
+    }
+    local _name: string = animals[1].name
+    local _speak: string = animals[1]:speak()
+    animals[1].name = "Renamed"
+    animals[1]:hurt(1)
+end
+
+do -- cast to a class in between keeps its members
+    local dog = Class.cast(Puppy.new("Bit"), Dog)
+    local _fetch: string = dog:fetch()
+    local _breed: string = dog.breed
+end
+
+do -- tryCast returns an optional instance
+    local function onHit(target: unknown): string?
+        local dog = Class.tryCast(target, Dog)
+        if dog then
+            dog:hurt(2)
+            return dog:fetch()
+        end
+        return nil
+    end
+    local _ = onHit(Puppy.new("Bit"))
+end
+
+do -- merge types the result as both tables
+    local fields: DogFields = Dog.fields("Rex", "Labrador")
+    local _name: string = fields.name
+    local _breed: string = fields.breed
+    local merged = Class.merge({ a = 1 }, { b = "x" })
+    local _a: number = merged.a
+    local _b: string = merged.b
+end
+
+do -- instances keep every field and method through all levels
+    local puppy = Puppy.new("Bit")
+    local _age: number = puppy.age
+    local _breed: string = puppy.breed
+    local _name: string = puppy.name
+    local _fetch: string = puppy:fetch()
+    local _speak: string = puppy:speak()
+    puppy:hurt(1)
+    puppy.name = "Renamed"
+    puppy.age += 1
+    puppy.health -= 1
+end
+
+do -- sealed classes keep their types, and their instances can be frozen
+    local Vector = {}
+
+    -- frozen instances have read-only fields
+    type VectorFields = { read x: number, read y: number }
+
+    function Vector.new(x: number, y: number)
+        return table.freeze(Class.new(Vector, { x = x, y = y }))
+    end
+
+    function Vector.add(a: VectorFields, b: VectorFields)
+        return Vector.new(a.x + b.x, a.y + b.y)
+    end
+
+    Class.sealed(Vector)
+    local sum = Vector.add(Vector.new(1, 2), Vector.new(3, 4))
+    local _x: number = sum.x
+    local _sealed: boolean = Class.isSealed(Vector)
+end
+
+do -- inspectors accept anything
+    local _isA: boolean = Class.isA(Puppy.new("Bit"), Animal)
+    local _sub: boolean = Class.isSubclassOf(Puppy, Animal)
+    local _parent = Class.parentOf(Puppy)
+    local _class = Class.classOf(Puppy.new("Bit"))
+end
+
 return nil

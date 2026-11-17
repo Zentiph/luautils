@@ -80,6 +80,7 @@ export type Capitalize<T> = Core.Capitalize<T>
 export type Uncapitalize<T> = Core.Uncapitalize<T>
 export type Disconnectable = Core.Disconnectable
 export type Destroyable = Core.Destroyable
+export type IsA<C> = Core.IsA<C>
 
 local Collections = require("@self/Collections")
 Luautils.Collections = Collections

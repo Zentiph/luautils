@@ -1,7 +1,9 @@
 --!strict
 
 -- Type checks the typing type function tests in tests/typing
--- Usage (from repo root): lute run .lute/typing.luau
+-- Usage (from repo root): lute run .lute/typing.luau [--no-flags-enabled]
+-- Pass --no-flags-enabled to check with Studio's Luau flags instead of every
+-- flag luau-lsp knows (see .lute/ci.luau)
 -- by @vuppyan
 
 -- tests/typing/valid.luau must type check with no errors.
@@ -14,6 +16,12 @@ local process = require("@std/process")
 
 local VALID_FILE = "tests/typing/valid.luau"
 local ERRORS_DIR = "tests/typing/errors"
+
+-- process.args[1] is this script's path
+local extraFlag: string? = process.args[2]
+if extraFlag ~= nil and extraFlag ~= "--no-flags-enabled" then
+    error(`unknown argument "{extraFlag}"`, 0)
+end
 
 type Expectation = {
     line: number,
@@ -28,14 +36,18 @@ type Diagnostic = {
 
 local function analyze(path: string, stdio: process.StdioKind?)
     -- src is ignored since it is checked separately with ROBLOX globals
-    return process.run({
+    local args = {
         "luau-lsp",
         "analyze",
         "--platform=standard",
         "--flag:LuauSolverV2=true",
         "--ignore=src/**",
-        path,
-    }, { stdio = stdio })
+    }
+    if extraFlag ~= nil then
+        table.insert(args, extraFlag)
+    end
+    table.insert(args, path)
+    return process.run(args, { stdio = stdio })
 end
 
 -- reads the `-- error: <text>` comments in `source`, each expecting an error
