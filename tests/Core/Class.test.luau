@@ -118,7 +118,7 @@ test.suite("extends()", function(suite)
 
         Helpers.throwsWith(asserts, function()
             Class.extends(base)
-        end, "[Class.extends()]: Cannot extend a sealed base class")
+        end, "[Class.extends()]: Cannot extend a sealed class")
     end)
 
     suite:case("a foreign base __index throws", function(asserts)
@@ -137,7 +137,7 @@ test.suite("extends()", function(suite)
 
         Helpers.throwsWith(asserts, function()
             Class.extends(a)
-        end, "[Class.extends()]: Circular inheritance detected in base class")
+        end, "[Class.extends()]: Circular inheritance detected")
     end)
 
     suite:case("a base class that is its own parent throws", function(asserts)
@@ -146,8 +146,65 @@ test.suite("extends()", function(suite)
 
         Helpers.throwsWith(asserts, function()
             Class.extends(base)
-        end, "[Class.extends()]: Circular inheritance detected in base class")
+        end, "[Class.extends()]: Circular inheritance detected")
     end)
+
+    suite:case("frozen base classes that need setup throw", function(asserts)
+        Helpers.throwsWith(
+            asserts,
+            function()
+                Class.extends(table.freeze(newClass()))
+            end,
+            "[Class.extends()]: Cannot extend a class frozen with "
+                .. "table.freeze() before being set up"
+        )
+    end)
+
+    suite:case(
+        "frozen base classes missing inherited keys throw",
+        function(asserts)
+            local root = newClass()
+            function root.__tostring()
+                return "root"
+            end
+            local base = subclass(root)
+            base.__index = base
+            table.freeze(base)
+
+            Helpers.throwsWith(
+                asserts,
+                function()
+                    Class.extends(base)
+                end,
+                "[Class.extends()]: Cannot extend a class frozen with "
+                    .. "table.freeze() before being set up"
+            )
+        end
+    )
+
+    suite:case(
+        "frozen base classes that need no setup can be extended",
+        function(asserts)
+            local base = newClass()
+            base.__index = base
+            table.freeze(base)
+            local sub = subclass(base)
+
+            asserts.eq(true, Class.isA(Class.new(sub), base))
+        end
+    )
+
+    suite:case(
+        "base classes frozen after being set up can be extended",
+        function(asserts)
+            local base = newClass()
+            Class.new(base)
+            table.freeze(base)
+            local sub = subclass(base)
+
+            asserts.eq(true, Class.isA(Class.new(sub), base))
+        end
+    )
 
     suite:case("errors blame the caller", function(asserts)
         local line
@@ -346,20 +403,15 @@ test.suite("new()", function(suite)
     suite:case("frozen fields throw", function(asserts)
         Helpers.throwsWith(asserts, function()
             Class.new(newClass(), table.freeze({}))
-        end, "[Class.new()]: Cannot use a frozen fields table")
+        end, "[Class.new()]: Cannot use frozen fields")
     end)
 
     suite:case("fields with a metatable throw", function(asserts)
         local other = Class.new(newClass())
 
-        Helpers.throwsWith(
-            asserts,
-            function()
-                Class.new(newClass(), other)
-            end,
-            "[Class.new()]: Cannot use a fields table that already has a "
-                .. "metatable"
-        )
+        Helpers.throwsWith(asserts, function()
+            Class.new(newClass(), other)
+        end, "[Class.new()]: Cannot use fields that already have a metatable")
     end)
 
     suite:case("a foreign __index throws", function(asserts)
@@ -384,8 +436,8 @@ test.suite("new()", function(suite)
             function()
                 Class.new(table.freeze(newClass()))
             end,
-            "[Class.new()]: Cannot set up a frozen class; use Class.sealed() "
-                .. "instead of table.freeze()"
+            "[Class.new()]: Cannot set up a class frozen with table.freeze(); "
+                .. "use Class.sealed() instead"
         )
     end)
 
@@ -435,6 +487,97 @@ test.suite("new()", function(suite)
     end)
 end)
 
+test.suite("new() with inherited fields", function(suite)
+    suite:case(
+        "returns the inherited fields as an instance of the class",
+        function(asserts)
+            local sub = subclass(newClass())
+            local inherited = { name = "Rex" }
+            local result = Class.new(sub, inherited, { breed = "Labrador" })
+
+            asserts.eq(inherited, result)
+            asserts.eq(sub, getmetatable(result))
+            asserts.eq("Rex", result.name)
+            asserts.eq("Labrador", result.breed)
+        end
+    )
+
+    suite:case("fields overwrite inherited fields", function(asserts)
+        local sub = subclass(newClass())
+        local result = Class.new(sub, { name = "Rex" }, { name = "Bit" })
+
+        asserts.eq("Bit", result.name)
+    end)
+
+    suite:case("fields can be nil or frozen", function(asserts)
+        local sub = subclass(newClass())
+        -- `nil` fields are allowed at runtime, but untyped, since `nil & B`
+        -- is uninhabited
+        local a = (Class.new :: any)(sub, {}, nil)
+        local b = Class.new(sub, {}, table.freeze({ x = 1 }))
+
+        asserts.eq(sub, getmetatable(a))
+        asserts.eq(1, b.x)
+    end)
+
+    suite:case("sets up the class", function(asserts)
+        local base = newClass()
+        function base.__tostring()
+            return "base"
+        end
+        local sub = subclass(base)
+        local result = Class.new(sub, {}, {})
+
+        asserts.eq(sub, rawget(sub, "__index"))
+        asserts.eq("base", tostring(result))
+    end)
+
+    suite:case("bad inherited fields throw", function(asserts)
+        local sub = subclass(newClass())
+        local new = Class.new :: any
+
+        Helpers.throwsWith(
+            asserts,
+            function()
+                new(sub, 5, {})
+            end,
+            "[Class.new()]: Expected inherited fields to be a table, got number"
+        )
+        Helpers.throwsWith(asserts, function()
+            Class.new(sub, table.freeze({}), {})
+        end, "[Class.new()]: Cannot use frozen inherited fields")
+        Helpers.throwsWith(
+            asserts,
+            function()
+                Class.new(sub, Class.new(newClass()), {})
+            end,
+            "[Class.new()]: Cannot use inherited fields that already have a "
+                .. "metatable"
+        )
+    end)
+
+    suite:case("bad fields throw", function(asserts)
+        local sub = subclass(newClass())
+        local new = Class.new :: any
+
+        Helpers.throwsWith(asserts, function()
+            new(sub, {}, 5)
+        end, "[Class.new()]: Expected a fields table or nil, got number")
+    end)
+
+    suite:case("errors blame the caller", function(asserts)
+        local sub = subclass(newClass())
+        local line
+        local ok, err = pcall(function()
+            line = debug.info(1, "l") :: number + 1
+            Class.new(sub, table.freeze({}), {})
+        end)
+
+        asserts.eq(false, ok)
+        asserts.strContains(tostring(err), `:{line}: [Class.new()]: `)
+    end)
+end)
+
 test.suite("sealed()", function(suite)
     suite:case("returns the same class", function(asserts)
         local class = newClass()
@@ -450,9 +593,9 @@ test.suite("sealed()", function(suite)
         end, "readonly")
     end)
 
-    suite:case("sets __metatable to the class itself", function(asserts)
+    suite:case("does not set __metatable", function(asserts)
         local class = Class.sealed(newClass())
-        asserts.eq(class, rawget(class, "__metatable"))
+        asserts.eq(nil, rawget(class, "__metatable"))
     end)
 
     suite:case("sets up the class first", function(asserts)
@@ -471,12 +614,12 @@ test.suite("sealed()", function(suite)
         asserts.eq(class, getmetatable(Class.new(class)))
     end)
 
-    suite:case("protects instances' metatables", function(asserts)
-        local instance = Class.new(Class.sealed(newClass()))
+    suite:case("instances can be frozen", function(asserts)
+        local class = Class.sealed(newClass())
+        local instance = table.freeze(Class.new(class, { x = 1 }))
 
-        Helpers.throwsWith(asserts, function()
-            setmetatable(instance, {})
-        end, "protected metatable")
+        asserts.eq(true, table.isfrozen(instance))
+        asserts.eq(class, getmetatable(instance))
     end)
 
     suite:case("freezes shallowly", function(asserts)
@@ -540,8 +683,8 @@ test.suite("sealed()", function(suite)
             function()
                 Class.sealed(sub)
             end,
-            "[Class.sealed()]: Cannot set up a frozen class; use "
-                .. "Class.sealed() instead of table.freeze()"
+            "[Class.sealed()]: Cannot set up a class frozen with table.freeze(); "
+                .. "use Class.sealed() instead"
         )
     end)
 
@@ -729,14 +872,9 @@ test.suite("isA()", function(suite)
     suite:case("circular inheritance throws", function(asserts)
         local a = loop()
 
-        Helpers.throwsWith(
-            asserts,
-            function()
-                Class.isA(setmetatable({}, a), newClass())
-            end,
-            "[Class.isA()]: Circular inheritance detected; likely caused by "
-                .. "setmetatable tampering"
-        )
+        Helpers.throwsWith(asserts, function()
+            Class.isA(setmetatable({}, a), newClass())
+        end, "[Class.isA()]: Circular inheritance detected")
     end)
 
     suite:case("errors blame the caller", function(asserts)
@@ -749,6 +887,125 @@ test.suite("isA()", function(suite)
 
         asserts.eq(false, ok)
         asserts.strContains(tostring(err), `:{line}: [Class.isA()]: `)
+    end)
+end)
+
+test.suite("isSubclassOf()", function(suite)
+    suite:case("direct subclasses are subclasses", function(asserts)
+        local base = newClass()
+
+        asserts.eq(true, Class.isSubclassOf(subclass(base), base))
+    end)
+
+    suite:case("subclasses at any depth are subclasses", function(asserts)
+        local root, leaf = chain(5)
+
+        asserts.eq(true, Class.isSubclassOf(leaf, root))
+    end)
+
+    suite:case("a class is not its own subclass", function(asserts)
+        local base = newClass()
+        local sub = subclass(base)
+
+        asserts.eq(false, Class.isSubclassOf(base, base))
+        asserts.eq(false, Class.isSubclassOf(sub, sub))
+    end)
+
+    suite:case("base classes are not subclasses", function(asserts)
+        local base = newClass()
+
+        asserts.eq(false, Class.isSubclassOf(base, subclass(base)))
+    end)
+
+    suite:case("unrelated classes are not subclasses", function(asserts)
+        asserts.eq(
+            false,
+            Class.isSubclassOf(subclass(newClass()), subclass(newClass()))
+        )
+    end)
+
+    suite:case("works with sealed classes", function(asserts)
+        local base = newClass()
+        local sub = Class.sealed(subclass(base))
+
+        asserts.eq(true, Class.isSubclassOf(sub, base))
+    end)
+
+    suite:case("non-tables return false", function(asserts)
+        local base = newClass()
+
+        asserts.eq(false, Class.isSubclassOf(5, base))
+        asserts.eq(false, Class.isSubclassOf(subclass(base), "base"))
+        asserts.eq(false, Class.isSubclassOf(nil, nil))
+    end)
+
+    suite:case("circular inheritance throws", function(asserts)
+        local a, b = loop()
+
+        Helpers.throwsWith(asserts, function()
+            Class.isSubclassOf(a, newClass())
+        end, "[Class.isSubclassOf()]: Circular inheritance detected")
+        asserts.eq(true, Class.isSubclassOf(a, b))
+    end)
+
+    suite:case("errors blame the caller", function(asserts)
+        local a = loop()
+        local line
+        local ok, err = pcall(function()
+            line = debug.info(1, "l") :: number + 1
+            Class.isSubclassOf(a, newClass())
+        end)
+
+        asserts.eq(false, ok)
+        asserts.strContains(tostring(err), `:{line}: [Class.isSubclassOf()]: `)
+    end)
+end)
+
+test.suite("parentOf()", function(suite)
+    suite:case("returns a subclass's base class", function(asserts)
+        local base = newClass()
+
+        asserts.eq(base, Class.parentOf(subclass(base)))
+    end)
+
+    suite:case("returns nil for classes without one", function(asserts)
+        local base = newClass()
+        Class.new(base)
+
+        asserts.eq(nil, Class.parentOf(base))
+        asserts.eq(nil, Class.parentOf(newClass()))
+    end)
+
+    suite:case("returns nil for non-tables", function(asserts)
+        asserts.eq(nil, Class.parentOf(5))
+        asserts.eq(nil, Class.parentOf("string"))
+        asserts.eq(nil, Class.parentOf(nil))
+    end)
+end)
+
+test.suite("classOf()", function(suite)
+    suite:case("returns an instance's class", function(asserts)
+        local base = newClass()
+        local sub = subclass(base)
+
+        asserts.eq(base, Class.classOf(Class.new(base)))
+        asserts.eq(sub, Class.classOf(Class.new(sub)))
+    end)
+
+    suite:case("works with sealed classes", function(asserts)
+        local class = Class.sealed(newClass())
+
+        asserts.eq(class, Class.classOf(Class.new(class)))
+    end)
+
+    suite:case("returns nil without a metatable", function(asserts)
+        asserts.eq(nil, Class.classOf({}))
+    end)
+
+    suite:case("returns nil for non-tables", function(asserts)
+        asserts.eq(nil, Class.classOf(5))
+        asserts.eq(nil, Class.classOf("string"))
+        asserts.eq(nil, Class.classOf(nil))
     end)
 end)
 
@@ -803,14 +1060,9 @@ test.suite("cast()", function(suite)
     suite:case("circular inheritance throws", function(asserts)
         local a = loop()
 
-        Helpers.throwsWith(
-            asserts,
-            function()
-                Class.cast(setmetatable({}, a), newClass())
-            end,
-            "[Class.cast()]: Circular inheritance detected; likely caused by "
-                .. "setmetatable tampering"
-        )
+        Helpers.throwsWith(asserts, function()
+            Class.cast(setmetatable({}, a), newClass())
+        end, "[Class.cast()]: Circular inheritance detected")
     end)
 
     suite:case("errors blame the caller", function(asserts)
@@ -834,5 +1086,134 @@ test.suite("cast()", function(suite)
 
         asserts.eq(false, ok)
         asserts.strContains(tostring(err), `:{line}: [Class.cast()]: `)
+    end)
+end)
+
+test.suite("merge()", function(suite)
+    suite:case("returns a new table with both tables' fields", function(asserts)
+        local base = { name = "Rex", health = 10 }
+        local fields = { breed = "Labrador" }
+        local merged = Class.merge(base, fields)
+
+        asserts.neq(base, merged)
+        asserts.neq(fields, merged)
+        asserts.eq("Rex", merged.name)
+        asserts.eq(10, merged.health)
+        asserts.eq("Labrador", merged.breed)
+    end)
+
+    suite:case("does not change either table", function(asserts)
+        local base = { name = "Rex" }
+        local fields = { breed = "Labrador" }
+        Class.merge(base, fields)
+
+        asserts.eq(nil, (base :: any).breed)
+        asserts.eq(nil, (fields :: any).name)
+    end)
+
+    suite:case("fields win over base", function(asserts)
+        local merged = Class.merge({ name = "Rex" }, { name = "Bit" })
+        asserts.eq("Bit", merged.name)
+    end)
+
+    suite:case(
+        "accepts frozen tables and returns an unfrozen one",
+        function(asserts)
+            local merged =
+                Class.merge(table.freeze({ a = 1 }), table.freeze({ b = 2 }))
+
+            asserts.eq(false, table.isfrozen(merged))
+            asserts.eq(1, merged.a)
+            asserts.eq(2, merged.b)
+        end
+    )
+
+    suite:case("the result can become an instance", function(asserts)
+        local base = newClass()
+        local sub = subclass(base)
+        local instance = Class.new(sub, Class.merge({ a = 1 }, { b = 2 }))
+
+        asserts.eq(true, Class.isA(instance, base))
+        asserts.eq(2, instance.b)
+    end)
+
+    suite:case("non-tables throw", function(asserts)
+        local merge = Class.merge :: any
+
+        Helpers.throwsWith(asserts, function()
+            merge(5, {})
+        end, "[Class.merge()]: Expected base to be a table, got number")
+        Helpers.throwsWith(asserts, function()
+            merge({}, nil)
+        end, "[Class.merge()]: Expected fields to be a table, got nil")
+    end)
+
+    suite:case("tables with metatables throw", function(asserts)
+        local instance = Class.new(newClass())
+
+        Helpers.throwsWith(asserts, function()
+            Class.merge(instance, {})
+        end, "[Class.merge()]: Cannot merge base that has a metatable")
+        Helpers.throwsWith(asserts, function()
+            Class.merge({}, instance)
+        end, "[Class.merge()]: Cannot merge fields that has a metatable")
+    end)
+
+    suite:case("errors blame the caller", function(asserts)
+        local line
+        local ok, err = pcall(function()
+            line = debug.info(1, "l") :: number + 1
+            Class.merge(Class.new(newClass()), {})
+        end)
+
+        asserts.eq(false, ok)
+        asserts.strContains(tostring(err), `:{line}: [Class.merge()]: `)
+    end)
+end)
+
+test.suite("tryCast()", function(suite)
+    suite:case("returns instances of the class", function(asserts)
+        local root, leaf = chain(3)
+        local instance = Class.new(leaf)
+
+        asserts.eq(instance, Class.tryCast(instance, root))
+        asserts.eq(instance, Class.tryCast(instance, leaf))
+    end)
+
+    suite:case("returns nil for anything else", function(asserts)
+        local base = newClass()
+        local sub = subclass(base)
+
+        asserts.eq(nil, Class.tryCast(Class.new(base), sub))
+        asserts.eq(nil, Class.tryCast({}, base))
+        asserts.eq(nil, Class.tryCast(nil, base))
+        asserts.eq(nil, Class.tryCast(5, base))
+        asserts.eq(nil, Class.tryCast(sub, base))
+    end)
+
+    suite:case("non-table classes throw", function(asserts)
+        Helpers.throwsWith(asserts, function()
+            Class.tryCast({}, 5 :: any)
+        end, "[Class.tryCast()]: Expected a class table, got number")
+    end)
+
+    suite:case("circular inheritance throws", function(asserts)
+        local a = loop()
+
+        Helpers.throwsWith(asserts, function()
+            Class.tryCast(setmetatable({}, a), newClass())
+        end, "[Class.tryCast()]: Circular inheritance detected")
+    end)
+
+    suite:case("walk errors blame the caller", function(asserts)
+        local a = loop()
+        local line
+        local ok, err = pcall(function()
+            line = debug.info(1, "l") :: number + 1
+            Class.tryCast(setmetatable({}, a), newClass())
+        end)
+
+        asserts.eq(false, ok)
+        asserts.strContains(tostring(err), `:{line}: [Class.tryCast()]: `)
     end)
 end)
