@@ -50,12 +50,13 @@
     * `Duration.TimeParts` type
 * Changes
   * Time
-    * `Stopwatch.new()` and `Cooldown.new()` no longer show type errors under
-      Studio's Luau flags
     * `Duration.fromParts()` takes `Partial<TimeParts>` instead of `TimePartsI`
     * `Duration:toParts()` returns `TimeParts` instead of `TimePartsO`
     * `TimeParts` is exported through `Time` and `Luautils`
     * `HumanStringOptions` is now readonly
+* Fixes
+  * Time
+    * `Stopwatch.new()` no longer shows a type error in Studio and the editor
 * Deprecations
   * Time
     * `Duration.TimePartsI` (use `Partial<TimeParts>` instead)
@@ -63,16 +64,34 @@
 * Tests
   * Added type-check tests for the typing type functions in `tests/typing`,
     including cases that must fail to type check
+  * Added runtime and type-check tests for Class
+  * Cooldown tests pass the key type with `Cooldown.new<<K>>(...)`, as
+    documented
 * CI
   * Added a `typecheck (typing)` step that runs `.lute/typing.luau`
   * Every typecheck step also runs with `--no-flags-enabled`, matching the Luau
     flags Studio and the editor use, since `luau-lsp analyze` enables every flag
     by default
+  * Added a `docs format` step that checks doc comments and Markdown files with
+    `.lute/docs.luau --check`
 * Tooling
   * Added the `types` library global to `luau-extras.yml` for selene
+  * Added `.lute/docs.luau`, which formats prose in doc comments and Markdown
+    files
 * Documentation
   * Documented in CONTRIBUTING that typing helpers are type functions, which
     need the new type solver
+  * Prose in doc comments and Markdown files fills lines up to 80 columns
+    instead of starting each sentence on a new line, and wrapped list items line
+    up with the item's text
+  * Notes and warnings in doc comments are blockquotes instead of `:::`
+    admonitions, so they read cleanly when hovering in an editor
+  * `@type` tags for generic types in `typing` include their generics, such as
+    `Map<K,V>`
+  * `Cooldown.new()` explains why to pass the key type with
+    `Cooldown.new<<K>>(...)`, including a type error in Studio without it
+  * Documented the CI steps that check with Studio's Luau flags, and the doc
+    formatting conventions, in CONTRIBUTING
 
 ## [v0.1.3] - 2026-11-10
 * Features
