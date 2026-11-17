@@ -103,16 +103,19 @@ or the README.
 
 The script runs these steps in order and reports every failure at the end:
 
-| Step               | Command                                                 |
-| ------------------ | ------------------------------------------------------- |
-| version            | `lute run .lute/version.luau`                           |
-| format             | `stylua --check src tests`                              |
-| lint               | `selene src`                                            |
-| sourcemap          | `rojo sourcemap default.project.json -o sourcemap.json` |
-| typecheck (src)    | `luau-lsp analyze --platform=roblox ... src`            |
-| typecheck (tests)  | `luau-lsp analyze --platform=standard ... tests`        |
-| typecheck (typing) | `lute run .lute/typing.luau`                            |
-| test               | `lute test`                                             |
+| Step                              | Command                                                 |
+| --------------------------------- | ------------------------------------------------------- |
+| version                           | `lute run .lute/version.luau`                           |
+| format                            | `stylua --check src tests`                              |
+| lint                              | `selene src`                                            |
+| sourcemap                         | `rojo sourcemap default.project.json -o sourcemap.json` |
+| typecheck (src)                   | `luau-lsp analyze --platform=roblox ... src`            |
+| typecheck (src, Studio flags)     | the same, with `--no-flags-enabled`                     |
+| typecheck (tests)                 | `luau-lsp analyze --platform=standard ... tests`        |
+| typecheck (tests, Studio flags)   | the same, with `--no-flags-enabled`                     |
+| typecheck (typing)                | `lute run .lute/typing.luau`                            |
+| typecheck (typing, Studio flags)  | `lute run .lute/typing.luau --no-flags-enabled`         |
+| test                              | `lute test`                                             |
 
 `src` is type checked against ROBLOX's type definitions, because some modules
 use ROBLOX globals (such as `task.wait`). `tests` are checked without them,
@@ -122,6 +125,13 @@ module they require, which would fail on those ROBLOX globals, so
 in the step before.
 `tests/typing` is also ignored there, since its type function tests run in the
 next step, and the files in `tests/typing/errors` are meant to fail.
+
+`luau-lsp analyze` enables every Luau flag it knows by default, but Studio and
+the editor extension only enable released ones, so code can type check with
+the defaults and still show errors to users. Each typecheck step therefore
+runs a second time with `--no-flags-enabled` (keeping `--flag:LuauSolverV2=true`)
+to match what Studio users see. To reproduce an editor error locally, add
+`--no-flags-enabled` to the `luau-lsp analyze` command.
 
 The separate docs job runs `moonwave build`, so broken doc comments or README
 links fail CI too, even when the script passes.
