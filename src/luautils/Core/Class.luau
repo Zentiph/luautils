@@ -77,7 +77,7 @@ local fail = require("./Errors").errorWithScope("Class")
     > instance type (`self: Animal`) rejects subclass instances.
 
     To accept instances of a class or any of its subclasses, type the parameter
-    with [Class.IsA<C>] and pass subclass instances through [Class.cast], which
+    with [Class.IsA] and pass subclass instances through [Class.cast], which
     checks them at runtime:
 
     ```lua
@@ -94,8 +94,8 @@ local fail = require("./Errors").errorWithScope("Class")
     > **Caution: Subclass instances are not their base class's type**
     >
     > Passing `dog` directly to a parameter typed as an `Animal` instance is a
-    > type error, even when typed with [Class.IsA<C>]. Luau only follows
-    > `__index` to plain tables when comparing types, and every subclass is a
+    > type error, even when typed with [Class.IsA]. Luau only follows `__index`
+    > to plain tables when comparing types, and every subclass is a
     > `setmetatable` type. This is a limit of Luau's type system and applies to
     > hand-written classes too, which is why [Class.cast] exists.
 
@@ -940,7 +940,7 @@ Class.classOf = Untyped.classOf :: (value: any) -> any
     that it is an instance of `class` or one of its subclasses with [Class.isA].
     Throws an error if it is not.
 
-    This is how subclass instances are passed where a [Class.IsA<C>] of a base
+    This is how subclass instances are passed where a [Class.IsA] of a base
     class is expected, since Luau does not accept them directly; see the caution
     in [Class]. It can also cast to a class between the value's class and the
     base class, keeping that class's fields and methods:
@@ -954,7 +954,7 @@ Class.classOf = Untyped.classOf :: (value: any) -> any
     ```
 
     Unlike `value :: any`, the value is checked, so the cast cannot be wrong
-    about the class, and is only as loose as [Class.IsA<C>]'s shape. Use
+    about the class, and is only as loose as [Class.IsA]'s shape. Use
     [Class.tryCast] when the value might not be an instance of the class.
 
     @param value any -- The value to cast
