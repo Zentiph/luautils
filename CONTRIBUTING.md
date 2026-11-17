@@ -51,6 +51,12 @@ stylua src tests
 ```
 
 ```bash
+# check doc comment and Markdown formatting, then fix it
+lute run .lute/docs.luau --check
+lute run .lute/docs.luau
+```
+
+```bash
 # lint (selene.toml uses the roblox std, so only src is linted)
 selene src
 ```
@@ -105,6 +111,7 @@ The script runs these steps in order and reports every failure at the end:
 | --------------------------------- | ------------------------------------------------------- |
 | version                           | `lute run .lute/version.luau`                           |
 | format                            | `stylua --check src tests`                              |
+| docs format                       | `lute run .lute/docs.luau --check`                      |
 | lint                              | `selene src`                                            |
 | sourcemap                         | `rojo sourcemap default.project.json -o sourcemap.json` |
 | typecheck (src)                   | `luau-lsp analyze --platform=roblox ... src`            |
@@ -198,7 +205,8 @@ module under Lute.
   PascalCase (`Duration.luau`, `Core/`).
 * Inside `src/`, use relative string requires (`require("../Core")`), and
   `@self` in `init.luau` files.
-* Formatting is enforced by StyLua (`stylua.toml`).
+* Formatting is enforced by StyLua (`stylua.toml`), and doc comments and
+  Markdown files by `.lute/docs.luau` (see Documentation).
 
 ### Classes
 
@@ -259,6 +267,16 @@ explicitly, which fixes these issues. Callers can still use colon syntax:
 
 ### Documentation
 
+* Prose in doc comments and Markdown files fills lines up to 80 columns, instead
+  of starting each sentence on a new line, and wrapped list items line up with
+  the item's text. Write freely, then run `lute run .lute/docs.luau` to format;
+  CI checks it.
+* Notes and warnings are blockquotes with a bold label, such as
+  `> **Note: ...**`, not `:::` admonitions, which only render on the docs site
+  and show as raw text when hovering in an editor.
+* Link to types by name without their generics, such as `[typing.Comparable]`.
+  Multi-generic `@type` names have no spaces between their generics, such as
+  `@type Map<K,V>`, since Moonwave ends the name at the first space.
 * Public functions have Moonwave doc comments with `@param`, `@return`, and
   `@error` tags. Methods also need `@method` and `@within` due to the dot
   notation convention.
