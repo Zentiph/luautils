@@ -156,10 +156,15 @@ end
     * `function() return workspace:GetServerTimeNow() end` for time
       synchronized between client and server
 
-    Because this constructor's generic type cannot be inferred due to Luau
-    limitations, it is recommended to use generic type instantiation when
-    creating a `Cooldown` if you want to use generic type checking (see
-    the example).
+    > **Note: pass the key type with `Cooldown.new<<K>>(...)`**
+    >
+    > Luau cannot infer the key type `K` from this constructor's arguments, so
+    > write it explicitly, as in the example. Without it:
+    > * `K` becomes `unknown`, so keys are not type checked, and the result
+    > cannot be assigned to a `Cooldown<Player>` annotation.
+    > * In Studio and the editor, passing an options table that leaves out any
+    > option, such as `{ maxCharges = 2 }`, is a type error, due to a Luau
+    > type checker bug.
 
     ```lua
     local dashCd = Cooldown.new<<Player>>(

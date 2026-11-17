@@ -71,7 +71,7 @@ test.suite("new()", function(suite)
         local spy = Helpers.spy(function(): number
             return 0
         end)
-        local cooldown = Cooldown.new(secs(5), { clock = spy.fn })
+        local cooldown = Cooldown.new<<string>>(secs(5), { clock = spy.fn })
         cooldown:tryUse("a")
         asserts.eq(1, spy.calls)
     end)
@@ -101,7 +101,7 @@ test.suite("new()", function(suite)
     suite:case("new() rejects non-positive max charges", function(asserts)
         for _, maxCharges in { 0, -1 } do
             Helpers.throwsWith(asserts, function()
-                Cooldown.new(secs(1), { maxCharges = maxCharges })
+                Cooldown.new<<string>>(secs(1), { maxCharges = maxCharges })
             end, "[Cooldown.new()]: Max charges must be a positive integer")
         end
     end)
@@ -109,7 +109,7 @@ test.suite("new()", function(suite)
     suite:case("new() rejects non-integer max charges", function(asserts)
         for _, maxCharges in { 1.5, math.huge, NAN } do
             Helpers.throwsWith(asserts, function()
-                Cooldown.new(secs(1), { maxCharges = maxCharges })
+                Cooldown.new<<string>>(secs(1), { maxCharges = maxCharges })
             end, "[Cooldown.new()]: Max charges must be a positive integer")
         end
     end)
@@ -795,8 +795,8 @@ test.suite("mutability", function(suite)
 
     suite:case("Cooldowns are independent", function(asserts)
         local clock = fakeClock()
-        local a = Cooldown.new(secs(5), { clock = clock.fn })
-        local b = Cooldown.new(secs(5), { clock = clock.fn })
+        local a = Cooldown.new<<string>>(secs(5), { clock = clock.fn })
+        local b = Cooldown.new<<string>>(secs(5), { clock = clock.fn })
         a:tryUse("key")
         asserts.eq(false, a:isReady("key"))
         asserts.eq(true, b:isReady("key"))
