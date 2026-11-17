@@ -96,6 +96,10 @@ local STEPS: { Step } = {
         args = { "stylua", "--check", "src", "tests" },
     },
     {
+        name = "docs format",
+        args = { "lute", "run", ".lute/docs.luau", "--check" },
+    },
+    {
         name = "lint",
         args = { "selene", "src" },
     },
