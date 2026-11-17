@@ -52,8 +52,8 @@ pesde add zentiph/luautils
 pesde install
 ```
 
-The pesde release targets luau only.
-[ROBLOX projects should use Wally](#roblox).
+The pesde release targets luau only. [ROBLOX projects should use
+Wally](#roblox).
 
 ### Manually
 
@@ -85,9 +85,9 @@ local Option = Luautils.Core.Option
 
 ### Verifying your copy
 
-The tools used by this project are pinned in `rokit.toml`.
-To install them and run every check (formatting, linting, type checking, and
-tests), run the following from the repository root:
+The tools used by this project are pinned in `rokit.toml`. To install them and
+run every check (formatting, linting, type checking, and tests), run the
+following from the repository root:
 
 ```bash
 rokit install
@@ -95,8 +95,8 @@ lute setup
 lute run .lute/ci.luau
 ```
 
-> Note: This library is built using the new Luau V2 type solver.
-> Using the old one will give type errors.
+> Note: This library is built using the new Luau V2 type solver. Using the old
+> one will give type errors.
 
 ## Documentation
 
@@ -104,8 +104,7 @@ The API documentation is hosted on GitHub Pages at
 [zentiph.github.io/luautils](https://zentiph.github.io/luautils/), and is
 rebuilt from `master` on every push that passes CI.
 
-It is written as Moonwave doc comments in the source.
-To preview it locally:
+It is written as Moonwave doc comments in the source. To preview it locally:
 
 ```bash
 moonwave dev

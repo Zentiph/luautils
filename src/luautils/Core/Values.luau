@@ -9,10 +9,11 @@ local fail = require("./Errors").errorWithScope("Values")
     Protocol-aware operations that work on any value, similar to Java's
     `Objects` utility class.
 
-    Each function dispatches to the matching protocol method when the value is
-    a table that has it (such as [typing.Equatable] or [typing.Comparable]),
-    and otherwise falls back to the built-in operator or function. This lets one
-    function signature accept both primitives and classes:
+    Each function dispatches to the matching protocol method when the value is a
+    table that has it (such as [typing.Equatable<Self>] or
+    [typing.Comparable<Self>]), and otherwise falls back to the built-in
+    operator or function. This lets one function signature accept both
+    primitives and classes:
 
     ```lua
     Values.equals(1, 1) -- true, using `==`
@@ -118,8 +119,8 @@ end
     * `"vector"` (including ROBLOX's `Vector3`)
     * `"function"`
 
-    Tables, threads, userdata, and buffers are not considered immutable, even
-    if they are frozen or have no methods that modify them.
+    Tables, threads, userdata, and buffers are not considered immutable, even if
+    they are frozen or have no methods that modify them.
 
     Immutable values are safe to share instead of copying, which is how
     [Values.clone] treats them.
@@ -148,9 +149,8 @@ function Values.isImmutable(v: any): boolean
 end
 
 --[=[
-    Returns `true` if the value has a method with the given name.
-    In this case, a value is considered to have a method if `v:name()` would
-    find a function.
+    Returns `true` if the value has a method with the given name. In this case,
+    a value is considered to have a method if `v:name()` would find a function.
 
     Tables and strings are indexed directly, while userdata and vectors go
     through `pcall`, meaning a table whose `__index` throws still throws.
@@ -187,7 +187,7 @@ end
 
     This is `true` if `type(a) == type(b)` and either:
     * `a` and `b` are both tables with a `compareTo` method
-    ([typing.Comparable]), or
+      ([typing.Comparable<Self>]), or
     * `a` and `b` are both numbers or both strings.
 
     Only the types are checked: `NaN` counts as comparable here, but the
@@ -222,15 +222,15 @@ end
 
     Equality is checked in this order:
     1. If `rawequal(a, b)` is `true`, `true` is returned.
-    2. If `a` is a table with an `equals` method ([typing.Equatable]),
-    `a:equals(b)` is returned.
+    2. If `a` is a table with an `equals` method ([typing.Equatable<Self>]),
+       `a:equals(b)` is returned.
     3. Otherwise, `a == b` is returned.
 
-    This means [typing.Equatable] classes compare by value even if they do not
-    set an `__eq` metamethod. Plain tables still compare by reference.
+    This means [typing.Equatable<Self>] classes compare by value even if they do
+    not set an `__eq` metamethod. Plain tables still compare by reference.
 
-    Matches the [typing.BiPredicate] signature, so it can be passed wherever an
-    equality check is expected.
+    Matches the [typing.BiPredicate<T,U>] signature, so it can be passed
+    wherever an equality check is expected.
 
     ```lua
     Values.equals(1, 1) -- true
@@ -254,12 +254,12 @@ end
     Compares two values, returning a negative number if `a < b`, a positive
     number if `a > b`, or `0` if they are equal.
 
-    If `a` and `b` are both [typing.Comparable] tables, `a:compareTo(b)` is
-    returned. Otherwise, if they are both numbers or both strings, they are
+    If `a` and `b` are both [typing.Comparable<Self>] tables, `a:compareTo(b)`
+    is returned. Otherwise, if they are both numbers or both strings, they are
     compared with `<` and `==`, returning `-1`, `0`, or `1`. Strings are
     compared by byte value, the same as `<`.
 
-    Matches the [typing.Comparator] signature. Use [Values.lessThan] for
+    Matches the [typing.Comparator<T>] signature. Use [Values.lessThan] for
     `table.sort`, which expects a `boolean` instead.
 
     ```lua
@@ -298,7 +298,7 @@ end
     Returns `true` if `a` is less than `b`, using [Values.compare].
 
     Can be passed directly to `table.sort` to sort an array of numbers, strings,
-    or [typing.Comparable] values.
+    or [typing.Comparable<Self>] values.
 
     ```lua
     local durations = { Duration.MINUTE, Duration.SECOND, Duration.HOUR }
@@ -330,7 +330,7 @@ end
     Returns the smaller of two values, using [Values.compare].
 
     If the values are equal, `a` is returned. Unlike `math.min`, this works on
-    strings and [typing.Comparable] values as well as numbers.
+    strings and [typing.Comparable<Self>] values as well as numbers.
 
     ```lua
     Values.min(3, 1) -- 1
@@ -362,7 +362,7 @@ end
     Returns the larger of two values, using [Values.compare].
 
     If the values are equal, `a` is returned. Unlike `math.max`, this works on
-    strings and [typing.Comparable] values as well as numbers.
+    strings and [typing.Comparable<Self>] values as well as numbers.
 
     ```lua
     Values.max(3, 1) -- 3
@@ -395,7 +395,7 @@ end
 
     If `v` is less than `lo`, `lo` is returned; if `v` is greater than `hi`,
     `hi` is returned; otherwise, `v` is returned. Unlike `math.clamp`, this
-    works on strings and [typing.Comparable] values as well as numbers.
+    works on strings and [typing.Comparable<Self>] values as well as numbers.
 
     ```lua
     Values.clamp(15, 0, 10) -- 10
@@ -435,14 +435,14 @@ end
 --[=[
     Returns a value that can be used as a table key for `v`.
 
-    If `v` is a table with a `toKey` method ([typing.Keyable]), `v:toKey()` is
-    returned, so value-equal objects share a table slot. Otherwise, `v` itself
-    is returned, so primitives keep their own value as the key and plain tables
-    are keyed by reference.
+    If `v` is a table with a `toKey` method ([typing.Keyable<Self>]),
+    `v:toKey()` is returned, so value-equal objects share a table slot.
+    Otherwise, `v` itself is returned, so primitives keep their own value as the
+    key and plain tables are keyed by reference.
 
-    Keys from [typing.Keyable] values are strings, so they can collide with
-    plain string keys in the same table. `NaN` and `nil` throw an error, since
-    they cannot be used as table keys.
+    Keys from [typing.Keyable<Self>] values are strings, so they can collide
+    with plain string keys in the same table. `NaN` and `nil` throw an error,
+    since they cannot be used as table keys.
 
     ```lua
     local seen = {}
@@ -470,11 +470,11 @@ end
 --[=[
     Returns a string representation of `v`.
 
-    If `v` is a table with a `toString` method ([typing.Stringable]),
-    `v:toString()` is returned. Otherwise, `tostring(v)` is returned, which
-    uses a `__tostring` metamethod if `v` has one.
+    If `v` is a table with a `toString` method ([typing.Stringable<Self>]),
+    `v:toString()` is returned. Otherwise, `tostring(v)` is returned, which uses
+    a `__tostring` metamethod if `v` has one.
 
-    Matches the [typing.Mapper] signature, so it can be passed directly to
+    Matches the [typing.Mapper<T,U>] signature, so it can be passed directly to
     mapping functions.
 
     ```lua
@@ -496,11 +496,12 @@ end
 --[=[
     Returns a copy of `v`.
 
-    If `v` is a table with a `clone` method ([typing.Cloneable]), `v:clone()` is
-    returned. Otherwise, if `v` is immutable (see [Values.isImmutable]), `v`
-    itself is returned, since it cannot be modified. Otherwise, an error is
-    thrown: plain tables are not copied, since a shallow and a deep copy are
-    both reasonable. Use `table.clone` or [Tables.deepCopy] for those.
+    If `v` is a table with a `clone` method ([typing.Cloneable<Self>]),
+    `v:clone()` is returned. Otherwise, if `v` is immutable (see
+    [Values.isImmutable]), `v` itself is returned, since it cannot be modified.
+    Otherwise, an error is thrown: plain tables are not copied, since a shallow
+    and a deep copy are both reasonable. Use `table.clone` or [Tables.deepCopy]
+    for those.
 
     ```lua
     Values.clone(5) -- 5

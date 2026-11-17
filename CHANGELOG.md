@@ -13,11 +13,11 @@
       * `parentOf`/`classOf` for finding a class's base class and a value's
         class
       * `new` for creating instances, setting up `__index` and inherited
-        metamethods automatically, optionally building on fields made by a
-        base class to reuse its constructor logic
+        metamethods automatically, optionally building on fields made by a base
+        class to reuse its constructor logic
       * `merge` for building a subclass's fields on its base class's fields
-      * `IsA<C>` type function and `cast` for passing subclass instances where
-        a base class instance is expected
+      * `IsA<C>` type function and `cast` for passing subclass instances where a
+        base class instance is expected
       * `tryCast` for checking and typing a value in one step, since `isA`
         cannot narrow types
       * `Metatable<C>` type
@@ -65,9 +65,9 @@
     including cases that must fail to type check
 * CI
   * Added a `typecheck (typing)` step that runs `.lute/typing.luau`
-  * Every typecheck step also runs with `--no-flags-enabled`, matching the
-    Luau flags Studio and the editor use, since `luau-lsp analyze` enables
-    every flag by default
+  * Every typecheck step also runs with `--no-flags-enabled`, matching the Luau
+    flags Studio and the editor use, since `luau-lsp analyze` enables every flag
+    by default
 * Tooling
   * Added the `types` library global to `luau-extras.yml` for selene
 * Documentation

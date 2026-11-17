@@ -18,10 +18,10 @@ local _fail = Core.Errors.errorWithScope("Stopwatch")
     stopped, and lapped.
 
     Time accumulates across every interval the `Stopwatch` runs for, and does
-    not count while it is stopped. Readings come from a clock function, which
-    is `os.clock` by default and can be swapped out through [Stopwatch.new].
-    If the clock ever goes backwards, the affected interval counts as zero
-    rather than negative.
+    not count while it is stopped. Readings come from a clock function, which is
+    `os.clock` by default and can be swapped out through [Stopwatch.new]. If the
+    clock ever goes backwards, the affected interval counts as zero rather than
+    negative.
 
     Unlike `Duration`s, `Stopwatch`s are not frozen, and their methods modify
     them in place.
@@ -57,13 +57,12 @@ export type Stopwatch = typeof(setmetatable({} :: StopwatchData, Stopwatch))
 --[=[
     Creates a new `Stopwatch` that is stopped and at zero.
 
-    The clock function should return the current time in seconds, and should
-    not go backwards.
-    Common choices are:
+    The clock function should return the current time in seconds, and should not
+    go backwards. Common choices are:
     * `os.clock` for local elapsed time (the default)
     * `os.time` for Unix seconds with whole-second precision
-    * `function() return workspace:GetServerTimeNow() end` for time
-      synchronized between client and server
+    * `function() return workspace:GetServerTimeNow() end` for time synchronized
+      between client and server
 
     @since v0.1.3
     @param clock Supplier<number>? -- The clock function to use (defaults to `os.clock`)
@@ -188,13 +187,13 @@ function Stopwatch.isRunning(self: Stopwatch): boolean
 end
 
 --[=[
-    Returns the running time since the last call to [Stopwatch:lap], and marks
-    a new lap.
+    Returns the running time since the last call to [Stopwatch:lap], and marks a
+    new lap.
 
-    The first lap is measured from when this `Stopwatch` was created, reset,
-    or restarted. Like [Stopwatch:elapsed], laps only count running time, so
-    time spent stopped is not included in any lap. This method does not stop
-    or start this `Stopwatch`.
+    The first lap is measured from when this `Stopwatch` was created, reset, or
+    restarted. Like [Stopwatch:elapsed], laps only count running time, so time
+    spent stopped is not included in any lap. This method does not stop or start
+    this `Stopwatch`.
 
     ```lua
     local stopwatch = Stopwatch.startNew()

@@ -64,8 +64,8 @@ local fail = require("./Errors").errorWithScope("Class")
     ```
 
     Everything above is fully type checked in `--!strict` mode: fields, the
-    subclass's own methods, overrides, and inherited methods all have their
-    real types.
+    subclass's own methods, overrides, and inherited methods all have their real
+    types.
 
     > **Tip: Type `self` with the fields type in methods that use fields**
     >
@@ -76,9 +76,9 @@ local fail = require("./Errors").errorWithScope("Class")
     > but arithmetic on its fields fails to type check, and typing it as the
     > instance type (`self: Animal`) rejects subclass instances.
 
-    To accept instances of a class or any of its subclasses, type the
-    parameter with [Class.IsA] and pass subclass instances through
-    [Class.cast], which checks them at runtime:
+    To accept instances of a class or any of its subclasses, type the parameter
+    with [Class.IsA<C>] and pass subclass instances through [Class.cast], which
+    checks them at runtime:
 
     ```lua
     type AnyAnimal = Luautils.IsA<typeof(Animal)>
@@ -94,8 +94,8 @@ local fail = require("./Errors").errorWithScope("Class")
     > **Caution: Subclass instances are not their base class's type**
     >
     > Passing `dog` directly to a parameter typed as an `Animal` instance is a
-    > type error, even when typed with [Class.IsA]. Luau only follows `__index`
-    > to plain tables when comparing types, and every subclass is a
+    > type error, even when typed with [Class.IsA<C>]. Luau only follows
+    > `__index` to plain tables when comparing types, and every subclass is a
     > `setmetatable` type. This is a limit of Luau's type system and applies to
     > hand-written classes too, which is why [Class.cast] exists.
 
@@ -419,8 +419,8 @@ end
     @within Class
     @since [UNRELEASED]
 
-    The metatable of an instance of the class `C`, as seen by the type
-    checker. Instances created with [Class.new] are typed
+    The metatable of an instance of the class `C`, as seen by the type checker.
+    Instances created with [Class.new] are typed
     `setmetatable<Fields, Metatable<C>>`.
 ]=]
 export type Metatable<C> = { __index: C }
@@ -430,28 +430,28 @@ export type Metatable<C> = { __index: C }
     @within Class
     @since [UNRELEASED]
 
-    The type of an instance of the class `C` or any of its subclasses, viewed
-    as an instance of `C`. `C` is the class's type, such as `typeof(Animal)`.
+    The type of an instance of the class `C` or any of its subclasses, viewed as
+    an instance of `C`. `C` is the class's type, such as `typeof(Animal)`.
 
     The type is built from `C` and its base classes, and contains:
     * The fields of the instance returned by `C.new`, if `C` has a `new`
-    constructor. Fields can be read and written.
+      constructor. Fields can be read and written.
     * Every method of `C` and its base classes, with `self` typed as `any` so
-    subclass overrides fit. Methods can only be read.
+      subclass overrides fit. Methods can only be read.
     * Every other value stored on `C` and its base classes, such as constants.
-    These can only be read.
+      These can only be read.
 
     Left out, since they are not called on instances or subclasses usually
     change them:
     * Constructors (`new`).
     * Keys starting with `__`, such as metamethods.
     * Static functions, recognized by their first parameter being a string,
-    number, boolean, or other non-table type, such as `fields(name: string)`.
-    Functions with no parameters are left out too.
+      number, boolean, or other non-table type, such as `fields(name: string)`.
+      Functions with no parameters are left out too.
 
     Base class instances can be passed directly where an `IsA<C>` is expected,
-    but subclass instances must go through [Class.cast] or [Class.tryCast];
-    see the caution in [Class] for why.
+    but subclass instances must go through [Class.cast] or [Class.tryCast]; see
+    the caution in [Class] for why.
 
     ```lua
     type AnyAnimal = Luautils.IsA<typeof(Animal)>
@@ -625,8 +625,8 @@ Class.extends = Untyped.extends :: <B>(base: B) -> { read __index: B }
 
     Sealing has two effects:
     * The class is frozen, so no fields or methods can be added, changed, or
-    removed. The freeze is shallow, like `table.freeze()`, so tables stored in
-    the class can still be modified.
+      removed. The freeze is shallow, like `table.freeze()`, so tables stored in
+      the class can still be modified.
     * The class cannot be extended with [Class.extends].
 
     Instances are not affected: they can still be changed, or frozen with
@@ -644,10 +644,10 @@ Class.extends = Untyped.extends :: <B>(base: B) -> { read __index: B }
     return Class.sealed(Vector)
     ```
 
-    Define everything on the class before sealing it, since it cannot be
-    changed afterward. Freezing a class with `table.freeze()` instead of
-    sealing it is an error once the class needs setting up, since setting up
-    writes to the class.
+    Define everything on the class before sealing it, since it cannot be changed
+    afterward. Freezing a class with `table.freeze()` instead of sealing it is
+    an error once the class needs setting up, since setting up writes to the
+    class.
 
     Subclasses can be sealed too, as long as nothing needs to extend them.
 
@@ -666,9 +666,9 @@ Class.sealed = Untyped.sealed :: <T>(class: T) -> T
     @within Class
     @since [UNRELEASED]
 
-    Returns `true` if the class was sealed with [Class.sealed]. Values that
-    are not sealed classes, including tables frozen with `table.freeze()`,
-    return `false`.
+    Returns `true` if the class was sealed with [Class.sealed]. Values that are
+    not sealed classes, including tables frozen with `table.freeze()`, return
+    `false`.
 
     ```lua
     local Person = {}
@@ -690,8 +690,8 @@ Class.isSealed = Untyped.isSealed :: (class: any) -> boolean
 
     Creates an instance of `class`.
 
-    With one table, `fields` becomes the instance itself, not a copy, by
-    setting its metatable to `class`. It defaults to a new, empty table.
+    With one table, `fields` becomes the instance itself, not a copy, by setting
+    its metatable to `class`. It defaults to a new, empty table.
 
     ```lua
     function Animal.new(name: string)
@@ -709,20 +709,20 @@ Class.isSealed = Untyped.isSealed :: (class: any) -> boolean
     end
     ```
 
-    This is the same as `Class.new(Dog, Class.merge(Animal.fields(name),
-    { breed = breed }))`; use [Class.merge] in a subclass's own fields
-    function, so its subclasses can build on it in turn.
+    This is the same as `Class.new(Dog, Class.merge(Animal.fields(name), {
+    breed = breed }))`; use [Class.merge] in a subclass's own fields function,
+    so its subclasses can build on it in turn.
 
-    The first time a class is used with `Class.new` or [Class.sealed], it is
-    set up: its `__index` is set to itself, and its base class's metamethods
-    are copied into it, as described in [Class.extends]. Its base classes are
-    set up first, if they have not been already. This means:
-    * Classes do not need `Class.__index = Class`, though setting it by hand
-    is allowed.
-    * Metamethods must be defined before the class's first instance is
-    created. Ones added to a base class afterward are not inherited.
+    The first time a class is used with `Class.new` or [Class.sealed], it is set
+    up: its `__index` is set to itself, and its base class's metamethods are
+    copied into it, as described in [Class.extends]. Its base classes are set up
+    first, if they have not been already. This means:
+    * Classes do not need `Class.__index = Class`, though setting it by hand is
+      allowed.
+    * Metamethods must be defined before the class's first instance is created.
+      Ones added to a base class afterward are not inherited.
     * Instances created with `setmetatable` directly skip this setup, so they
-    will not find the class's methods unless the class was already set up.
+      will not find the class's methods unless the class was already set up.
 
     The returned instance is typed with its fields and every method of `class`
     and its base classes.
@@ -756,8 +756,8 @@ Class.new = Untyped.new :: (<C>(class: C) -> setmetatable<{}, Metatable<C>>) & (
     Returns a new table with every field of `base`, then every field of
     `fields`, so `fields` wins where both have a key. Neither table is changed.
 
-    Subclasses use it in their fields functions to build on their base
-    class's fields, typed as both fields types:
+    Subclasses use it in their fields functions to build on their base class's
+    fields, typed as both fields types:
 
     ```lua
     export type DogFields = AnimalFields & { breed: string }
@@ -776,9 +776,9 @@ Class.new = Untyped.new :: (<C>(class: C) -> setmetatable<{}, Metatable<C>>) & (
     end
     ```
 
-    A field in `fields` that replaces one in `base` with a different type
-    makes the merged type of that field `never`, so keep shared fields'
-    types the same.
+    A field in `fields` that replaces one in `base` with a different type makes
+    the merged type of that field `never`, so keep shared fields' types the
+    same.
 
     @param base A -- The fields to start from, such as a base class's fields
     @param fields B -- The fields to add or replace
@@ -806,9 +806,9 @@ Class.merge = Untyped.merge :: <A, B>(base: A, fields: B) -> A & B
     * `value` or `class` is not a table,
     * `value` has no metatable,
     * `value`'s metatable is locked with a `__metatable` field that is not its
-    class, or
+      class, or
     * `value` is a class rather than an instance: `Class.isA(Dog, Animal)` is
-    `false`. Use [Class.isSubclassOf] to compare classes.
+      `false`. Use [Class.isSubclassOf] to compare classes.
 
     ROBLOX `Instance`s always return `false`, since their metatables are locked.
     Use `Instance:IsA()` for those.
@@ -826,8 +826,7 @@ Class.merge = Untyped.merge :: <A, B>(base: A, fields: B) -> A & B
     >
     > Luau has no way for a function to narrow its argument's type, so `value`
     > keeps its type after `if Class.isA(value, Dog) then`. To check a value and
-    > get it typed as an instance of the class in one step, use
-    > [Class.tryCast]:
+    > get it typed as an instance of the class in one step, use [Class.tryCast]:
     >
     > ```lua
     > local dog = Class.tryCast(value, Dog)
@@ -855,8 +854,8 @@ Class.isA = Untyped.isA :: (value: any, class: any) -> boolean
     @within Class
     @since [UNRELEASED]
 
-    Returns `true` if `class` extends `base`, directly or through other
-    classes. A class is not a subclass of itself.
+    Returns `true` if `class` extends `base`, directly or through other classes.
+    A class is not a subclass of itself.
 
     ```lua
     local Dog = setmetatable({}, Class.extends(Animal))
@@ -901,8 +900,8 @@ Class.isSubclassOf = Untyped.isSubclassOf :: (class: any, base: any) -> boolean
     ```
 
     To find an instance's class, use [Class.classOf]: `parentOf(instance)` is
-    the instance's class only because instances' metatables are their
-    classes, and is the wrong function to read that way.
+    the instance's class only because instances' metatables are their classes,
+    and is the wrong function to read that way.
 
     @param class any -- The class to find the base class of
     @return any -- The class's base class, or `nil`
@@ -938,13 +937,13 @@ Class.classOf = Untyped.classOf :: (value: any) -> any
     @since [UNRELEASED]
 
     Returns `value` typed as an instance of `class`, after checking at runtime
-    that it is an instance of `class` or one of its subclasses with
-    [Class.isA]. Throws an error if it is not.
+    that it is an instance of `class` or one of its subclasses with [Class.isA].
+    Throws an error if it is not.
 
-    This is how subclass instances are passed where a [Class.IsA] of a base
-    class is expected, since Luau does not accept them directly; see the
-    caution in [Class]. It can also cast to a class between the value's class
-    and the base class, keeping that class's fields and methods:
+    This is how subclass instances are passed where a [Class.IsA<C>] of a base
+    class is expected, since Luau does not accept them directly; see the caution
+    in [Class]. It can also cast to a class between the value's class and the
+    base class, keeping that class's fields and methods:
 
     ```lua
     local puppy = Puppy.new("Bit") -- Puppy extends Dog, which extends Animal
@@ -955,7 +954,7 @@ Class.classOf = Untyped.classOf :: (value: any) -> any
     ```
 
     Unlike `value :: any`, the value is checked, so the cast cannot be wrong
-    about the class, and is only as loose as [Class.IsA]'s shape. Use
+    about the class, and is only as loose as [Class.IsA<C>]'s shape. Use
     [Class.tryCast] when the value might not be an instance of the class.
 
     @param value any -- The value to cast
@@ -973,9 +972,9 @@ Class.cast = Untyped.cast :: <C>(value: any, class: C) -> IsA<C>
     @since [UNRELEASED]
 
     Returns `value` typed as an instance of `class` if it is an instance of
-    `class` or one of its subclasses, or `nil` if it is not. This is
-    [Class.isA] and [Class.cast] in one step, for checking values whose class
-    is not known, since `isA` cannot narrow types:
+    `class` or one of its subclasses, or `nil` if it is not. This is [Class.isA]
+    and [Class.cast] in one step, for checking values whose class is not known,
+    since `isA` cannot narrow types:
 
     ```lua
     local function onHit(target: unknown)

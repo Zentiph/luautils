@@ -17,17 +17,15 @@ local fail = Core.Errors.errorWithScope("Cooldown")
     something.
 
     A `Cooldown` holds one entry per key, as server-side scripts often need a
-    separate timer per player or ability.
-    Every method that takes a `key` parameter acts on that key's entry, and a
-    single global timer can be implemented by using a constant key.
-    Keys cannot be `nil` or NaN.
+    separate timer per player or ability. Every method that takes a `key`
+    parameter acts on that key's entry, and a single global timer can be
+    implemented by using a constant key. Keys cannot be `nil` or NaN.
 
-    Each entry has up to the `Cooldown`'s maximum number of charges.
-    A use spends a charge, and spent charges recharge one at a time, each
-    taking the `Cooldown`'s length.
-    A key with no entry has all of its charges available: an entry is created
-    when a charge is spent, and removed once all of its charges have
-    recharged.
+    Each entry has up to the `Cooldown`'s maximum number of charges. A use
+    spends a charge, and spent charges recharge one at a time, each taking the
+    `Cooldown`'s length. A key with no entry has all of its charges available:
+    an entry is created when a charge is spent, and removed once all of its
+    charges have recharged.
 
     Due to how server-client authority works, client-side `Cooldown`s only
     affect visuals, and `tryUse` on the server-side is the real check to run.
@@ -37,9 +35,9 @@ local fail = Core.Errors.errorWithScope("Cooldown")
 
     Supports `tostring()`.
 
-    Error messages thrown by `Cooldown` functions are prefixed with the
-    function that threw them, such as `[Cooldown.tryUse()]: `, after the usual
-    position prefix added by `error()`.
+    Error messages thrown by `Cooldown` functions are prefixed with the function
+    that threw them, such as `[Cooldown.tryUse()]: `, after the usual position
+    prefix added by `error()`.
 
     ```lua
     local fireballCd = Cooldown.new(Duration.fromSeconds(5))
@@ -80,9 +78,8 @@ export type CooldownOptions = {
     --[=[
         The clock function to use (defaults to `os.clock`).
 
-        The clock function should return the current time in seconds, and
-        should not go backwards.
-        Common choices are:
+        The clock function should return the current time in seconds, and should
+        not go backwards. Common choices are:
         * `os.clock` for local elapsed time (the default)
         * `os.time` for Unix seconds with whole-second precision
         * `function() return workspace:GetServerTimeNow() end` for time
@@ -148,23 +145,22 @@ end
 --[=[
     Creates a new `Cooldown` with the given length and options.
 
-    The clock function should return the current time in seconds, and should
-    not go backwards.
-    Common choices are:
+    The clock function should return the current time in seconds, and should not
+    go backwards. Common choices are:
     * `os.clock` for local elapsed time (the default)
     * `os.time` for Unix seconds with whole-second precision
-    * `function() return workspace:GetServerTimeNow() end` for time
-      synchronized between client and server
+    * `function() return workspace:GetServerTimeNow() end` for time synchronized
+      between client and server
 
     > **Note: pass the key type with `Cooldown.new<<K>>(...)`**
     >
     > Luau cannot infer the key type `K` from this constructor's arguments, so
     > write it explicitly, as in the example. Without it:
     > * `K` becomes `unknown`, so keys are not type checked, and the result
-    > cannot be assigned to a `Cooldown<Player>` annotation.
+    >   cannot be assigned to a `Cooldown<Player>` annotation.
     > * In Studio and the editor, passing an options table that leaves out any
-    > option, such as `{ maxCharges = 2 }`, is a type error, due to a Luau
-    > type checker bug.
+    >   option, such as `{ maxCharges = 2 }`, is a type error, due to a Luau
+    >   type checker bug.
 
     ```lua
     local dashCd = Cooldown.new<<Player>>(
@@ -204,20 +200,18 @@ function Cooldown.new<K>(length: Duration, options: CooldownOptions?): Cooldown<
 end
 
 --[=[
-    Attempts to spend a charge from the given key's entry, returning `true` if
-    a charge was available, or `false` if none were and nothing happened.
+    Attempts to spend a charge from the given key's entry, returning `true` if a
+    charge was available, or `false` if none were and nothing happened.
 
     An optional `length` parameter can be given to override the `Cooldown`'s
-    length for this one use.
-    This may be useful for special cases like a longer cooldown after a charged
-    attack.
-    An override only applies if this use starts a recharge, which happens when
-    the entry had all of its charges.
-    If a charge is already recharging, the use only spends a charge, and the
-    timer already running isn't changed.
+    length for this one use. This may be useful for special cases like a longer
+    cooldown after a charged attack. An override only applies if this use starts
+    a recharge, which happens when the entry had all of its charges. If a charge
+    is already recharging, the use only spends a charge, and the timer already
+    running isn't changed.
 
-    Zero-length uses still require a charge to be available, but succeed
-    without spending it.
+    Zero-length uses still require a charge to be available, but succeed without
+    spending it.
 
     ```lua
     local dashCd = Cooldown.new(Duration.fromSeconds(3), { maxCharges = 2 })
@@ -280,10 +274,9 @@ end
     This method may be useful for effects like silences or stuns.
 
     An optional `length` parameter can be given to override the `Cooldown`'s
-    length for the first charge.
-    This may be useful for special cases like a longer cooldown after a charged
-    attack.
-    Any later charges recharge with the `Cooldown`'s length.
+    length for the first charge. This may be useful for special cases like a
+    longer cooldown after a charged attack. Any later charges recharge with the
+    `Cooldown`'s length.
 
     A length of zero removes the entry instead, restoring all of its charges
     like [Cooldown:reset].
@@ -330,9 +323,9 @@ end
     available).
 
     Negative `Duration`s shorten the recharge, while positive `Duration`s
-    lengthen it.
-    If a negative `Duration` is larger than the time remaining, the charge
-    finishes, and the leftover time carries over to the following charges.
+    lengthen it. If a negative `Duration` is larger than the time remaining, the
+    charge finishes, and the leftover time carries over to the following
+    charges.
 
     ```lua
     local abilityCd = Cooldown.new(Duration.fromSeconds(10), { maxCharges = 2 })
@@ -419,8 +412,8 @@ end
 --[=[
     Returns whether the given key has at least one charge available.
 
-    This method should be used for display or branching.
-    To check and spend a charge in one step, use [Cooldown:tryUse].
+    This method should be used for display or branching. To check and spend a
+    charge in one step, use [Cooldown:tryUse].
 
     @method isReady
     @within Cooldown
@@ -439,9 +432,9 @@ end
     finishes, or [Duration.ZERO] if the key has no entry.
 
     With multiple charges, a nonzero return value does not mean the key is
-    unready, as other charges may still be available.
-    Use [Cooldown:isReady] to check readiness, or [Cooldown:remainingUntilFull]
-    to check all charges at once.
+    unready, as other charges may still be available. Use [Cooldown:isReady] to
+    check readiness, or [Cooldown:remainingUntilFull] to check all charges at
+    once.
 
     ```lua
     local abilityCd = Cooldown.new(Duration.fromSeconds(10), { maxCharges = 3 })
@@ -472,9 +465,9 @@ end
     0.0 to 1.0, or 1.0 if the key has no entry.
 
     With multiple charges, a return value below 1.0 does not mean the key is
-    unready, as other charges may still be available.
-    Use [Cooldown:isReady] to check readiness, or [Cooldown:progressUntilFull]
-    to check all charges at once.
+    unready, as other charges may still be available. Use [Cooldown:isReady] to
+    check readiness, or [Cooldown:progressUntilFull] to check all charges at
+    once.
 
     ```lua
     local abilityCd = Cooldown.new(Duration.fromSeconds(10), { maxCharges = 3 })
@@ -507,8 +500,7 @@ end
 
     A return value of [Duration.ZERO] indicates that all charges are available.
     Charges after the one in progress are assumed to take the `Cooldown`'s
-    current length.
-    To check the time remaining on the charge in progress, use
+    current length. To check the time remaining on the charge in progress, use
     [Cooldown:remaining].
 
     @method remainingUntilFull
@@ -532,12 +524,11 @@ function Cooldown.remainingUntilFull<K>(self: Cooldown<K>, key: K): Duration
 end
 
 --[=[
-    Returns the progress towards all of the given key's charges being
-    available in a range from 0.0 to 1.0, counting the charge in progress as a
-    fraction.
+    Returns the progress towards all of the given key's charges being available
+    in a range from 0.0 to 1.0, counting the charge in progress as a fraction.
 
-    A return value of 1.0 indicates that all charges are available.
-    To check the progress of the charge in progress, use [Cooldown:progress].
+    A return value of 1.0 indicates that all charges are available. To check the
+    progress of the charge in progress, use [Cooldown:progress].
 
     @method progressUntilFull
     @within Cooldown
@@ -639,8 +630,8 @@ function Cooldown.is(value: any): boolean
 end
 
 --[=[
-    Returns a string representation of the `Cooldown`, including its length
-    and number of entries.
+    Returns a string representation of the `Cooldown`, including its length and
+    number of entries.
 
     This method prunes the `Cooldown` (see [Cooldown:prune]) to count only the
     entries with charges still recharging.
