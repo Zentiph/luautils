@@ -2714,4 +2714,4 @@ function Duration.tryDeserialize(data: Map<any, any>): Result<Duration, string>
     return Result.ok(Internal.newDuration(secs, nanos, 3))
 end
 
-return table.freeze(Duration)
+return Core.Class.sealed(Duration)

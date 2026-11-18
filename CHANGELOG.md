@@ -49,7 +49,12 @@
   * Time
     * `Duration.TimeParts` type
 * Changes
+  * Core
+    * `Option` and `Result` are sealed with `Class.sealed()` instead of frozen,
+      so `Class.extends()` throws on them
   * Time
+    * `Duration`, `Cooldown`, and `Stopwatch` are sealed with `Class.sealed()`
+      instead of frozen, so `Class.extends()` throws on them
     * `Duration.fromParts()` takes `Partial<TimeParts>` instead of `TimePartsI`
     * `Duration:toParts()` returns `TimeParts` instead of `TimePartsO`
     * `TimeParts` is exported through `Time` and `Luautils`
