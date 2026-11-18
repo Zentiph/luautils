@@ -3,6 +3,7 @@
 -- Result type
 -- by @vuppyan
 
+local Class = require("./Class")
 local Option = require("./Option")
 type Option<T> = Option.Option<T>
 
@@ -1137,4 +1138,4 @@ function Result.toString<T, E>(self: Result<T, E>): string
 end
 Result.__tostring = Result.toString
 
-return table.freeze(Result)
+return Class.sealed(Result)

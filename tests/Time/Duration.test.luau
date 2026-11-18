@@ -7,6 +7,7 @@ local test = require("@std/test")
 local types = require("@std/test/types")
 local Helpers = require("../Helpers")
 local Duration = require("../../src/luautils/Time/Duration")
+local Class = require("../../src/luautils/Core/Class")
 
 type Duration = Duration.Duration
 
@@ -135,6 +136,17 @@ test.suite("immutability", function(suite)
         end)
         asserts.eq(false, ok)
         assertParts(asserts, Duration.SECOND, 1, 0)
+    end)
+
+    suite:case("the Duration module is sealed", function(asserts)
+        asserts.eq(true, Class.isSealed(Duration))
+        asserts.eq(true, table.isfrozen(Duration))
+    end)
+
+    suite:case("extending Duration throws", function(asserts)
+        Helpers.throwsWith(asserts, function()
+            Class.extends(Duration)
+        end, "[Class.extends()]: Cannot extend a sealed class")
     end)
 end)
 

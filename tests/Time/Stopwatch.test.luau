@@ -7,6 +7,7 @@ local test = require("@std/test")
 local Helpers = require("../Helpers")
 local Duration = require("../../src/luautils/Time/Duration")
 local Stopwatch = require("../../src/luautils/Time/Stopwatch")
+local Class = require("../../src/luautils/Core/Class")
 
 type Duration = Duration.Duration
 type Stopwatch = Stopwatch.Stopwatch
@@ -448,6 +449,16 @@ test.suite("mutability", function(suite)
 
     suite:case("the Stopwatch module is frozen", function(asserts)
         asserts.eq(true, table.isfrozen(Stopwatch))
+    end)
+
+    suite:case("the Stopwatch module is sealed", function(asserts)
+        asserts.eq(true, Class.isSealed(Stopwatch))
+    end)
+
+    suite:case("extending Stopwatch throws", function(asserts)
+        Helpers.throwsWith(asserts, function()
+            Class.extends(Stopwatch)
+        end, "[Class.extends()]: Cannot extend a sealed class")
     end)
 
     suite:case("Stopwatches are independent", function(asserts)

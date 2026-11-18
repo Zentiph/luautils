@@ -6,6 +6,7 @@
 local test = require("@std/test")
 local Helpers = require("../Helpers")
 local Cooldown = require("../../src/luautils/Time/Cooldown")
+local Class = require("../../src/luautils/Core/Class")
 local Duration = require("../../src/luautils/Time/Duration")
 
 type Cooldown<K> = Cooldown.Cooldown<K>
@@ -791,6 +792,16 @@ test.suite("mutability", function(suite)
 
     suite:case("the Cooldown module is frozen", function(asserts)
         asserts.eq(true, table.isfrozen(Cooldown))
+    end)
+
+    suite:case("the Cooldown module is sealed", function(asserts)
+        asserts.eq(true, Class.isSealed(Cooldown))
+    end)
+
+    suite:case("extending Cooldown throws", function(asserts)
+        Helpers.throwsWith(asserts, function()
+            Class.extends(Cooldown)
+        end, "[Class.extends()]: Cannot extend a sealed class")
     end)
 
     suite:case("Cooldowns are independent", function(asserts)

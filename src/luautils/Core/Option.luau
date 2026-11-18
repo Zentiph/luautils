@@ -13,6 +13,7 @@ type Mapper<T, U> = typing.Mapper<T, U>
 type Predicate<T> = typing.Predicate<T>
 type Supplier<T> = typing.Supplier<T>
 
+local Class = require("./Class")
 local repr = require("../_internal").repr
 local fail = require("./Errors").errorWithScope("Option")
 
@@ -849,4 +850,4 @@ function Option.toString<T>(self: Option<T>): string
 end
 Option.__tostring = Option.toString
 
-return table.freeze(Option)
+return Class.sealed(Option)

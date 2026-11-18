@@ -6,6 +6,7 @@
 local test = require("@std/test")
 local Helpers = require("../Helpers")
 local Result = require("../../src/luautils/Core/Result")
+local Class = require("../../src/luautils/Core/Class")
 
 local Option = require("../../src/luautils/Core/Option")
 
@@ -45,6 +46,17 @@ test.suite("immutability", function(suite)
             (Result.ok(1) :: any)._value = 2
         end)
         asserts.eq(false, ok)
+    end)
+
+    suite:case("the Result module is sealed", function(asserts)
+        asserts.eq(true, Class.isSealed(Result))
+        asserts.eq(true, table.isfrozen(Result))
+    end)
+
+    suite:case("extending Result throws", function(asserts)
+        Helpers.throwsWith(asserts, function()
+            Class.extends(Result)
+        end, "[Class.extends()]: Cannot extend a sealed class")
     end)
 end)
 

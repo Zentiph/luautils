@@ -290,4 +290,4 @@ function Stopwatch.toString(self: Stopwatch): string
 end
 Stopwatch.__tostring = Stopwatch.toString
 
-return table.freeze(Stopwatch)
+return Core.Class.sealed(Stopwatch)

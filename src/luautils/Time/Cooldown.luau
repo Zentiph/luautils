@@ -662,4 +662,4 @@ function Cooldown.toString<K>(self: Cooldown<K>): string
 end
 Cooldown.__tostring = Cooldown.toString
 
-return table.freeze(Cooldown)
+return Core.Class.sealed(Cooldown)
