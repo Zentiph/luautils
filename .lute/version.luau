@@ -14,7 +14,7 @@ local SOURCES: { { string } } = {
     { "src/luautils/init.luau", 'Luautils%.VERSION%s*=%s*"([^"]+)"' },
     { "wally.toml", '\nversion%s*=%s*"([^"]+)"' },
     { "pesde.toml", '\nversion%s*=%s*"([^"]+)"' },
-    -- first numbered heading is the latest release; Unreleased never matches
+    -- first numbered heading is the latest release; UNRELEASED never matches
     { "CHANGELOG.md", "\n## %[v?(%d+%.%d+%.%d+[^%]]*)%]" },
 }
 

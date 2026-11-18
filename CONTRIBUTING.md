@@ -284,6 +284,8 @@ explicitly, which fixes these issues. Callers can still use colon syntax:
   properties) has an `@since` tag with the version it was added in, such as
   `@since v0.1.0`. Place it after the `@class`/`@method`/`@within`/`@type` tags
   and before `@field`/`@param`/`@return`/`@error`.
+  * New API gets `@since [UNRELEASED]`. Only the release branch puts in the real
+    version.
 * Every class doc comment is tagged `@tag immutable` (frozen instances) or
   `@tag mutable` (stateful instances that change over time), placed before
   `@class`. Modules that only hold functions or types are not classes and are
@@ -339,11 +341,11 @@ one of these prefixes: `feat/`, `fix/`, `docs/`, `ci/`, `test/`, `refactor/`,
 `chore/`, or `release/`, followed by lowercase letters, numbers, `.`, `_`, or
 `-`. The "Branch name" CI job fails pull requests from any other branch name,
 and pull requests are labeled automatically from the prefix (see
-`.github/labeler.yml`). Add a line for the change under `## [Unreleased]` in
+`.github/labeler.yml`). Add a line for the change under `## [UNRELEASED]` in
 [CHANGELOG.md](CHANGELOG.md) in the same pull request.
 
 Features are not released when they are merged. `master` collects them under
-`Unreleased` until a release branch bumps the version (see Releasing), so never
+`UNRELEASED` until a release branch bumps the version (see Releasing), so never
 bump the version in a feature branch.
 
 ## Releasing
@@ -368,8 +370,9 @@ git switch -c release/vX.Y.Z
 ```
 
 2. Bump the version in `src/luautils/init.luau` (`VERSION`), `wally.toml`, and
-   `pesde.toml`. In [CHANGELOG.md](CHANGELOG.md), rename `## [Unreleased]` to
-   `## [vX.Y.Z] - YYYY-MM-DD`, then add a new, empty `## [Unreleased]` above it.
+   `pesde.toml`. In [CHANGELOG.md](CHANGELOG.md), rename `## [UNRELEASED]` to
+   `## [vX.Y.Z] - YYYY-MM-DD`, then add a new, empty `## [UNRELEASED]` above it.
+   Replace every `@since [UNRELEASED]` in `src` with `@since vX.Y.Z`.
    Check the bump with:
 
 ```bash
