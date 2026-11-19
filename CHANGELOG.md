@@ -80,12 +80,18 @@
   * Added a `docs format` step that checks doc comments and Markdown files with
     `.lute/docs.luau --check`
 * Tooling
+  * `.lute/version.luau X.Y.Z` fails if any `@since [UNRELEASED]` or
+    `@deprecated [UNRELEASED]` tags are left in `src`
+  * `.lute/ci.luau` passes the version to `.lute/version.luau` on
+    `release/vX.Y.Z` branches, so release pull requests run that check in CI
   * Added the `types` library global to `luau-extras.yml` for selene
   * Added `.lute/docs.luau`, which formats prose in doc comments and Markdown
     files
 * Documentation
   * Documented in CONTRIBUTING that typing helpers are type functions, which
     need the new type solver
+  * Documented in CONTRIBUTING that new and newly deprecated API is tagged
+    `[UNRELEASED]` until a release branch replaces it with the version
   * Prose in doc comments and Markdown files fills lines up to 80 columns
     instead of starting each sentence on a new line, and wrapped list items line
     up with the item's text
