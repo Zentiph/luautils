@@ -83,13 +83,41 @@ local TESTS_ARGS = {
     "tests",
 }
 
+-- the branch being checked: the pull request's branch in CI, or the current
+-- branch locally
+local function currentBranch(): string?
+    local branch = process.env.GITHUB_HEAD_REF
+    if branch ~= nil and branch ~= "" then
+        return branch
+    end
+    local result = process.run({ "git", "branch", "--show-current" })
+    if not result.ok then
+        return nil
+    end
+    return (string.gsub(result.stdout, "%s+$", ""))
+end
+
+-- on a release branch (release/vX.Y.Z), also checks that every file holds
+-- X.Y.Z and that no [UNRELEASED] tags are left in src
+local function versionArgs(): { string }
+    local args = { "lute", "run", ".lute/version.luau" }
+    local branch = currentBranch()
+    local release = if branch ~= nil
+        then string.match(branch, "^release/v?(%d+%.%d+%.%d+.*)$")
+        else nil
+    if release ~= nil then
+        table.insert(args, release)
+    end
+    return args
+end
+
 -- Keep this list in sync with the CI section of CONTRIBUTING.md
 -- CI runs this script, plus a separate docs job (moonwave build) that this
 -- script does not cover
 local STEPS: { Step } = {
     {
         name = "version",
-        args = { "lute", "run", ".lute/version.luau" },
+        args = versionArgs(),
     },
     {
         name = "format",
