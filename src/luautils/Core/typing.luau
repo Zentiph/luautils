@@ -223,21 +223,20 @@ export type Iterator<S, C, V...> = (state: S, control: C?) -> (C?, V...)
 --[=[
     A type that supports value equality.
 
-    @type Equatable<Self> { equals: (self: Self, other: Self) -> boolean }
+    @interface Equatable<Self>
     @within typing
     @since v0.1.0
+    @field equals (self: Self, other: Self) -> boolean -- Whether `self` and `other` are equal
 ]=]
 export type Equatable<Self> = { equals: (self: Self, other: Self) -> boolean }
 
 --[=[
     A type that supports total ordering.
 
-    Its ordering function should return a negative `number` if `a < b`, zero if
-    `a == b`, and a positive `number` if `a > b`.
-
-    @type Comparable<Self> { compareTo: (self: Self, other: Self) -> number }
+    @interface Comparable<Self>
     @within typing
     @since v0.1.0
+    @field compareTo (self: Self, other: Self) -> number -- A negative `number` if `self < other`, zero if `self == other`, and a positive `number` if `self > other`
 ]=]
 export type Comparable<Self> =
     { compareTo: (self: Self, other: Self) -> number }
@@ -245,9 +244,10 @@ export type Comparable<Self> =
 --[=[
     A type that can be converted to a string.
 
-    @type Stringable<Self> { toString: (self: Self) -> string }
+    @interface Stringable<Self>
     @within typing
     @since v0.1.0
+    @field toString (self: Self) -> string -- Converts `self` to a string
 ]=]
 export type Stringable<Self> = { toString: (self: Self) -> string }
 
@@ -255,45 +255,50 @@ export type Stringable<Self> = { toString: (self: Self) -> string }
     A type that can produce a stable key, allowing for value-equal objects to
     share a table slot.
 
-    @type Keyable<Self> { toKey: (self: Self) -> string }
+    @interface Keyable<Self>
     @within typing
     @since v0.1.0
+    @field toKey (self: Self) -> string -- A key that is the same for every value equal to `self`
 ]=]
 export type Keyable<Self> = { toKey: (self: Self) -> string }
 
 --[=[
     A type that can make an independent copy of itself.
 
-    @type Cloneable<Self> { clone: (self: Self) -> Self }
+    @interface Cloneable<Self>
     @within typing
     @since v0.1.0
+    @field clone (self: Self) -> Self -- An independent copy of `self`
 ]=]
 export type Cloneable<Self> = { clone: (self: Self) -> Self }
 
 --[=[
     A type that can convert itself to plain, DataStore-safe data.
 
-    @type Serializable<Self,D> { serialize: (self: Self) -> D }
+    @interface Serializable<Self,D>
     @within typing
     @since v0.1.0
+    @field serialize (self: Self) -> D -- Converts `self` to plain, DataStore-safe data
 ]=]
 export type Serializable<Self, D> = { serialize: (self: Self) -> D }
 
 --[=[
     A type that can be statically converted from plain, DataStore-safe data.
 
-    @type Deserializable<Self,D> { deserialize: (data: D) -> Self }
+    @interface Deserializable<Self,D>
     @within typing
     @since v0.1.0
+    @field deserialize (data: D) -> Self -- Creates a value from plain, DataStore-safe data, called with `.` rather than `:`
 ]=]
 export type Deserializable<Self, D> = { deserialize: (data: D) -> Self }
 
 --[=[
     A type that can be iterated with a `for ... in obj:iter()` loop.
 
-    @type Iterable<Self,C,V...> { iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?) }
+    @interface Iterable<Self,C,V...>
     @within typing
     @since v0.1.0
+    @field iter (self: Self) -> (Iterator<Self, C, V...>, Self, C?) -- The iterator function, state, and initial control value for a generic `for` loop
 ]=]
 export type Iterable<Self, C, V...> = {
     iter: (self: Self) -> (Iterator<Self, C, V...>, Self, C?),
@@ -2242,18 +2247,20 @@ end
 --[=[
     A type that can be disconnected (like `RBXScriptConnection`).
 
-    @type Disconnectable { Disconnect: (self: any) -> () }
+    @interface Disconnectable
     @within typing
     @since v0.1.0
+    @field Disconnect (self: any) -> () -- Disconnects `self`
 ]=]
 export type Disconnectable = { Disconnect: (self: any) -> () }
 
 --[=[
     A type that can be destroyed (like `Instance`s).
 
-    @type Destroyable { Destroy: (self: any) -> () }
+    @interface Destroyable
     @within typing
     @since v0.1.0
+    @field Destroy (self: any) -> () -- Destroys `self`
 ]=]
 export type Destroyable = { Destroy: (self: any) -> () }
 
