@@ -70,29 +70,20 @@ type CooldownEntry = {
 --[=[
     Options for `Cooldown.new`.
 
-    @type CooldownOptions { clock: Supplier<number>?, maxCharges: number? }
+    Common choices for `clock` are:
+    * `os.clock` for local elapsed time (the default)
+    * `os.time` for Unix seconds with whole-second precision
+    * `function() return workspace:GetServerTimeNow() end` for time synchronized
+      between client and server
+
+    @interface CooldownOptions
     @within Cooldown
     @since v0.1.3
+    @field clock Supplier<number>? -- The clock function to use, which returns the current time in seconds and should not go backwards (defaults to `os.clock`)
+    @field maxCharges number? -- The maximum number of charges each entry can hold (defaults to 1)
 ]=]
 export type CooldownOptions = {
-    --[=[
-        The clock function to use (defaults to `os.clock`).
-
-        The clock function should return the current time in seconds, and should
-        not go backwards. Common choices are:
-        * `os.clock` for local elapsed time (the default)
-        * `os.time` for Unix seconds with whole-second precision
-        * `function() return workspace:GetServerTimeNow() end` for time
-          synchronized between client and server
-
-        @since v0.1.3
-    ]=]
     read clock: Supplier<number>?,
-    --[=[
-        The maximum number of charges each entry can hold (defaults to 1).
-
-        @since v0.1.3
-    ]=]
     read maxCharges: number?,
 }
 

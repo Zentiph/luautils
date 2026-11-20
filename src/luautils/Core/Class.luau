@@ -415,9 +415,10 @@ end
 --[[ types ]]
 
 --[=[
-    @type Metatable<C> { __index: C }
+    @interface Metatable<C>
     @within Class
     @since [UNRELEASED]
+    @field __index C -- The class, which instances look up their methods in
 
     The metatable of an instance of the class `C`, as seen by the type checker.
     Instances created with [Class.new] are typed
