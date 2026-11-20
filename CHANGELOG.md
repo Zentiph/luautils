@@ -99,6 +99,15 @@
     admonitions, so they read cleanly when hovering in an editor
   * `@type` tags for generic types in `typing` include their generics, such as
     `Map<K,V>`
+  * Table types with named fields are documented as interfaces, so the docs list
+    each field or method with its own description: the `typing` protocols
+    (`Equatable`, `Comparable`, `Stringable`, `Keyable`, `Cloneable`,
+    `Serializable`, `Deserializable`, `Iterable`, `Disconnectable`, and
+    `Destroyable`), `Class.Metatable`, `Async.RetryOptions`, and
+    `Cooldown.CooldownOptions`. `RetryOptions` and `CooldownOptions` no longer
+    have doc comments on each field, since those repeated the `@field`
+    descriptions
+  * Documented in CONTRIBUTING when to use `@interface` and when to use `@type`
   * `Cooldown.new()` explains why to pass the key type with
     `Cooldown.new<<K>>(...)`, including a type error in Studio without it
   * Documented the CI steps that check with Studio's Luau flags, and the doc
