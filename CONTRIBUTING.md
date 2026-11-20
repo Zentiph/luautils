@@ -279,9 +279,15 @@ explicitly, which fixes these issues. Callers can still use colon syntax:
 * Notes and warnings are blockquotes with a bold label, such as
   `> **Note: ...**`, not `:::` admonitions, which only render on the docs site
   and show as raw text when hovering in an editor.
+* Table types with named fields, such as options records and protocols like
+  `Comparable<Self>`, are documented with `@interface` and one `@field` per
+  field or method. Don't also put doc comments on the fields in the type itself.
+  Everything else (aliases like `Array<T>`, table types with indexers like
+  `Map<K,V>`, function types, and type functions) uses `@type`.
 * Link to types by name without their generics, such as `[typing.Comparable]`.
-  Multi-generic `@type` names have no spaces between their generics, such as
-  `@type Map<K,V>`, since Moonwave ends the name at the first space.
+  Multi-generic `@type` and `@interface` names have no spaces between their
+  generics, such as `@type Map<K,V>`, since Moonwave ends the name at the first
+  space.
 * Public functions have Moonwave doc comments with `@param`, `@return`, and
   `@error` tags. Methods also need `@method` and `@within` due to the dot
   notation convention.
