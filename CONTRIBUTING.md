@@ -109,7 +109,7 @@ The script runs these steps in order and reports every failure at the end:
 
 | Step                              | Command                                                 |
 | --------------------------------- | ------------------------------------------------------- |
-| version                           | `lute run .lute/version.luau`                           |
+| version                           | `lute run .lute/version.luau [X.Y.Z]`                   |
 | format                            | `stylua --check src tests`                              |
 | docs format                       | `lute run .lute/docs.luau --check`                      |
 | lint                              | `selene src`                                            |
@@ -121,6 +121,11 @@ The script runs these steps in order and reports every failure at the end:
 | typecheck (typing)                | `lute run .lute/typing.luau`                            |
 | typecheck (typing, Studio flags)  | `lute run .lute/typing.luau --no-flags-enabled`         |
 | test                              | `lute test`                                             |
+
+On a release branch (`release/vX.Y.Z`), the version step passes `X.Y.Z`, so it
+also fails if any file holds another version or any `@since [UNRELEASED]` or
+`@deprecated [UNRELEASED]` tags are left in `src`. Other branches skip those
+checks, since feature branches add these tags.
 
 `src` is type checked against ROBLOX's type definitions, because some modules
 use ROBLOX globals (such as `task.wait`). `tests` are checked without them,
@@ -284,6 +289,9 @@ explicitly, which fixes these issues. Callers can still use colon syntax:
   properties) has an `@since` tag with the version it was added in, such as
   `@since v0.1.0`. Place it after the `@class`/`@method`/`@within`/`@type` tags
   and before `@field`/`@param`/`@return`/`@error`.
+  * New API gets `@since [UNRELEASED]`, and newly deprecated API gets
+    `@deprecated [UNRELEASED]`. Only the release branch puts in the real
+    version.
 * Every class doc comment is tagged `@tag immutable` (frozen instances) or
   `@tag mutable` (stateful instances that change over time), placed before
   `@class`. Modules that only hold functions or types are not classes and are
@@ -339,11 +347,11 @@ one of these prefixes: `feat/`, `fix/`, `docs/`, `ci/`, `test/`, `refactor/`,
 `chore/`, or `release/`, followed by lowercase letters, numbers, `.`, `_`, or
 `-`. The "Branch name" CI job fails pull requests from any other branch name,
 and pull requests are labeled automatically from the prefix (see
-`.github/labeler.yml`). Add a line for the change under `## [Unreleased]` in
+`.github/labeler.yml`). Add a line for the change under `## [UNRELEASED]` in
 [CHANGELOG.md](CHANGELOG.md) in the same pull request.
 
 Features are not released when they are merged. `master` collects them under
-`Unreleased` until a release branch bumps the version (see Releasing), so never
+`UNRELEASED` until a release branch bumps the version (see Releasing), so never
 bump the version in a feature branch.
 
 ## Releasing
@@ -368,9 +376,10 @@ git switch -c release/vX.Y.Z
 ```
 
 2. Bump the version in `src/luautils/init.luau` (`VERSION`), `wally.toml`, and
-   `pesde.toml`. In [CHANGELOG.md](CHANGELOG.md), rename `## [Unreleased]` to
-   `## [vX.Y.Z] - YYYY-MM-DD`, then add a new, empty `## [Unreleased]` above it.
-   Check the bump with:
+   `pesde.toml`. In [CHANGELOG.md](CHANGELOG.md), rename `## [UNRELEASED]` to
+   `## [vX.Y.Z] - YYYY-MM-DD`, then add a new, empty `## [UNRELEASED]` above it.
+   Replace every `@since [UNRELEASED]` and `@deprecated [UNRELEASED]` in `src`
+   with `vX.Y.Z`. Check the bump with:
 
 ```bash
 lute run .lute/version.luau X.Y.Z
