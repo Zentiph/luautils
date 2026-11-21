@@ -88,6 +88,10 @@
   * Added `.lute/docs.luau`, which formats prose in doc comments and Markdown
     files
 * Documentation
+  * Libraries with a single docs page (`Luautils`, `Async`, `Collections`,
+    `Events`, `Math`, `Roblox`, `Strings`, `Tables`, and `Validation`) are
+    linked directly in the API sidebar instead of inside a section holding a
+    page of the same name
   * Documented in CONTRIBUTING that typing helpers are type functions, which
     need the new type solver
   * Documented in CONTRIBUTING that new and newly deprecated API is tagged
